@@ -1,6 +1,8 @@
 package com.atomvpn.mobile
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
@@ -32,6 +34,7 @@ import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.core.ConnectionStateStore
 import com.uacspoofer.mobile.engine.pow.*
 import com.uacspoofer.mobile.settings.AdvancedSettingsStore
+import com.uacspoofer.mobile.vpn.NetworkFingerprintResolver
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -42,6 +45,8 @@ private val Green = Color(0xFF25F58A)
 private val Muted = Color(0xFF8D99A6)
 
 class MainActivity : ComponentActivity() {
+    private val phoneStatePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK || VpnService.prepare(this) == null) {
             startService(Intent(this, PowVpnService::class.java).setAction(PowVpnService.ACTION_CONNECT))
@@ -52,6 +57,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(6, 17, 29)
         window.navigationBarColor = android.graphics.Color.rgb(6, 17, 29)
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            phoneStatePermission.launch(Manifest.permission.READ_PHONE_STATE)
+        }
         setContent { AtomPowApp(
             onConnect = {
                 val intent = VpnService.prepare(this)
@@ -78,6 +86,16 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val connected = connection == ConnectionState.CONNECTED
     val connecting = connection == ConnectionState.CONNECTING || status.phase in setOf(PowPhase.STARTING, PowPhase.OUTER, PowPhase.INNER, PowPhase.BRIDGING)
     val accent = if (connected) Green else Blue
+    val detectedCarrier = remember(context, status, settings) {
+        runCatching { NetworkFingerprintResolver(context).capture().carrierClass }.getOrDefault("unknown")
+    }
+    val carrierLabel = when (detectedCarrier) {
+        "mci" -> "همراه اول"
+        "irancell" -> "ایرانسل"
+        "rightel" -> "رایتل"
+        "other" -> "اپراتور دیگر"
+        else -> "نامشخص (مجوز تلفن را بررسی کنید)"
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(
         primary = Blue, background = Bg, surface = Panel, onBackground = Color.White, onSurface = Color.White
@@ -193,6 +211,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                 Text("وضعیت مسیر زنده", fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.height(10.dp))
                                 PathLine("دستگاه", "ترافیک برنامه‌ها")
+                                PathLine("اپراتور سیم‌کارت", carrierLabel)
                                 PathLine("WARP / Aether", status.outerLabel.ifBlank { "در انتظار اتصال" })
                                 PathLine("Psiphon", status.exitRegion.ifBlank { "مسیر خروجی" })
                                 PathLine("اینترنت", if (connected) "فعال" else "غیرفعال")
