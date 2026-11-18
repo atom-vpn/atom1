@@ -52,9 +52,9 @@ jobs:
 
       - name: Set up Android SDK command-line tools
         uses: android-actions/setup-android@v3
-
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        with:
+          packages: platform-tools
+          accept-android-sdk-licenses: true
 
       - name: Install Android build packages
         run: |
