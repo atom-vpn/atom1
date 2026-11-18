@@ -27,3 +27,20 @@ The source tree also contains Tor, WebTunnel and Xray libraries. They are intent
 ## Transfer limitation
 
 These are binary or >1 MB artifacts. The available GitHub file-write action accepts UTF-8 text files, so these files have not been fabricated, truncated, or replaced with placeholders. Transfer them with Git clone/Git LFS or a binary-capable upload path, then verify the resulting content against the listed source blob IDs.
+
+
+## Dependency and rebuild findings (2026-11-18)
+
+- The source repository has no published GitHub Releases, and the two AARs are stored only as local files under `app/libs/`. The source Gradle file declares them through local-file tasks, not Maven coordinates:
+  - `psiphontunnel-2.0.39.aar` is passed through `scripts/isolate_psiphon_aar.py`, which removes the embedded `go/` package from `classes.jar` and renames `libgojni.so` to `libgopsi.so`.
+  - `libv2ray-native-tun.aar` is passed through `scripts/patch_v2ray_seq.py`, which rewrites `go/Seq.class` to call the PoW `GoJniLoader.load()` implementation instead of `System.loadLibrary("gojni")`.
+- No verified Maven replacement coordinates were found in the source Gradle dependency declarations. Replacing either AAR with a similarly named public artifact would not preserve these required binary transformations.
+- Aether is not an external prebuilt Maven dependency. The source declares a Rust `aether` crate (version 1.6.0) with a local patched `quiche` dependency and builds `libaether.so` for Android using `core/build-android.ps1`. Rebuilding it requires the matching Rust source tree, patched quiche source, Rust Android targets, Android NDK and native build toolchain. The checked-in script is Windows/PowerShell-specific; a Linux CI build script has not yet been validated.
+- The source repository currently has no `.github/workflows/` directory and no GitHub Release assets to use as a binary transfer source.
+- The current GitHub connector exposes text-file writes and Git object writes, but no binary upload/release-asset action. Its large-file reads returned empty content in prior attempts. Therefore the remaining binary files are still blocked on a binary-capable transfer route (for example, a local Git clone/push or a properly configured Git LFS workflow). No placeholder blobs have been committed.
+
+### Required next actions
+
+1. Transfer the exact source AARs and `server_entries.txt` through a binary-capable path, then verify byte size and Git blob SHA.
+2. Rebuild Aether from the exact source revision and patched quiche tree for each required ABI, or transfer the existing binaries and verify them against the source blob IDs.
+3. Only after those artifacts are present should the standalone Android library build be wired and compiled.
