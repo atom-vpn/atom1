@@ -1,14 +1,11 @@
 package com.atomvpn.mobile
 
-import android.Manifest
 import android.app.Activity
-import android.content.pm.PackageManager
 import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,7 +31,6 @@ import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.core.ConnectionStateStore
 import com.uacspoofer.mobile.engine.pow.*
 import com.uacspoofer.mobile.settings.AdvancedSettingsStore
-import com.uacspoofer.mobile.vpn.NetworkFingerprintResolver
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -45,8 +41,6 @@ private val Green = Color(0xFF25F58A)
 private val Muted = Color(0xFF8D99A6)
 
 class MainActivity : ComponentActivity() {
-    private val phoneStatePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
-
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK || VpnService.prepare(this) == null) {
             startService(Intent(this, PowVpnService::class.java).setAction(PowVpnService.ACTION_CONNECT))
@@ -57,9 +51,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = android.graphics.Color.rgb(6, 17, 29)
         window.navigationBarColor = android.graphics.Color.rgb(6, 17, 29)
-        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            phoneStatePermission.launch(Manifest.permission.READ_PHONE_STATE)
-        }
         setContent { AtomPowApp(
             onConnect = {
                 val intent = VpnService.prepare(this)
@@ -86,15 +77,12 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val connected = connection == ConnectionState.CONNECTED
     val connecting = connection == ConnectionState.CONNECTING || status.phase in setOf(PowPhase.STARTING, PowPhase.OUTER, PowPhase.INNER, PowPhase.BRIDGING)
     val accent = if (connected) Green else Blue
-    val detectedCarrier = remember(context, status, settings) {
-        runCatching { NetworkFingerprintResolver(context).capture().carrierClass }.getOrDefault("unknown")
-    }
-    val carrierLabel = when (detectedCarrier) {
-        "mci" -> "همراه اول"
-        "irancell" -> "ایرانسل"
-        "rightel" -> "رایتل"
-        "other" -> "اپراتور دیگر"
-        else -> "نامشخص (مجوز تلفن را بررسی کنید)"
+    val carrierLabel = when {
+        settings.carrierMode == PowCoreConfig.CARRIER_OFF -> "تشخیص خاموش · مسیر عمومی"
+        settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
+            settings.firewallProfile == PowCoreConfig.FIREWALL_MCI -> "همراه اول · انتخاب دستی"
+        settings.carrierMode == PowCoreConfig.CARRIER_MANUAL -> "ایرانسل · انتخاب دستی"
+        else -> "خودکار · بدون دسترسی سیم‌کارت"
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
@@ -247,18 +235,25 @@ private fun PowSettingsPage(
                 SettingCard("مسیر خروجی", "کشور انتخاب‌شده: ${settings.exitCountryCode.ifBlank { "خودکار" }}", "انتخاب کشور", onOpenCountries)
             }
             item {
-                val carrierModeLabel = when (settings.carrierMode) {
-                    PowCoreConfig.CARRIER_MANUAL -> "دستی"
-                    PowCoreConfig.CARRIER_OFF -> "خاموش · مسیر عمومی"
-                    else -> "خودکار · تشخیص اپراتور"
+                val carrierModeLabel = when {
+                    settings.carrierMode == PowCoreConfig.CARRIER_OFF -> "خاموش · مسیر عمومی"
+                    settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
+                        settings.firewallProfile == PowCoreConfig.FIREWALL_MCI -> "همراه اول · دستی"
+                    settings.carrierMode == PowCoreConfig.CARRIER_MANUAL -> "ایرانسل · دستی"
+                    else -> "خودکار · بدون مجوز تلفن"
                 }
-                SettingCard("تشخیص اپراتور", carrierModeLabel, "تغییر حالت", {
-                    val next = when (settings.carrierMode) {
-                        PowCoreConfig.CARRIER_AUTO -> PowCoreConfig.CARRIER_MANUAL
-                        PowCoreConfig.CARRIER_MANUAL -> PowCoreConfig.CARRIER_OFF
-                        else -> PowCoreConfig.CARRIER_AUTO
+                SettingCard("اپراتور شبکه", carrierModeLabel, "تغییر", {
+                    val next = when {
+                        settings.carrierMode == PowCoreConfig.CARRIER_AUTO ->
+                            settings.copy(carrierMode = PowCoreConfig.CARRIER_MANUAL, firewallProfile = PowCoreConfig.FIREWALL_MCI)
+                        settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
+                            settings.firewallProfile == PowCoreConfig.FIREWALL_MCI ->
+                            settings.copy(carrierMode = PowCoreConfig.CARRIER_MANUAL, firewallProfile = PowCoreConfig.FIREWALL_IRANCELL)
+                        settings.carrierMode == PowCoreConfig.CARRIER_MANUAL ->
+                            settings.copy(carrierMode = PowCoreConfig.CARRIER_OFF)
+                        else -> settings.copy(carrierMode = PowCoreConfig.CARRIER_AUTO)
                     }
-                    onSave(settings.copy(carrierMode = next).validated())
+                    onSave(next.validated())
                 })
             }
             item {
