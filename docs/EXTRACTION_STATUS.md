@@ -26,7 +26,7 @@ The following are still external runtime inputs or host integration dependencies
 
 1. HEV `libhev-socks5-tunnel.so` for arm64-v8a, armeabi-v7a, x86 and x86_64 has been transferred to `vendor/jniLibs/` with source-matching blob IDs.
 2. Vendor artifacts still missing: Psiphon AAR (44,395,730 bytes), V2Ray native TUN AAR (58,464,519 bytes), Aether `libaether.so` for three ABIs, and Psiphon `server_entries.txt` (1,150,802 bytes). Their exact source Git blob IDs and sizes are recorded in `../vendor/ARTIFACTS.md`. The available connector returned empty content for these larger binary/text assets, so no zero-byte placeholders were committed.
-3. Host APIs: Android VPN service/socket protection, app logging, network fingerprinting, domestic-direct routing, connection state, pause state, network guard, advanced settings and TUN statistics. See `../integration/HOST_CONTRACTS.md`.
+3. Remaining host integration: a real Android `VpnService`, TUN establishment callback, foreground-service lifecycle, VPN permission/notification handling, package routing and kill-switch enforcement. Source-backed support classes are now copied into `engine/`; see `../integration/HOST_CONTRACTS.md`.
 
 ## No application shell
 
@@ -34,7 +34,7 @@ No Activity, app Manifest, app theme, app navigation, Tor/Xray/Direct engine, or
 
 ## Build status
 
-Not built. The missing binary artifacts and host adapters prevent a truthful claim of an independent compilable module at this stage. The next extraction pass must bring in the vendor artifacts and replace the listed host dependencies with a small explicit adapter API.
+Not built. The missing vendor artifacts and real Android VPN/TUN host boundary prevent a truthful claim of an independent compilable module at this stage.
 
 ## Support dependency extraction (2026-11-18)
 
@@ -44,7 +44,7 @@ Important findings:
 - `AdvancedSettingsData` and `CONNECTION_MODE_PROXY` are declared in `settings/AdvancedSettingsStore.kt`, not in a separate `AdvancedSettingsData.kt`.
 - `LogSource` is declared in `logging/AppLogRepository.kt`, not in a separate `LogSource.kt`.
 - The checked-in source tree does not contain the imported `vpn/NetworkFingerprintResolver` implementation. A new narrowly scoped Android resolver was added at `engine/src/main/kotlin/com/uacspoofer/mobile/vpn/NetworkFingerprintResolver.kt`; it exposes only the three fields consumed by `PowCarrier`. It is not a source-identical copy and has not been device-tested.
-- The real host boundary is `PowConnectionCoordinator(VpnService)` plus a TUN establishment callback returning `ParcelFileDescriptor?`. This must be supplied by Atom's VPN service; it cannot be replaced with a stub.
+- The real host boundary is `PowConnectionCoordinator(VpnService)` plus a TUN establishment callback returning `ParcelFileDescriptor?`. This must be supplied by Atom's VPN service; it cannot be replaced with a stub. Carrier classification may require the host to declare and obtain runtime `READ_PHONE_STATE` permission; without access the resolver deliberately returns unknown identity fields.
 - `DomesticDirect` depends on GeoAssets and DirectDomainWhitelist, so its routing behavior cannot be represented by a boolean-only placeholder.
 - The adapter API specification remains at `integration/ADAPTER_API_SPEC.md`; the host boundary still requires a real `VpnService` and TUN callback.
 
