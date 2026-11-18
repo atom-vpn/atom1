@@ -26,10 +26,13 @@ android {
         buildConfig = false
     }
 
+    val flattenedPowAars = layout.buildDirectory.dir("generated/pow-aar-flat")
     sourceSets {
         getByName("main") {
-            assets.srcDirs(rootProject.file("vendor/assets"))
-            jniLibs.srcDirs(rootProject.file("vendor/jniLibs"))
+            manifest.srcFile(flattenedPowAars.map { it.file("AndroidManifest.xml") })
+            assets.srcDirs(rootProject.file("vendor/assets"), flattenedPowAars.map { it.dir("assets") })
+            res.srcDir(flattenedPowAars.map { it.dir("res") })
+            jniLibs.srcDirs(rootProject.file("vendor/jniLibs"), flattenedPowAars.map { it.dir("jniLibs") })
         }
     }
 
@@ -48,6 +51,7 @@ android {
 }
 
 val generatedPowAars = layout.buildDirectory.dir("generated/pow-aars")
+val flattenedPowAars = layout.buildDirectory.dir("generated/pow-aar-flat")
 val psiphonInput = rootProject.file("vendor/aars/psiphontunnel-2.0.39.aar")
 val v2rayInput = rootProject.file("vendor/aars/libv2ray-native-tun.aar")
 
@@ -73,13 +77,28 @@ val patchV2raySeqAar = tasks.register<Exec>("patchV2raySeqAar") {
     environment("POW_V2RAY_DST", output.get().asFile.absolutePath)
 }
 
+val flattenPowAars = tasks.register<Exec>("flattenPowAars") {
+    val script = rootProject.file("tools/flatten_pow_aars.py")
+    inputs.file(isolatePsiphonAar)
+    inputs.file(patchV2raySeqAar)
+    inputs.file(script)
+    inputs.file("src/main/AndroidManifest.xml")
+    outputs.dir(flattenedPowAars)
+    dependsOn(isolatePsiphonAar, patchV2raySeqAar)
+    commandLine("python", script.absolutePath)
+    environment("POW_PSIPHON_AAR", generatedPowAars.get().file("psiphontunnel-isolated.aar").asFile.absolutePath)
+    environment("POW_V2RAY_AAR", generatedPowAars.get().file("libv2ray-seqpatched.aar").asFile.absolutePath)
+    environment("POW_FLAT_OUT", flattenedPowAars.get().asFile.absolutePath)
+}
+
 dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
-    implementation(files(isolatePsiphonAar.map { it.outputs.files }))
-    implementation(files(patchV2raySeqAar.map { it.outputs.files }))
+    implementation(files(flattenedPowAars.map { it.file("libs/psiphon-classes.jar") }))
+    implementation(files(flattenedPowAars.map { it.file("libs/v2ray-classes.jar") }))
+    implementation(fileTree(flattenedPowAars.map { it.dir("libs") }) { include("*.jar") })
 }
 
 tasks.named("preBuild").configure {
-    dependsOn(isolatePsiphonAar, patchV2raySeqAar)
+    dependsOn(flattenPowAars)
 }
