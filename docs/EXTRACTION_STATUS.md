@@ -35,3 +35,17 @@ No Activity, app Manifest, app theme, app navigation, Tor/Xray/Direct engine, or
 ## Build status
 
 Not built. The missing binary artifacts and host adapters prevent a truthful claim of an independent compilable module at this stage. The next extraction pass must bring in the vendor artifacts and replace the listed host dependencies with a small explicit adapter API.
+
+## Source-verified adapter audit (2026-11-18)
+
+The call sites and original implementations were inspected for the host APIs. A detailed signature/behavior contract is now recorded in `integration/ADAPTER_API_SPEC.md`.
+
+Important findings:
+- `AdvancedSettingsData` and `CONNECTION_MODE_PROXY` are declared in `settings/AdvancedSettingsStore.kt`, not in a separate `AdvancedSettingsData.kt`.
+- `LogSource` is declared in `logging/AppLogRepository.kt`, not in a separate `LogSource.kt`.
+- The checked-in source tree does not contain the imported `vpn/NetworkFingerprintResolver` implementation, despite `PowCarrier.kt` requiring its `transport`, `dataSubscriptionId`, and `carrierClass` values. Carrier/SIM adapter implementation is blocked until the real implementation is recovered.
+- The real host boundary is `PowConnectionCoordinator(VpnService)` plus a TUN establishment callback returning `ParcelFileDescriptor?`. This must be supplied by Atom's VPN service; it cannot be replaced with a stub.
+- `DomesticDirect` depends on GeoAssets and DirectDomainWhitelist, so its routing behavior cannot be represented by a boolean-only placeholder.
+- The source-verified adapter API specification has been added at `integration/ADAPTER_API_SPEC.md`.
+
+No fake adapters, reduced settings DTOs, or compile-claiming build files were added. The engine sources remain unchanged and the branch remains an extraction branch, not an application.
