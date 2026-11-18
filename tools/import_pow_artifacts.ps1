@@ -76,5 +76,5 @@ if ($CommitAndPush) {
     Write-Host "Committed and pushed verified runtime binaries to origin/pow-standalone." -ForegroundColor Green
 }
 else {
-    Write-Host "All artifacts copied and verified locally. Review the staged files, then rerun with -CommitAndPush to commit and push." -ForegroundColor Yellow
+    Write-Host "All artifacts copied and verified locally. Review the copied files, then rerun with -CommitAndPush to commit and push." -ForegroundColor Yellow
 }
