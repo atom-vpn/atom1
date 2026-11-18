@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <application>
+        <service
+            android:name="com.uacspoofer.mobile.engine.pow.PowPsiphonService"
+            android:exported="false"
+            android:process=":uacpow"
+            android:stopWithTask="false" />
+
+        <service
+            android:name="com.uacspoofer.mobile.engine.pow.PowPsiphonSidecarService"
+            android:exported="false"
+            android:process=":uacpow2"
+            android:stopWithTask="false" />
+    </application>
+</manifest>

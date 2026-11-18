@@ -25,11 +25,11 @@ Source: https://github.com/atom-vpn/POW-Source (main)
 
 ## Required AAR transformations
 
-The transferred AARs are original inputs. The source build pipeline transforms them before runtime packaging:
+The transferred AARs are original inputs. The standalone Android library module wires these transformations as pre-build tasks:
 - `psiphontunnel-2.0.39.aar` is processed by `tools/isolate_psiphon_aar.py`: remove embedded `go/` classes from `classes.jar` and rename `libgojni.so` to `libgopsi.so`.
 - `libv2ray-native-tun.aar` is processed by `tools/patch_v2ray_seq.py`: rewrite `go/Seq.class` to call `GoJniLoader.load()` instead of `System.loadLibrary("gojni")`.
 
-No verified Maven replacement coordinates were found. Do not replace these AARs with similarly named public artifacts.
+The tasks are configured but have not yet been executed. No verified Maven replacement coordinates were found. Do not replace these AARs with similarly named public artifacts.
 
 ## Aether rebuild findings
 
@@ -37,7 +37,9 @@ The source declares a Rust Aether crate (version 1.6.0) with a local patched qui
 
 ## Build/packaging status
 
-The repository does not yet contain a root Gradle project or `engine/build.gradle.kts`. The AAR patch tasks, Android library packaging, assets source set, JNI library source set and CMake build still need to be wired into a standalone Gradle library module. No Android compile or device test has been run.
+The standalone Gradle project includes only the `:engine` Android library module. It uses AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9, compileSdk 35, minSdk 24, Java 17, NDK 26.3.11579264 and CMake 3.22.1. The module wires vendor assets, JNI libraries, the Aether CMake bridge, AAR patch tasks and consumer keep rules.
+
+The Gradle wrapper properties file is present, but the wrapper scripts and JAR are not yet included. No Gradle task or Android compile has been run.
 
 ## Local binary import helper
 

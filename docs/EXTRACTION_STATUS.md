@@ -24,50 +24,53 @@ The missing imported `vpn/NetworkFingerprintResolver` implementation was not pre
 
 ## Vendor artifact transfer
 
-All six outstanding artifacts have now been transferred into the destination vendor tree and their byte sizes and Git blob SHA-1 values were verified against the source repository:
-- Psiphon tunnel AAR
-- V2Ray native TUN AAR
-- Aether `libaether.so` for arm64-v8a, armeabi-v7a and x86_64
-- Psiphon `server_entries.txt`
+All six outstanding artifacts have been transferred into the destination vendor tree and their byte sizes and Git blob SHA-1 values were verified against the source repository. The four HEV ABI variants were also transferred and source-verified. Exact source blob IDs and sizes are recorded in `../vendor/ARTIFACTS.md`.
 
-The four HEV `libhev-socks5-tunnel.so` ABI variants were also transferred and source-verified. Exact source blob IDs and sizes are recorded in `../vendor/ARTIFACTS.md`.
+The AARs under `vendor/aars/` are original inputs. The Android library pre-build tasks are configured to run:
+- Psiphon isolation: remove embedded `go/` classes and rename `libgojni.so` to `libgopsi.so`.
+- V2Ray Seq patch: rewrite `go/Seq.class` to use `GoJniLoader.load()`.
 
-The AARs currently stored under `vendor/aars/` are the original inputs. Before runtime packaging, run the included patch scripts:
-- Psiphon: remove embedded `go/` classes and rename `libgojni.so` to `libgopsi.so`.
-- V2Ray: patch `go/Seq.class` to use `GoJniLoader.load()`.
+These tasks have not yet been executed. No Maven replacement coordinates were verified; do not substitute similarly named public artifacts.
 
-No Maven replacement coordinates were verified for these AARs. Do not substitute similarly named public artifacts.
+## Standalone Android library module
+
+A Gradle project skeleton has been added:
+- Root project includes only `:engine`.
+- `engine/build.gradle.kts` applies `com.android.library` and `org.jetbrains.kotlin.android`.
+- Toolchain: AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9, compileSdk 35, minSdk 24, Java 17, NDK 26.3.11579264, CMake 3.22.1.
+- Runtime dependencies: coroutines-android 1.9.0, Bouncy Castle bcpkix 1.78.1, and the two locally patched AARs.
+- Vendor assets and JNI libraries are wired as Android source sets.
+- The library manifest declares the two non-exported Psiphon services in processes `:uacpow` and `:uacpow2`, plus network and optional telephony permissions.
+- Consumer keep rules protect JNI entry points and service classes.
+
+The Gradle wrapper properties file is present, but `gradlew`, `gradlew.bat` and `gradle-wrapper.jar` have not yet been copied into this repository. No Gradle task or Android compile has been run, so the module configuration remains unvalidated.
 
 ## Remaining integration work
 
-1. Add a proper Android library Gradle module and its dependency declarations. The repository currently has no root Gradle project or `engine/build.gradle.kts`.
-2. Wire the two AAR patch tasks and package their generated outputs.
-3. Package `vendor/assets/server_entries.txt` as the app asset `server_entries.txt`.
-4. Package `vendor/jniLibs/` for the supported ABIs and build the Aether JNI bridge through the corrected `native/CMakeLists.txt`.
-5. The consuming app must register both Psiphon services in its Manifest:
-   - `PowPsiphonService`, process `:uacpow`
-   - `PowPsiphonSidecarService`, process `:uacpow2`
-6. The consuming app must supply a real `VpnService`, TUN establishment callback, permission flow, foreground-service lifecycle/notification, package routing, kill-switch enforcement and descriptor ownership/closure.
-7. Validate the new network-fingerprint resolver on real Wi-Fi, cellular, dual-SIM and permission-restricted states.
+1. Run the two AAR patch tasks and verify the resulting archives.
+2. Compile the Android library module and resolve any Kotlin, Gradle, CMake or JNI packaging errors.
+3. The consuming app must supply a real `VpnService`, TUN establishment callback, permission flow, foreground-service lifecycle/notification, package routing, kill-switch enforcement and descriptor ownership/closure.
+4. Validate the new network-fingerprint resolver on real Wi-Fi, cellular, dual-SIM and permission-restricted states.
+5. Verify runtime startup of both Psiphon processes, Aether, HEV SOCKS tunnel and all three supported Aether ABIs.
 
 ## Aether rebuild status
 
-The prebuilt Aether libraries for the three source-supported ABIs are present. The source Rust crate and patched quiche tree are not yet copied into this repository, so rebuilding Aether from this destination is not currently possible. The source build script is Windows/PowerShell-specific and writes into the source repository's original paths; it will need adaptation if source rebuild support is later required.
+The prebuilt Aether libraries for the three source-supported ABIs are present. The source Rust crate and patched quiche tree are not yet copied into this repository, so rebuilding Aether from this destination is not currently possible. The source build script is Windows/PowerShell-specific and writes into the source repository's original paths; it will need adaptation if a source rebuild is later required.
 
 ## No application shell
 
-No Activity, app Manifest, app theme, app navigation, Tor/Xray/Direct engine, or APK configuration was added. This branch remains an engine extraction layer.
+No Activity, app theme, app navigation, Tor/Xray/Direct engine, or APK target was added. This branch contains only the standalone Android library module and its extraction artifacts.
 
 ## Build status
 
-Not built. No Gradle module configuration has been added, no Android compile has been run, and no device validation has been performed. Do not treat the extracted source as a certified standalone build yet.
+Not built. No Gradle task, Android compile or device validation has been performed. Do not treat the module as a certified standalone build yet.
 
-## Support dependency extraction (2026-11-18)
+## Support dependency findings
 
-Important source findings:
 - `AdvancedSettingsData` and `CONNECTION_MODE_PROXY` are declared in `settings/AdvancedSettingsStore.kt`.
 - `LogSource` is declared in `logging/AppLogRepository.kt`.
 - `DomesticDirect` depends on GeoAssets and DirectDomainWhitelist; it cannot be replaced by a boolean-only placeholder.
+- `GeoAssets` first looks for `geoip.dat` and `geosite.dat` in app assets, then manages copies under app files and can download them from its configured upstream.
 - The real host boundary is `PowConnectionCoordinator(VpnService)` plus a TUN establishment callback returning `ParcelFileDescriptor?`.
 - Carrier classification may require `READ_PHONE_STATE`; without access, the resolver reports unknown identity fields.
 
