@@ -17,6 +17,11 @@ Source: https://github.com/atom-vpn/POW-Source (main)
 | HEV x86_64 | `app/src/main/jniLibs/x86_64/libhev-socks5-tunnel.so` | 343,984 | `bae426b9bde8886711852efad984745197a93761` |
 | Psiphon server entries | `app/src/main/assets/server_entries.txt` | 1,150,802 | `bb99c2504a1e5324b79cf43c9665434c4658972f` |
 
+## Transfer status
+
+- HEV SOCKS tunnel libraries for arm64-v8a, armeabi-v7a, x86 and x86_64 are now present under `vendor/jniLibs/` and their Git blob IDs match the source repository exactly.
+- Aether `.so` files, both AARs, and `server_entries.txt` remain untransferred. The connector returned empty content for these large artifacts; no zero-byte placeholders were added to the vendor tree.
+
 The source tree also contains Tor, WebTunnel and Xray libraries. They are intentionally excluded from this PoW extraction.
 
 ## Transfer limitation
