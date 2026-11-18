@@ -113,6 +113,7 @@ class PowEngineStore private constructor(context: Context) {
             .putString(KEY_SCAN_MODE, validated.scanMode)
             .putBoolean(KEY_OPTIMIZED_MODE, validated.optimizedMode)
             .putString(KEY_FIREWALL, validated.firewallProfile)
+            .putString(KEY_CARRIER_MODE, validated.carrierMode)
             .putString(KEY_LINK_RECIPE, validated.linkRecipe)
             .putBoolean(KEY_CHAIN_PSIPHON, validated.chainPsiphon)
             .putString(KEY_EXIT_MODE, validated.exitMode)
@@ -230,6 +231,7 @@ class PowEngineStore private constructor(context: Context) {
         scanMode = prefs.getString(KEY_SCAN_MODE, PowCoreConfig.SCAN_BALANCED).orEmpty(),
         optimizedMode = prefs.getBoolean(KEY_OPTIMIZED_MODE, true),
         firewallProfile = prefs.getString(KEY_FIREWALL, PowCoreConfig.FIREWALL_AUTO).orEmpty(),
+        carrierMode = prefs.getString(KEY_CARRIER_MODE, PowCoreConfig.CARRIER_AUTO).orEmpty(),
         linkRecipe = prefs.getString(KEY_LINK_RECIPE, PowCoreConfig.RECIPE_MASQUE_H2).orEmpty(),
         chainPsiphon = prefs.getBoolean(KEY_CHAIN_PSIPHON, true),
         // Migration: no exit_mode yet -> derive from the old chain/WARP boolean.
@@ -278,6 +280,7 @@ class PowEngineStore private constructor(context: Context) {
         private const val KEY_SCAN_MODE = "scan_mode"
         private const val KEY_OPTIMIZED_MODE = "optimized_mode"
         private const val KEY_FIREWALL = "firewall_profile"
+        private const val KEY_CARRIER_MODE = "carrier_mode"
         private const val KEY_LINK_RECIPE = "link_recipe"
         private const val KEY_CHAIN_PSIPHON = "chain_psiphon"
         private const val KEY_EXIT_MODE = "exit_mode"
