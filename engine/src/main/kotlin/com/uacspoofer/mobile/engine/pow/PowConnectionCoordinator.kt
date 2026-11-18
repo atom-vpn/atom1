@@ -829,7 +829,7 @@ class PowConnectionCoordinator(
         chainPort: Int = PowCoreConfig.CHAIN_SOCKS_PORT,
     ): String? {
         val mci = PowCoreConfig.usesMciFirewall(appContext, currentSettings)
-        val plan = PowCoreConfig.outerPlan(currentSettings, mci)
+        val plan = PowCoreConfig.outerPlan(currentSettings, mci, PowCarrier.carrierClass(appContext))
         val ladder = plan.protocols
         val auto = ladder.size > 1 && !plan.fixedOrder
         val remembered = store.rememberedOuterProtocol()
