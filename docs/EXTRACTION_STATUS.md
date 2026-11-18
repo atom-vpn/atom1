@@ -24,8 +24,8 @@ The PoW coordinator, Psiphon services/IPC, Aether bridge, key bootstrap, route s
 
 The following are still external runtime inputs or host integration dependencies:
 
-1. Vendor binaries: Psiphon AAR (44,395,730 bytes), V2Ray native TUN AAR (58,464,519 bytes), Aether `libaether.so` and HEV `libhev-socks5-tunnel.so` for each ABI. Their exact source Git blob IDs and sizes are recorded in `../vendor/ARTIFACTS.md`. The GitHub text-file transfer endpoint used for this extraction cannot safely transfer these binary blobs.
-2. Psiphon server entries: `app/src/main/assets/server_entries.txt` (1,150,802 bytes). It is not copied yet; see the vendor manifest.
+1. HEV `libhev-socks5-tunnel.so` for arm64-v8a, armeabi-v7a, x86 and x86_64 has been transferred to `vendor/jniLibs/` with source-matching blob IDs.
+2. Vendor artifacts still missing: Psiphon AAR (44,395,730 bytes), V2Ray native TUN AAR (58,464,519 bytes), Aether `libaether.so` for three ABIs, and Psiphon `server_entries.txt` (1,150,802 bytes). Their exact source Git blob IDs and sizes are recorded in `../vendor/ARTIFACTS.md`. The available connector returned empty content for these larger binary/text assets, so no zero-byte placeholders were committed.
 3. Host APIs: Android VPN service/socket protection, app logging, network fingerprinting, domestic-direct routing, connection state, pause state, network guard, advanced settings and TUN statistics. See `../integration/HOST_CONTRACTS.md`.
 
 ## No application shell
