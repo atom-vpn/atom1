@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(uac_pow_native)
 
-set(AETHER_SO "${CMAKE_CURRENT_LIST_DIR}/../jniLibs/${ANDROID_ABI}/libaether.so")
+# The extracted repository stores imported native dependencies under vendor/.
+set(AETHER_SO "${CMAKE_CURRENT_LIST_DIR}/../vendor/jniLibs/${ANDROID_ABI}/libaether.so")
 
 if(EXISTS "${AETHER_SO}")
     add_library(aether SHARED IMPORTED)

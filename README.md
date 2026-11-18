@@ -1,23 +1,39 @@
 # UAC PoW Engine extraction
 
-This repository contains an isolated extraction of the UAC PoW engine from `atom-vpn/POW-Source`.
+This repository contains the isolated source and runtime artifacts for the UAC PoW engine extracted from `atom-vpn/POW-Source`.
 
 ## Scope
 
-This is an engine-source extraction, **not an Android application**. No launcher Activity, app theme, product UI, app-level manifest, or Atom application shell is created here.
+This is an engine extraction, **not an Android application**. No launcher Activity, product UI, app-level manifest, or Atom application shell is included.
 
-The extraction keeps the PoW implementation separate from Tor and Xray. Source-backed support code used by PoW has been copied into the engine tree; the missing narrow network-fingerprint resolver has a dedicated Android implementation. The real VPN/TUN service boundary remains a host responsibility and is documented rather than faked.
+The extraction keeps PoW separate from Tor and Xray. The original PoW implementation and source-backed support classes are retained under `engine/src/`. A narrow Android network-fingerprint resolver was added because the source tree imported that API but did not contain its implementation.
 
 ## Layout
 
-- `engine/src/main/kotlin/com/uacspoofer/mobile/engine/pow/`: original PoW engine sources.
-- `native/`: PoW JNI and native build integration.
-- `vendor/`: third-party runtime artifacts required by the engine, where repository transfer permits.
-- `integration/`: explicit host contracts and adapter API specification for the consuming VPN application.
-- `docs/`: dependency and extraction notes.
+- `engine/src/main/kotlin/`: PoW engine and source-backed support Kotlin code.
+- `engine/src/main/java/`: HEV SOCKS JNI binding.
+- `native/`: Aether JNI bridge and CMake integration.
+- `vendor/aars/`: original Psiphon and V2Ray AAR inputs.
+- `vendor/jniLibs/`: Aether and HEV native libraries.
+- `vendor/assets/`: Psiphon server entries asset.
+- `integration/`: host contracts and adapter API specification.
+- `docs/`: extraction and dependency status.
+- `tools/`: local artifact import and AAR patching helpers.
 
-## Important
+## Current state
 
-The original engine is not a pure Kotlin library. It depends on Android `VpnService`, a TUN descriptor supplied by the host, SOCKS/TUN relay code, Psiphon, Aether native libraries, Android network protection, and host services/stores. Atom must supply a real `VpnService`, TUN establishment callback, VPN permission flow and foreground-service lifecycle before embedding this engine. Required vendor binaries are still missing. No standalone APK or successful build is claimed.
+All six outstanding PoW runtime artifacts (two AARs, three Aether libraries, and Psiphon server entries) have been transferred to the vendor tree and their byte sizes and Git blob SHA-1 values were verified against the source repository. The four HEV libraries were also transferred and source-verified.
 
-Source: `https://github.com/atom-vpn/POW-Source`
+The AARs are the original inputs; the source build pipeline still needs to run the two required patch scripts to generate the isolated/Seq-patched AAR outputs. Aether's existing binaries are present, so rebuilding Aether is not required for consumption. Its Rust source and patched quiche tree have not yet been extracted into this repository.
+
+## Host integration
+
+The consumer must provide a real Android `VpnService`, establish the TUN interface, own the returned `ParcelFileDescriptor`, handle VPN permission and foreground-service lifecycle, and enforce package routing/kill-switch policy.
+
+The host Manifest must register `PowPsiphonService` in process `:uacpow` and `PowPsiphonSidecarService` in process `:uacpow2`. Both services are non-exported. The host must also package `server_entries.txt` as an app asset. See `integration/HOST_CONTRACTS.md`.
+
+## Build status
+
+No Gradle module/build configuration has been added yet, and no Android compile or device test has been run. This branch is not yet a certified standalone build. No APK or app shell is claimed.
+
+Source: https://github.com/atom-vpn/POW-Source

@@ -1,6 +1,6 @@
 # Required PoW runtime artifacts
 
-The following artifacts were identified from the source repository tree. Their original Git blob IDs are included so they can be verified and transferred from the source repository without guessing.
+The following artifacts were identified from the source repository. Their original Git blob IDs are recorded for exact verification.
 
 Source: https://github.com/atom-vpn/POW-Source (main)
 
@@ -19,46 +19,34 @@ Source: https://github.com/atom-vpn/POW-Source (main)
 
 ## Transfer status
 
-- HEV SOCKS tunnel libraries for arm64-v8a, armeabi-v7a, x86 and x86_64 are now present under `vendor/jniLibs/` and their Git blob IDs match the source repository exactly.
-- All six artifacts have been transferred into the destination vendor tree. Their byte sizes and Git blob SHA-1 values were verified against the source repository.
-The source tree also contains Tor, WebTunnel and Xray libraries. They are intentionally excluded from this PoW extraction.
+- All six outstanding artifacts (the two AARs, three Aether shared libraries and Psiphon server entries) are present in the destination vendor tree. Their byte sizes and Git blob SHA-1 values were verified against the source repository.
+- All four HEV shared libraries are present under `vendor/jniLibs/` and their blob IDs match the source repository.
+- Destination paths: AARs under `vendor/aars/`, Aether and HEV libraries under `vendor/jniLibs/<abi>/`, and Psiphon server entries at `vendor/assets/server_entries.txt`.
 
-## Transfer limitation
+## Required AAR transformations
 
-These are binary or >1 MB artifacts. The available GitHub file-write action accepts UTF-8 text files, so these files have not been fabricated, truncated, or replaced with placeholders. Transfer them with Git clone/Git LFS or a binary-capable upload path, then verify the resulting content against the listed source blob IDs.
+The transferred AARs are original inputs. The source build pipeline transforms them before runtime packaging:
+- `psiphontunnel-2.0.39.aar` is processed by `tools/isolate_psiphon_aar.py`: remove embedded `go/` classes from `classes.jar` and rename `libgojni.so` to `libgopsi.so`.
+- `libv2ray-native-tun.aar` is processed by `tools/patch_v2ray_seq.py`: rewrite `go/Seq.class` to call `GoJniLoader.load()` instead of `System.loadLibrary("gojni")`.
 
+No verified Maven replacement coordinates were found. Do not replace these AARs with similarly named public artifacts.
 
-## Dependency and rebuild findings (2026-11-18)
+## Aether rebuild findings
 
-- The source repository has no published GitHub Releases, and the two AARs are stored only as local files under `app/libs/`. The source Gradle file declares them through local-file tasks, not Maven coordinates:
-  - `psiphontunnel-2.0.39.aar` is passed through `scripts/isolate_psiphon_aar.py`, which removes the embedded `go/` package from `classes.jar` and renames `libgojni.so` to `libgopsi.so`.
-  - `libv2ray-native-tun.aar` is passed through `scripts/patch_v2ray_seq.py`, which rewrites `go/Seq.class` to call the PoW `GoJniLoader.load()` implementation instead of `System.loadLibrary("gojni")`.
-- No verified Maven replacement coordinates were found in the source Gradle dependency declarations. Replacing either AAR with a similarly named public artifact would not preserve these required binary transformations.
-- Aether is not an external prebuilt Maven dependency. The source declares a Rust `aether` crate (version 1.6.0) with a local patched `quiche` dependency and builds `libaether.so` for Android using `core/build-android.ps1`. Rebuilding it requires the matching Rust source tree, patched quiche source, Rust Android targets, Android NDK and native build toolchain. The checked-in script is Windows/PowerShell-specific; a Linux CI build script has not yet been validated.
-- The source repository currently has no `.github/workflows/` directory and no GitHub Release assets to use as a binary transfer source.
-- The current GitHub connector exposes text-file writes and Git object writes, but no binary upload/release-asset action. Its large-file reads returned empty content in prior attempts. Therefore the remaining binary files are still blocked on a binary-capable transfer route (for example, a local Git clone/push or a properly configured Git LFS workflow). No placeholder blobs have been committed.
+The source declares a Rust Aether crate (version 1.6.0) with a local patched quiche dependency. The prebuilt Aether shared libraries for the three source-supported ABIs have been transferred, so the engine can consume those binaries without rebuilding them. The Rust crate and patched quiche source tree have not yet been extracted into this repository. The source `core/build-android.ps1` is Windows/PowerShell-specific and writes outputs to the source repository's original paths; it will require adaptation if a source rebuild is later desired.
 
-### Required next actions
+## Build/packaging status
 
-1. Binary transfer completed locally. All six artifacts were verified against their source byte sizes and Git blob SHA values.
-2. Rebuild Aether from the exact source revision and patched quiche tree for each required ABI, or transfer the existing binaries and verify them against the source blob IDs.
-3. Only after those artifacts are present should the standalone Android library build be wired and compiled.
-
+The repository does not yet contain a root Gradle project or `engine/build.gradle.kts`. The AAR patch tasks, Android library packaging, assets source set, JNI library source set and CMake build still need to be wired into a standalone Gradle library module. No Android compile or device test has been run.
 
 ## Local binary import helper
 
-A Windows PowerShell importer is available at `tools/import_pow_artifacts.ps1`. It copies the six outstanding artifacts from a local clone of `POW-Source` into this repository, verifies each source Git blob ID and byte size, then verifies the copied destination blob ID. It refuses to run against a dirty destination worktree or a destination branch other than `pow-standalone`.
+`tools/import_pow_artifacts.ps1` copies the six outstanding artifacts from a local clone of `POW-Source` into the destination vendor tree. It verifies source Git blob IDs and byte sizes before copying, then verifies destination blob IDs. It refuses a dirty destination worktree or a destination branch other than `pow-standalone`.
 
-From a PowerShell session, with both repositories cloned locally:
+Example:
 
 ```powershell
 .\tools\import_pow_artifacts.ps1 -SourceRepo "C:\src\POW-Source" -DestinationRepo "C:\src\atom1"
 ```
 
-After reviewing the copied files, rerun with `-CommitAndPush` to commit and push them to `origin/pow-standalone`:
-
-```powershell
-.\tools\import_pow_artifacts.ps1 -SourceRepo "C:\src\POW-Source" -DestinationRepo "C:\src\atom1" -CommitAndPush
-```
-
-The helper does not build Aether, patch the AARs, alter `main`, or create an APK. It only transfers and verifies the original binary inputs.
+After reviewing the copied files, rerun with `-CommitAndPush` to commit and push to `origin/pow-standalone`. The helper does not build Aether, patch the AARs, alter `main`, or create an APK.
