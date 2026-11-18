@@ -261,7 +261,7 @@ object PowCoreConfig {
     fun outerPlan(
         settings: PowEngineSettings,
         mci: Boolean,
-        carrierClass: String = if (mci) "mci" else "irancell",
+        carrierClass: String = if (mci) "mci" else "unknown",
     ): PowOuterPlan {
         val recipe = settings.validated().linkRecipe
         val recipePlan = when {
@@ -272,6 +272,10 @@ object PowCoreConfig {
             }
             settings.carrierMode == CARRIER_OFF ->
                 PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic automatic ladder")
+            settings.carrierMode == CARRIER_MANUAL && settings.firewallProfile == FIREWALL_MCI ->
+                PowOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · manual")
+            settings.carrierMode == CARRIER_MANUAL ->
+                PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · manual ladder")
             else -> when (recipe) {
             RECIPE_WARP_V6 -> PowOuterPlan(listOf("wireguard"), "v6", "h3", false, true, "WARP IPv6")
             RECIPE_WARP_ANY -> PowOuterPlan(listOf("wireguard"), "both", "h3", false, true, "WARP any IP")
