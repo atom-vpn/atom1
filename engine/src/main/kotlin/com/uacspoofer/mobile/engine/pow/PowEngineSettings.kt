@@ -8,6 +8,7 @@ data class PowEngineSettings(
     val scanMode: String = PowCoreConfig.SCAN_BALANCED,
     val optimizedMode: Boolean = true,
     val firewallProfile: String = PowCoreConfig.FIREWALL_AUTO,
+    val carrierMode: String = PowCoreConfig.CARRIER_AUTO,
     val linkRecipe: String = PowCoreConfig.RECIPE_MASQUE_H2,
     val chainPsiphon: Boolean = true,
     /** chain = Psiphon over WARP, warp = WARP only, psiphon = Psiphon direct (no WARP leg). */
@@ -50,6 +51,7 @@ data class PowEngineSettings(
             obfuscationProfile = if (obfuscation in OBFUSCATION_PROFILES) obfuscation else "balanced",
             scanMode = PowCoreConfig.normalizeScanMode(scanMode),
             firewallProfile = if (firewall in PowCoreConfig.FIREWALLS) firewall else PowCoreConfig.FIREWALL_AUTO,
+            carrierMode = carrierMode.trim().lowercase().let { if (it in PowCoreConfig.CARRIER_MODES) it else PowCoreConfig.CARRIER_AUTO },
             linkRecipe = if (recipe in PowCoreConfig.RECIPES) recipe else PowCoreConfig.RECIPE_AUTO,
             keyFetch = if (fetch in PowCoreConfig.KEY_FETCHES) fetch else PowCoreConfig.KEY_AUTO,
             h2Obfuscation = h2Obfuscation.trim().lowercase().let { if (it in H2_OBFS_CHOICES) it else H2_OBFS_UNCHANGED },
