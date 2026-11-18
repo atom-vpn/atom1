@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "UacPowEngine"
-include(":engine")
+rootProject.name = "AtomVPN"
+include(":engine", ":app")
