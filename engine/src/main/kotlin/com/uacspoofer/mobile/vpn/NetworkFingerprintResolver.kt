@@ -3,15 +3,12 @@ package com.uacspoofer.mobile.vpn
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.telephony.SubscriptionManager
-import android.telephony.TelephonyManager
 
 /**
- * Minimal Android network identity snapshot required by the extracted PoW carrier policy.
- *
- * The upstream source tree imports NetworkFingerprintResolver but does not contain its
- * implementation. This implementation is intentionally limited to the three fields
- * consumed by PowCarrier; it does not claim to reproduce any wider app fingerprint API.
+ * Permission-free network snapshot used by the migrated PoW engine.
+ * Android does not expose SIM operator identity to ordinary apps without
+ * phone-state permissions. Unknown carrier is therefore intentional; users
+ * can select MCI or Irancell manually in Atom settings.
  */
 data class PowNetworkFingerprint(
     val transport: String,
@@ -24,13 +21,10 @@ class NetworkFingerprintResolver(context: Context) {
 
     fun capture(): PowNetworkFingerprint {
         val connectivity = appContext.getSystemService(ConnectivityManager::class.java)
-        val transport = resolveTransport(connectivity)
-        val subscriptionId = resolveDataSubscriptionId()
-        val operator = resolveOperator(subscriptionId)
         return PowNetworkFingerprint(
-            transport = transport,
-            dataSubscriptionId = subscriptionId,
-            carrierClass = classifyCarrier(operator),
+            transport = resolveTransport(connectivity),
+            dataSubscriptionId = -1,
+            carrierClass = "unknown",
         )
     }
 
@@ -63,39 +57,11 @@ class NetworkFingerprintResolver(context: Context) {
                 classify(caps)
             }
 
-        // If both bearers are exposed, Wi-Fi is preferred for the effective default path.
         return when {
             "wifi" in candidates -> "wifi"
             "cellular" in candidates -> "cellular"
             candidates.size == 1 -> candidates.first()
             else -> "unknown"
-        }
-    }
-
-    private fun resolveDataSubscriptionId(): Int = runCatching {
-        SubscriptionManager.getDefaultDataSubscriptionId()
-    }.getOrDefault(SubscriptionManager.INVALID_SUBSCRIPTION_ID)
-
-    private fun resolveOperator(subscriptionId: Int): String {
-        val manager = runCatching {
-            appContext.getSystemService(TelephonyManager::class.java)
-        }.getOrNull() ?: return ""
-        val scoped = if (subscriptionId >= 0) {
-            runCatching { manager.createForSubscriptionId(subscriptionId) }.getOrNull() ?: manager
-        } else {
-            manager
-        }
-        return runCatching { scoped.networkOperator.orEmpty() }.getOrDefault("")
-    }
-
-    private fun classifyCarrier(operator: String): String {
-        val code = operator.trim()
-        if (code.length < 5) return "unknown"
-        return when {
-            code.startsWith("43211") -> "mci"
-            code.startsWith("43235") -> "irancell"
-            code.startsWith("43220") -> "rightel"
-            else -> "other"
         }
     }
 }
