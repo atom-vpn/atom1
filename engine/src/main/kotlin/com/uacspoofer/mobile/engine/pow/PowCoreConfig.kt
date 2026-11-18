@@ -182,6 +182,11 @@ object PowCoreConfig {
 
     private val MCI_LADDER = listOf("wireguard", "gool", "masque")
 
+    const val CARRIER_AUTO = "auto"
+    const val CARRIER_MANUAL = "manual"
+    const val CARRIER_OFF = "off"
+    val CARRIER_MODES = setOf(CARRIER_AUTO, CARRIER_MANUAL, CARRIER_OFF)
+
     const val FIREWALL_AUTO = "auto"
     const val FIREWALL_IRANCELL = "irancell"
     const val FIREWALL_MCI = "mci"
@@ -243,15 +248,31 @@ object PowCoreConfig {
         return json.toString()
     }
 
-    fun usesMciFirewall(context: Context, settings: PowEngineSettings): Boolean = when (settings.firewallProfile) {
-        FIREWALL_MCI -> true
-        FIREWALL_IRANCELL -> false
-        else -> PowCarrier.carrierClass(context) != "irancell"
+    fun usesMciFirewall(context: Context, settings: PowEngineSettings): Boolean = when (settings.carrierMode) {
+        CARRIER_AUTO -> PowCarrier.carrierClass(context) == "mci"
+        CARRIER_OFF -> false
+        else -> when (settings.firewallProfile) {
+            FIREWALL_MCI -> true
+            FIREWALL_IRANCELL -> false
+            else -> PowCarrier.carrierClass(context) == "mci"
+        }
     }
 
-    fun outerPlan(settings: PowEngineSettings, mci: Boolean): PowOuterPlan {
+    fun outerPlan(
+        settings: PowEngineSettings,
+        mci: Boolean,
+        carrierClass: String = if (mci) "mci" else "irancell",
+    ): PowOuterPlan {
         val recipe = settings.validated().linkRecipe
-        val recipePlan = when (recipe) {
+        val recipePlan = when {
+            settings.carrierMode == CARRIER_AUTO -> when (carrierClass) {
+                "mci" -> PowOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · MASQUE HTTP/2")
+                "irancell" -> PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · automatic ladder")
+                else -> PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic · automatic ladder")
+            }
+            settings.carrierMode == CARRIER_OFF ->
+                PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic automatic ladder")
+            else -> when (recipe) {
             RECIPE_WARP_V6 -> PowOuterPlan(listOf("wireguard"), "v6", "h3", false, true, "WARP IPv6")
             RECIPE_WARP_ANY -> PowOuterPlan(listOf("wireguard"), "both", "h3", false, true, "WARP any IP")
             RECIPE_WOW_V6 -> PowOuterPlan(listOf("gool"), "v6", "h3", false, true, "WARP-in-WARP IPv6")
@@ -261,19 +282,11 @@ object PowCoreConfig {
             RECIPE_MASQUE_H2_SPLIT -> PowOuterPlan(listOf("masque"), "v4", "h2", true, true, "MASQUE HTTP/2 split hello")
             RECIPE_MASQUE_H2_SAVED -> PowOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2 saved IPs")
             else -> if (mci) {
-                // Same dial that connected on an MCI modem with the Irancell
-                // firewall selected: HTTP/2, full ClientHello, v4 and v6.
-                PowOuterPlan(
-                    listOf("masque"),
-                    "both",
-                    "h2",
-                    false,
-                    true,
-                    "MASQUE HTTP/2",
-                )
+                PowOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2")
             } else {
-                PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell ladder")
+                PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Automatic ladder")
             }
+        }
         }
 
         // An explicit transport selection must override the recipe's protocol
