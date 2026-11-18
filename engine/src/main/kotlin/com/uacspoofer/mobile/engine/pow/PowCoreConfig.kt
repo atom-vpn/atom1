@@ -251,7 +251,7 @@ object PowCoreConfig {
 
     fun outerPlan(settings: PowEngineSettings, mci: Boolean): PowOuterPlan {
         val recipe = settings.validated().linkRecipe
-        return when (recipe) {
+        val recipePlan = when (recipe) {
             RECIPE_WARP_V6 -> PowOuterPlan(listOf("wireguard"), "v6", "h3", false, true, "WARP IPv6")
             RECIPE_WARP_ANY -> PowOuterPlan(listOf("wireguard"), "both", "h3", false, true, "WARP any IP")
             RECIPE_WOW_V6 -> PowOuterPlan(listOf("gool"), "v6", "h3", false, true, "WARP-in-WARP IPv6")
@@ -274,6 +274,22 @@ object PowCoreConfig {
             } else {
                 PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell ladder")
             }
+        }
+
+        // An explicit transport selection must override the recipe's protocol
+        // list. Automatic keeps the recipe/carrier-aware protocol order.
+        val selectedTransport = settings.outerTransport.trim().lowercase()
+        return if (selectedTransport in OUTER_LADDER) {
+            PowOuterPlan(
+                protocols = listOf(selectedTransport),
+                ipMode = recipePlan.ipMode,
+                masqueTransport = recipePlan.masqueTransport,
+                fragment = recipePlan.fragment,
+                fixedOrder = true,
+                summary = "${recipePlan.summary} · ${outerLabel(selectedTransport)}",
+            )
+        } else {
+            recipePlan
         }
     }
 }
