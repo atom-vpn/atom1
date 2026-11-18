@@ -44,3 +44,22 @@ These are binary or >1 MB artifacts. The available GitHub file-write action acce
 1. Transfer the exact source AARs and `server_entries.txt` through a binary-capable path, then verify byte size and Git blob SHA.
 2. Rebuild Aether from the exact source revision and patched quiche tree for each required ABI, or transfer the existing binaries and verify them against the source blob IDs.
 3. Only after those artifacts are present should the standalone Android library build be wired and compiled.
+
+
+## Local binary import helper
+
+A Windows PowerShell importer is available at `tools/import_pow_artifacts.ps1`. It copies the six outstanding artifacts from a local clone of `POW-Source` into this repository, verifies each source Git blob ID and byte size, then verifies the copied destination blob ID. It refuses to run against a dirty destination worktree or a destination branch other than `pow-standalone`.
+
+From a PowerShell session, with both repositories cloned locally:
+
+```powershell
+.\tools\import_pow_artifacts.ps1 -SourceRepo "C:\src\POW-Source" -DestinationRepo "C:\src\atom1"
+```
+
+After reviewing the copied files, rerun with `-CommitAndPush` to commit and push them to `origin/pow-standalone`:
+
+```powershell
+.\tools\import_pow_artifacts.ps1 -SourceRepo "C:\src\POW-Source" -DestinationRepo "C:\src\atom1" -CommitAndPush
+```
+
+The helper does not build Aether, patch the AARs, alter `main`, or create an APK. It only transfers and verifies the original binary inputs.
