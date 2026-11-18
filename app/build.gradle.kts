@@ -23,7 +23,12 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
-    packaging { jniLibs { useLegacyPackaging = true } }
+    packaging {
+        jniLibs { useLegacyPackaging = true }
+        resources {
+            excludes += "META-INF/versions/**/OSGI-INF/MANIFEST.MF"
+        }
+    }
 }
 
 dependencies {
