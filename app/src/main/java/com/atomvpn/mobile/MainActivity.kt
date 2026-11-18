@@ -256,8 +256,21 @@ private fun PowSettingsPage(
                 })
             }
             item {
-                SettingCard("تکه‌تکه‌سازی H2", if (settings.h2Fragmentation) "فعال" else "غیرفعال", "تغییر", {
-                    onSave(settings.copy(h2Fragmentation = !settings.h2Fragmentation).validated())
+                val fragmentModeLabel = when (settings.h2FragmentMode) {
+                    PowEngineSettings.H2_FRAG_ON -> "فعال"
+                    PowEngineSettings.H2_FRAG_OFF -> "غیرفعال"
+                    else -> "خودکار"
+                }
+                SettingCard("تکه‌تکه‌سازی H2", fragmentModeLabel, "تغییر حالت", {
+                    val nextMode = when (settings.h2FragmentMode) {
+                        PowEngineSettings.H2_FRAG_AUTO -> PowEngineSettings.H2_FRAG_ON
+                        PowEngineSettings.H2_FRAG_ON -> PowEngineSettings.H2_FRAG_OFF
+                        else -> PowEngineSettings.H2_FRAG_AUTO
+                    }
+                    onSave(settings.copy(
+                        h2FragmentMode = nextMode,
+                        h2Fragmentation = nextMode != PowEngineSettings.H2_FRAG_OFF
+                    ).validated())
                 })
             }
         }
