@@ -65,7 +65,8 @@ jobs:
           file "$APK"
           sha256sum "$APK"
           "$TOOLS/aapt" dump badging "$APK"
-          "$TOOLS/aapt" dump xmltree "$APK" AndroidManifest.xml | head -n 160
+          "$TOOLS/aapt" dump xmltree "$APK" AndroidManifest.xml > manifest-tree.txt
+          sed -n '1,160p' manifest-tree.txt
           "$TOOLS/zipalign" -c -v 4 "$APK"
           "$TOOLS/apksigner" verify --verbose --print-certs "$APK"
           python3 - <<'PY'
