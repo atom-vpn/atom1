@@ -36,16 +36,16 @@ No Activity, app Manifest, app theme, app navigation, Tor/Xray/Direct engine, or
 
 Not built. The missing binary artifacts and host adapters prevent a truthful claim of an independent compilable module at this stage. The next extraction pass must bring in the vendor artifacts and replace the listed host dependencies with a small explicit adapter API.
 
-## Source-verified adapter audit (2026-11-18)
+## Support dependency extraction (2026-11-18)
 
-The call sites and original implementations were inspected for the host APIs. A detailed signature/behavior contract is now recorded in `integration/ADAPTER_API_SPEC.md`.
+The source-backed support classes used by the coordinator have now been copied into the engine source tree: connection state, logging, tunnel statistics, pause state, socket-protection gate, network guard, advanced settings, domestic-direct routing, GeoAssets, direct-domain whitelist, and MCI data types. Exact source blob IDs were retained for these copied files.
 
 Important findings:
 - `AdvancedSettingsData` and `CONNECTION_MODE_PROXY` are declared in `settings/AdvancedSettingsStore.kt`, not in a separate `AdvancedSettingsData.kt`.
 - `LogSource` is declared in `logging/AppLogRepository.kt`, not in a separate `LogSource.kt`.
-- The checked-in source tree does not contain the imported `vpn/NetworkFingerprintResolver` implementation, despite `PowCarrier.kt` requiring its `transport`, `dataSubscriptionId`, and `carrierClass` values. Carrier/SIM adapter implementation is blocked until the real implementation is recovered.
+- The checked-in source tree does not contain the imported `vpn/NetworkFingerprintResolver` implementation. A new narrowly scoped Android resolver was added at `engine/src/main/kotlin/com/uacspoofer/mobile/vpn/NetworkFingerprintResolver.kt`; it exposes only the three fields consumed by `PowCarrier`. It is not a source-identical copy and has not been device-tested.
 - The real host boundary is `PowConnectionCoordinator(VpnService)` plus a TUN establishment callback returning `ParcelFileDescriptor?`. This must be supplied by Atom's VPN service; it cannot be replaced with a stub.
 - `DomesticDirect` depends on GeoAssets and DirectDomainWhitelist, so its routing behavior cannot be represented by a boolean-only placeholder.
-- The source-verified adapter API specification has been added at `integration/ADAPTER_API_SPEC.md`.
+- The adapter API specification remains at `integration/ADAPTER_API_SPEC.md`; the host boundary still requires a real `VpnService` and TUN callback.
 
-No fake adapters, reduced settings DTOs, or compile-claiming build files were added. The engine sources remain unchanged and the branch remains an extraction branch, not an application.
+No fake VPN service or TUN implementation was added. The original 36 PoW engine files remain byte-identical; the new resolver is explicitly a new implementation. No APK, app shell, or compile-claiming build files were added. A build has not been run.
