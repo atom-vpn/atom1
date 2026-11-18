@@ -35,7 +35,7 @@ Standalone host contract should expose socket protection as an operation on the 
 
 It additionally reads `TelephonyManager.networkOperator` for the selected data subscription and combines it into a `PowRadioIdentity`. This is used to distinguish Wi-Fi/cellular transitions and SIM/operator/carrier flips.
 
-**Source gap:** the current source tree has no file declaring `com.uacspoofer.mobile.vpn.NetworkFingerprintResolver`, although `PowCarrier.kt` imports it. Its implementation/API therefore cannot be safely ported or recreated from the checked-in source. This is a pre-existing unresolved dependency and must be recovered from its actual implementation before the carrier adapter is implemented.
+**Extraction status:** the checked-in source tree has no implementation of this imported resolver. A new, narrowly scoped Android implementation has been added at `engine/src/main/kotlin/com/uacspoofer/mobile/vpn/NetworkFingerprintResolver.kt`. It reports the three fields consumed by `PowCarrier` and degrades to `unknown` / invalid subscription ID when Android restricts access. This is a new implementation, not a source-identical recovery; it still requires device validation on Wi-Fi, cellular, dual-SIM, and permission-restricted states.
 
 ## 4. Logging
 
@@ -80,4 +80,4 @@ The settings object also supplies the WARP/Aether, transport, TLS, SOCKS, DNS an
 
 ## Extraction decision
 
-No adapters or replacement implementations are committed in this pass because the network-fingerprint implementation is absent from the source tree and the VPN/TUN boundary requires a real host service. Implementing placeholders would make the module appear standalone while breaking SIM-change detection, socket protection or VPN lifecycle. The next safe code pass must recover the missing fingerprint source, then define injected interfaces and migrate call sites as one compile-checked change.
+Source-backed support classes have been copied into the engine tree, and the missing narrow network-fingerprint API has a real Android implementation. No fake VPN service or TUN descriptor has been added: the consumer must supply those through the documented host boundary. The resolver is not device-tested, and no Gradle compile has been run. The remaining vendor binaries and host lifecycle integration still prevent a standalone build claim.
