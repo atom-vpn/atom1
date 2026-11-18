@@ -83,7 +83,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
         settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
             settings.firewallProfile == PowCoreConfig.FIREWALL_MCI -> "همراه اول · انتخاب دستی"
         settings.carrierMode == PowCoreConfig.CARRIER_MANUAL -> "ایرانسل · انتخاب دستی"
-        else -> "خودکار · بدون دسترسی سیم‌کارت"
+        else -> "خودکار · بدون تشخیص اپراتور"
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
@@ -201,9 +201,30 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                 Spacer(Modifier.height(10.dp))
                                 PathLine("دستگاه", "ترافیک برنامه‌ها")
                                 PathLine("اپراتور سیم‌کارت", carrierLabel)
-                                PathLine("WARP / Aether", status.outerLabel.ifBlank { "در انتظار اتصال" })
-                                PathLine("Psiphon", status.exitRegion.ifBlank { "مسیر خروجی" })
-                                PathLine("اینترنت", if (connected) "فعال" else "غیرفعال")
+                                PathLine(
+                                    "مسیر انتخابی",
+                                    when (settings.exitMode) {
+                                        PowEngineSettings.EXIT_WARP -> "WARP مستقیم"
+                                        PowEngineSettings.EXIT_PSIPHON -> "Psiphon مستقیم"
+                                        else -> "Psiphon روی WARP"
+                                    }
+                                )
+                                PathLine(
+                                    "WARP / Aether",
+                                    if (settings.exitMode == PowEngineSettings.EXIT_PSIPHON) {
+                                        "در این حالت استفاده نمی‌شود"
+                                    } else {
+                                        status.outerLabel.ifBlank { "پس از شروع اتصال مشخص می‌شود" }
+                                    }
+                                )
+                                PathLine(
+                                    "تونل VPN",
+                                    when {
+                                        connected -> "فعال"
+                                        connecting -> "در حال برقراری"
+                                        else -> "قطع"
+                                    }
+                                )
                             }
                         }
                         Spacer(Modifier.weight(1f))
@@ -241,7 +262,7 @@ private fun PowSettingsPage(
                     settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
                         settings.firewallProfile == PowCoreConfig.FIREWALL_MCI -> "همراه اول · دستی"
                     settings.carrierMode == PowCoreConfig.CARRIER_MANUAL -> "ایرانسل · دستی"
-                    else -> "خودکار · بدون مجوز تلفن"
+                    else -> "خودکار · بدون تشخیص اپراتور"
                 }
                 SettingCard("اپراتور شبکه", carrierModeLabel, "تغییر", {
                     val next = when {
