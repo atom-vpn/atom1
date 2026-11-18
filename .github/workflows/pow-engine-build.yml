@@ -55,6 +55,33 @@ jobs:
             "cmake;3.22.1"
       - name: Build debug APK
         run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Validate APK structure, manifest, alignment and signature
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          test -s "$APK"
+          file "$APK"
+          sha256sum "$APK"
+          "$TOOLS/aapt" dump badging "$APK"
+          "$TOOLS/aapt" dump xmltree "$APK" AndroidManifest.xml | head -n 160
+          "$TOOLS/zipalign" -c -v 4 "$APK"
+          "$TOOLS/apksigner" verify --verbose --print-certs "$APK"
+          python3 - <<'PY'
+          import zipfile
+          p = "app/build/outputs/apk/debug/app-debug.apk"
+          with zipfile.ZipFile(p) as z:
+              bad = z.testzip()
+              assert bad is None, f"Corrupt ZIP entry: {bad}"
+              names = z.namelist()
+              assert "AndroidManifest.xml" in names
+              assert "resources.arsc" in names
+              assert any(n.startswith("classes") and n.endswith(".dex") for n in names)
+              print("ZIP entries:", len(names))
+              print("DEX files:", sum(n.startswith("classes") and n.endswith(".dex") for n in names))
+              print("Native libraries:", sum(n.endswith(".so") for n in names))
+          PY
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
