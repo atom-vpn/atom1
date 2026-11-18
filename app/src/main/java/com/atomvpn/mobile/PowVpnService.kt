@@ -24,6 +24,22 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 class PowVpnService : VpnService() {
+    /**
+     * JNI callback used by libaether_jni to protect native sockets from VPN routing.
+     * Keep the exact public JVM signature: protectSocket(int): boolean.
+     */
+    @androidx.annotation.Keep
+    fun protectSocket(socketFd: Int): Boolean = protect(socketFd)
+
+    /**
+     * Receives asynchronous lifecycle/status events from the Aether native core.
+     * Keep this method public with the exact signature expected by JNI.
+     */
+    @androidx.annotation.Keep
+    fun onEvent(eventJson: String) {
+        android.util.Log.i("AtomVPN-Aether", eventJson)
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var coordinator: PowConnectionCoordinator
 
