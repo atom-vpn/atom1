@@ -229,7 +229,7 @@ private fun PowSettingsPage(
             }
             item {
                 SettingCard("روش اتصال", settings.linkRecipe, "تغییر روش", {
-                    val next = if (settings.linkRecipe == PowCoreConfig.RECIPE_MASQUE_H2) PowCoreConfig.RECIPE_WOW else PowCoreConfig.RECIPE_MASQUE_H2
+                    val next = if (settings.linkRecipe == PowCoreConfig.RECIPE_MASQUE_H2) PowCoreConfig.RECIPE_MASQUE_H3 else PowCoreConfig.RECIPE_MASQUE_H2
                     onSave(settings.copy(linkRecipe = next).validated())
                 })
             }
@@ -245,7 +245,7 @@ private fun PowSettingsPage(
             }
             item {
                 SettingCard("حمل‌ونقل بیرونی", settings.outerTransport, "تغییر transport", {
-                    val options = listOf(PowCoreConfig.OUTER_AUTO, PowCoreConfig.OUTER_H2, PowCoreConfig.OUTER_H3)
+                    val options = listOf(PowCoreConfig.OUTER_AUTO) + PowCoreConfig.OUTER_LADDER
                     val next = options[(options.indexOf(settings.outerTransport).coerceAtLeast(0) + 1) % options.size]
                     onSave(settings.copy(outerTransport = next).validated())
                 })
