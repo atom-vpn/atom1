@@ -228,6 +228,21 @@ private fun PowSettingsPage(
                 SettingCard("مسیر خروجی", "کشور انتخاب‌شده: ${settings.exitCountryCode.ifBlank { "خودکار" }}", "انتخاب کشور", onOpenCountries)
             }
             item {
+                val carrierModeLabel = when (settings.carrierMode) {
+                    PowCoreConfig.CARRIER_MANUAL -> "دستی"
+                    PowCoreConfig.CARRIER_OFF -> "خاموش · مسیر عمومی"
+                    else -> "خودکار · تشخیص اپراتور"
+                }
+                SettingCard("تشخیص اپراتور", carrierModeLabel, "تغییر حالت", {
+                    val next = when (settings.carrierMode) {
+                        PowCoreConfig.CARRIER_AUTO -> PowCoreConfig.CARRIER_MANUAL
+                        PowCoreConfig.CARRIER_MANUAL -> PowCoreConfig.CARRIER_OFF
+                        else -> PowCoreConfig.CARRIER_AUTO
+                    }
+                    onSave(settings.copy(carrierMode = next).validated())
+                })
+            }
+            item {
                 SettingCard("روش اتصال", settings.linkRecipe, "تغییر روش", {
                     val next = if (settings.linkRecipe == PowCoreConfig.RECIPE_MASQUE_H2) PowCoreConfig.RECIPE_MASQUE_H3 else PowCoreConfig.RECIPE_MASQUE_H2
                     onSave(settings.copy(linkRecipe = next).validated())
