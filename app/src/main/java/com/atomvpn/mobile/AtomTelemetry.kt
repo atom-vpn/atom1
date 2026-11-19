@@ -63,19 +63,26 @@ object AtomTelemetry {
         val queue = runCatching { JSONArray(prefs.getString(KEY_QUEUE, "[]")) }
             .getOrDefault(JSONArray())
 
-        if (!prefs.getBoolean(KEY_INSTALL_QUEUED, false)) {
+        var installQueued = prefs.getBoolean(KEY_INSTALL_QUEUED, false)
+        if (!installQueued) {
             queue.put(newEvent(installId, "install", now))
-            prefs.edit().putBoolean(KEY_INSTALL_QUEUED, true).apply()
+            installQueued = true
         }
 
         val todayUtc = LocalDate.now(ZoneOffset.UTC).toString()
-        if (prefs.getString(KEY_LAST_ACTIVE_DATE, null) != todayUtc) {
+        var lastActiveDate = prefs.getString(KEY_LAST_ACTIVE_DATE, null)
+        if (lastActiveDate != todayUtc) {
             queue.put(newEvent(installId, "active", now))
-            prefs.edit().putString(KEY_LAST_ACTIVE_DATE, todayUtc).apply()
+            lastActiveDate = todayUtc
         }
 
         while (queue.length() > MAX_QUEUE_SIZE) queue.remove(0)
-        prefs.edit().putString(KEY_QUEUE, queue.toString()).apply()
+        // Persist queue and deduplication markers atomically to avoid losing the first event on process death.
+        prefs.edit()
+            .putBoolean(KEY_INSTALL_QUEUED, installQueued)
+            .putString(KEY_LAST_ACTIVE_DATE, lastActiveDate)
+            .putString(KEY_QUEUE, queue.toString())
+            .apply()
         scheduleUpload(context)
     }
 
