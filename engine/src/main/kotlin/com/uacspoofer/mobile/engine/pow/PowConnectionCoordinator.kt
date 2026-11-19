@@ -120,6 +120,9 @@ class PowConnectionCoordinator(
     @Volatile private var regionPhaseBias = false
     @Volatile private var regionCandidates: List<String> = emptyList()
     @Volatile private var regionCandidateIndex = 0
+    @Volatile private var regionAttemptStartedAtMs = 0L
+    @Volatile private var regionAttemptCode = ""
+    @Volatile private var connectedServerRegion = ""
     @Volatile private var ladderIndex = 0
     @Volatile private var ladderAttempts = 0
     @Volatile private var connectedSignal: CompletableDeferred<Unit>? = null
@@ -1093,6 +1096,9 @@ class PowConnectionCoordinator(
             regionBias = bias,
         )
         psiphonGeneration.set(generation)
+        regionAttemptCode = if (bias) preferred.orEmpty() else ""
+        regionAttemptStartedAtMs = if (regionAttemptCode.isNotBlank()) SystemClock.elapsedRealtime() else 0L
+        connectedServerRegion = ""
         lastPsiphonConfig = configJson
         innerStarted = true
         AppLogRepository.info(LogSource.POW, "Starting Psiphon inner hop in :uacpow")
@@ -1148,6 +1154,7 @@ class PowConnectionCoordinator(
         if (!ladderActive.compareAndSet(true, false)) return
         val ladder = activeLadder()
         if (regionPhase) {
+            recordRegionAttempt(success = false)
             if (regionPhaseBias && regionCandidateIndex + 1 < regionCandidates.size) {
                 regionCandidateIndex += 1
                 regionPhaseTried = regionCandidates[regionCandidateIndex]
@@ -1288,11 +1295,30 @@ class PowConnectionCoordinator(
                 store.rememberedRegion(),
                 store.availableRegions(),
                 rememberedOnly = retune,
+                performance = store.regionStats(),
             )
         }
         regionPhase = regionCandidates.isNotEmpty()
         regionPhaseBias = regionPhase
         regionPhaseTried = regionCandidates.firstOrNull().orEmpty()
+    }
+
+    private fun recordRegionAttempt(success: Boolean) {
+        val attempted = regionAttemptCode
+        if (attempted.isBlank()) return
+        val elapsed = (SystemClock.elapsedRealtime() - regionAttemptStartedAtMs).coerceAtLeast(1L)
+        val actualMatches = connectedServerRegion.isBlank() ||
+            connectedServerRegion.equals(attempted, ignoreCase = true)
+        val recordedSuccess = success && actualMatches
+        store.recordRegionResult(attempted, recordedSuccess, elapsed)
+        AppLogRepository.info(
+            LogSource.POW,
+            "Automatic exit score: $attempted " +
+                (if (recordedSuccess) "connected in ${elapsed}ms" else "attempt failed after ${elapsed}ms"),
+        )
+        regionAttemptCode = ""
+        regionAttemptStartedAtMs = 0L
+        connectedServerRegion = ""
     }
 
     private fun logPsiphonPlan() {
@@ -1435,6 +1461,7 @@ class PowConnectionCoordinator(
             ladderActive.set(false)
             ladderJob?.cancel()
             if (regionPhase) {
+                recordRegionAttempt(success = true)
                 regionPhase = false
                 AppLogRepository.info(
                     LogSource.POW,
@@ -1519,6 +1546,7 @@ class PowConnectionCoordinator(
         }
 
         override fun onConnectedServerRegion(region: String) {
+            connectedServerRegion = region.trim().uppercase()
             PowStatusStore.update(
                 PowStatusStore.status.value.phase,
                 PowStatusStore.status.value.progressPercent,
