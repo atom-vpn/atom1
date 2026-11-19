@@ -118,6 +118,8 @@ class PowConnectionCoordinator(
     @Volatile private var regionPhase = false
     @Volatile private var regionPhaseTried = ""
     @Volatile private var regionPhaseBias = false
+    @Volatile private var regionCandidates: List<String> = emptyList()
+    @Volatile private var regionCandidateIndex = 0
     @Volatile private var ladderIndex = 0
     @Volatile private var ladderAttempts = 0
     @Volatile private var connectedSignal: CompletableDeferred<Unit>? = null
@@ -1146,13 +1148,28 @@ class PowConnectionCoordinator(
         if (!ladderActive.compareAndSet(true, false)) return
         val ladder = activeLadder()
         if (regionPhase) {
-            regionPhase = false
+            if (regionPhaseBias && regionCandidateIndex + 1 < regionCandidates.size) {
+                regionCandidateIndex += 1
+                regionPhaseTried = regionCandidates[regionCandidateIndex]
+                val nextRegion = regionPhaseTried
+                AppLogRepository.info(
+                    LogSource.POW,
+                    "Nearby country failed; trying next candidate ${PowRegions.name(nextRegion)} ($nextRegion) " +
+                        "(${regionCandidateIndex + 1}/${regionCandidates.size})",
+                )
+                restartPsiphonController()
+                return
+            }
             val nearby = regionPhaseBias
+            regionPhase = false
             regionPhaseBias = false
+            regionCandidates = emptyList()
+            regionCandidateIndex = 0
             AppLogRepository.info(
                 LogSource.POW,
-                (if (nearby) "Nearby country " else "Preferred country ") +
-                    "${PowRegions.name(regionPhaseTried)} did not connect — trying all countries",
+                (if (nearby) "Nearby country candidates exhausted" else "Preferred country ") +
+                    (if (nearby) "" else "${PowRegions.name(regionPhaseTried)} did not connect — ") +
+                    "trying all countries",
             )
             restartPsiphonController()
             return
@@ -1256,24 +1273,26 @@ class PowConnectionCoordinator(
      */
     private fun armRegionPhase(retune: Boolean = false) {
         val explicit = PowRegions.egressRegion(currentSettings.exitCountryCode)
+        regionCandidateIndex = 0
         if (explicit != null) {
+            regionCandidates = emptyList()
             regionPhase = !retune
             regionPhaseBias = false
             regionPhaseTried = currentSettings.exitCountryCode
             return
         }
-        val bias = if (directPsiphon) {
-            null
+        regionCandidates = if (directPsiphon) {
+            emptyList()
         } else {
-            PowRegions.autoBiasRegion(
+            PowRegions.autoBiasRegions(
                 store.rememberedRegion(),
                 store.availableRegions(),
                 rememberedOnly = retune,
             )
         }
-        regionPhase = bias != null
-        regionPhaseBias = bias != null
-        regionPhaseTried = bias.orEmpty()
+        regionPhase = regionCandidates.isNotEmpty()
+        regionPhaseBias = regionPhase
+        regionPhaseTried = regionCandidates.firstOrNull().orEmpty()
     }
 
     private fun logPsiphonPlan() {
@@ -1301,7 +1320,8 @@ class PowConnectionCoordinator(
                     val remembered = store.rememberedRegion()?.equals(regionPhaseTried, ignoreCase = true) == true
                     "Psiphon region: Automatic -> nearby ${PowRegions.name(regionPhaseTried)} ($regionPhaseTried" +
                         (if (remembered) ", remembered" else "") +
-                        ") for ${ladder.getOrNull(ladderIndex)?.timeoutSeconds ?: PowPsiphonProtocols.CHAINED_LIGHT_TIMEOUT_SECONDS}s, then any country"
+                        "; candidate ${regionCandidateIndex + 1}/${regionCandidates.size}) for " +
+                        "${ladder.getOrNull(ladderIndex)?.timeoutSeconds ?: PowPsiphonProtocols.CHAINED_LIGHT_TIMEOUT_SECONDS}s each, then any country"
                 }
                 regionPhase -> "Psiphon region: user choice ${PowRegions.name(regionPhaseTried)}"
                 else -> "Psiphon region: any country"
