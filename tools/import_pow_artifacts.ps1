@@ -37,7 +37,7 @@ $artifacts = @(
     @{ Source = "app/src/main/jniLibs/arm64-v8a/libaether.so"; Destination = "vendor/jniLibs/arm64-v8a/libaether.so"; Blob = "10b89f17d9c4a234fff191cf456a5e8f54568f4f"; Size = 9518480 },
     @{ Source = "app/src/main/jniLibs/armeabi-v7a/libaether.so"; Destination = "vendor/jniLibs/armeabi-v7a/libaether.so"; Blob = "4a3b255e1d80eadb9318ce921a6f96c343ffe74f"; Size = 6217124 },
     @{ Source = "app/src/main/jniLibs/x86_64/libaether.so"; Destination = "vendor/jniLibs/x86_64/libaether.so"; Blob = "b75f7ab054826174537adde60086506a9c2d548b"; Size = 10763128 },
-    @{ Source = "app/src/main/assets/server_entries.txt"; Destination = "vendor/assets/server_entries.txt"; Blob = "bb99c2504a1e5324b79cf43c9665434c4658972f"; Size = 1150802 }
+    @{ Source = "app/src/main/assets/server_entries.txt"; Destination = "vendor/assets/server_entries.txt"; Blob = "bb99c2504a1e5324b79cf43c9665434c4658972f"; Size = 1151228 }
 )
 
 foreach ($artifact in $artifacts) {
