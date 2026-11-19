@@ -144,7 +144,7 @@ internal object PowNetworkScoreboard {
         PowRegions.NEARBY.mapNotNull { code ->
             val prefix = KEY_PREFIX_REGION_STATS + netKey + "_" + code + "_"
             val attempts = prefs.getInt(prefix + "attempts", 0)
-            if (attempts <= 0) null else code to PowRegionStats(
+            if (attempts <= 0) null else code to PowRegions.PowRegionStats(
                 attempts = attempts,
                 successes = prefs.getInt(prefix + "successes", 0),
                 totalConnectMs = prefs.getLong(prefix + "total_ms", 0L),
