@@ -22,6 +22,7 @@ import com.uacspoofer.mobile.settings.NetworkGuardStore
 import com.uacspoofer.mobile.settings.AdvancedSettingsData
 import com.uacspoofer.mobile.settings.CONNECTION_MODE_PROXY
 import com.uacspoofer.mobile.vpn.TunStats
+import com.uacspoofer.mobile.vpn.TunPacketFilter
 import com.uacspoofer.mobile.vpn.VpnPauseStore
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -428,6 +429,7 @@ class PowConnectionCoordinator(
         val reaper = Thread({
             runCatching { PowTun2Socks.stop() }
             runCatching { PowTun2Socks.awaitNativeExit(FORCE_NATIVE_EXIT_MS) }
+            runCatching { TunPacketFilter.stop() }
             runCatching { fd?.close() }
             // Anything after the wait must not touch a session the user started meanwhile.
             if (forcedSession != sessionGeneration.get()) return@Thread
@@ -1389,6 +1391,7 @@ class PowConnectionCoordinator(
             psiphon = null
             PowTun2Socks.stop()
             PowTun2Socks.awaitNativeExit()
+            TunPacketFilter.stop()
             PowSocksConnectOnly.stop()
             stopOuterLeg()
             AetherNative.detach()
