@@ -53,25 +53,23 @@ jobs:
             "build-tools;35.0.0" \
             "ndk;26.3.11579264" \
             "cmake;3.22.1"
-      - name: Build debug APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Build Universal and ARM64 debug APKs
+        run: gradle --no-daemon --stacktrace :app:assembleUniversalDebug :app:assembleArm64Debug
       - name: Validate APK structure, manifest, alignment and signature
         shell: bash
         run: |
           set -euxo pipefail
-          APK="app/build/outputs/apk/debug/app-debug.apk"
           TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-          test -s "$APK"
-          file "$APK"
-          sha256sum "$APK"
-          "$TOOLS/aapt" dump badging "$APK"
-          "$TOOLS/aapt" dump xmltree "$APK" AndroidManifest.xml > manifest-tree.txt
-          sed -n '1,160p' manifest-tree.txt
-          "$TOOLS/zipalign" -c -v 4 "$APK"
-          "$TOOLS/apksigner" verify --verbose --print-certs "$APK"
-          python3 - <<'PY'
-          import zipfile
-          p = "app/build/outputs/apk/debug/app-debug.apk"
+          for APK in app/build/outputs/apk/universal/debug/*.apk app/build/outputs/apk/arm64/debug/*.apk; do
+            test -s "$APK"
+            file "$APK"
+            sha256sum "$APK"
+            "$TOOLS/aapt" dump badging "$APK"
+            "$TOOLS/zipalign" -c -v 4 "$APK"
+            "$TOOLS/apksigner" verify --verbose --print-certs "$APK"
+            APK="$APK" python3 - <<'PY'
+          import os, zipfile
+          p = os.environ["APK"]
           with zipfile.ZipFile(p) as z:
               bad = z.testzip()
               assert bad is None, f"Corrupt ZIP entry: {bad}"
@@ -79,15 +77,25 @@ jobs:
               assert "AndroidManifest.xml" in names
               assert "resources.arsc" in names
               assert any(n.startswith("classes") and n.endswith(".dex") for n in names)
-              print("ZIP entries:", len(names))
-              print("DEX files:", sum(n.startswith("classes") and n.endswith(".dex") for n in names))
-              print("Native libraries:", sum(n.endswith(".so") for n in names))
+              libs = [n for n in names if n.endswith(".so")]
+              print("Validated:", p)
+              print("Native libraries:", len(libs))
+              if "/arm64/" in p:
+                  assert all("/arm64-v8a/" in n for n in libs), f"Non-ARM64 native library in {p}"
           PY
-      - name: Upload APK
+          done
+      - name: Upload Universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: atom-vpn-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: atom-vpn-universal-apk
+          path: app/build/outputs/apk/universal/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload ARM64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: atom-vpn-arm64-apk
+          path: app/build/outputs/apk/arm64/debug/*.apk
           if-no-files-found: error
           retention-days: 14
       - name: Upload diagnostics on failure
