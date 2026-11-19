@@ -140,7 +140,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(Modifier.size(42.dp).background(Brush.linearGradient(listOf(Blue, Cyan)), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Outlined.bolt, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                                        Icon(Icons.Outlined.Bolt, null, tint = Color.White, modifier = Modifier.size(25.dp))
                                     }
                                     Spacer(Modifier.width(11.dp))
                                     Column {
@@ -183,7 +183,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(if (connected || connecting) Icons.Outlined.PowerSettingsNew else Icons.Outlined.bolt, null, tint = accent, modifier = Modifier.size(40.dp))
+                                                Icon(if (connected || connecting) Icons.Outlined.PowerSettingsNew else Icons.Outlined.Bolt, null, tint = accent, modifier = Modifier.size(40.dp))
                                                 Spacer(Modifier.height(8.dp))
                                                 Text(if (connected || connecting) "قطع اتصال" else "اتصال", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                                 Text(if (connected) "PROTECTED" else "TAP TO CONNECT", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
