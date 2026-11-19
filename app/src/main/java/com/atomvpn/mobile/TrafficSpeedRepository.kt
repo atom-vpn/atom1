@@ -1,6 +1,5 @@
 package com.atomvpn.mobile
 
-import com.uacspoofer.mobile.engine.pow.PowTun2Socks
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
