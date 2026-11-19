@@ -535,10 +535,10 @@ private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
                     )
                     Text(
                         when (s) {
-                            UiState.CONNECTED -> "PROTECTED"
-                            UiState.CONNECTING -> "CONNECTING"
-                            UiState.FAILED -> "TAP TO RETRY"
-                            else -> "TAP TO CONNECT"
+                            UiState.CONNECTED -> "اتصال امن برقرار است"
+                            UiState.CONNECTING -> "در حال برقراری اتصال"
+                            UiState.FAILED -> "برای تلاش دوباره لمس کنید"
+                            else -> "برای اتصال لمس کنید"
                         },
                         color = Muted, fontSize = 9.sp, letterSpacing = 1.sp
                     )
