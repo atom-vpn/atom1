@@ -35,11 +35,13 @@ import com.uacspoofer.mobile.settings.AdvancedSettingsStore
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-private val Bg = Color(0xFF06111D)
-private val Panel = Color(0xE6142231)
-private val Blue = Color(0xFF299EFF)
-private val Green = Color(0xFF25F58A)
-private val Muted = Color(0xFF8D99A6)
+private val Bg = Color(0xFF080D19)
+private val Panel = Color(0xF0142033)
+private val PanelRaised = Color(0xFF1A2940)
+private val Blue = Color(0xFF8B7CFF)
+private val Cyan = Color(0xFF45D6D0)
+private val Green = Color(0xFF36D9A2)
+private val Muted = Color(0xFF9AA8BC)
 
 class MainActivity : ComponentActivity() {
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -50,8 +52,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(6, 17, 29)
-        window.navigationBarColor = android.graphics.Color.rgb(6, 17, 29)
+        window.statusBarColor = android.graphics.Color.rgb(8, 13, 25)
+        window.navigationBarColor = android.graphics.Color.rgb(8, 13, 25)
         setContent { AtomPowApp(
             onConnect = {
                 val intent = VpnService.prepare(this)
@@ -89,7 +91,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     MaterialTheme(colorScheme = darkColorScheme(
         primary = Blue, background = Bg, surface = Panel, onBackground = Color.White, onSurface = Color.White
     )) {
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF020913), Bg, Color(0xFF0A1B2A))))) {
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF080D19), Color(0xFF101B2D), Color(0xFF0A1726))))) {
             when (page) {
                 "settings" -> PowSettingsPage(
                     settings = settings,
@@ -131,32 +133,43 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                 else -> {
                     Column(
                         Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                            .padding(horizontal = 20.dp, vertical = 18.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("ATOM", fontSize = 25.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
-                                Text("POWERED BY UAC PoW", color = Muted, fontSize = 10.sp, letterSpacing = 1.5.sp)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(Modifier.size(42.dp).background(Brush.linearGradient(listOf(Blue, Cyan)), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Outlined.bolt, null, tint = Color.White, modifier = Modifier.size(25.dp))
+                                    }
+                                    Spacer(Modifier.width(11.dp))
+                                    Column {
+                                        Text("ATOM", fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
+                                        Text("UAC POW  •  PRIVATE NETWORK", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
+                                    }
+                                }
                             }
                             IconButton(onClick = { page = "settings" }) {
                                 Icon(Icons.Outlined.Tune, "تنظیمات", tint = Color.White)
                             }
                         }
-                        Spacer(Modifier.height(30.dp))
+                        Spacer(Modifier.height(24.dp))
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Panel),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.fillMaxWidth().border(1.dp, accent.copy(alpha = .25f), RoundedCornerShape(20.dp))
+                            shape = RoundedCornerShape(28.dp),
+                            modifier = Modifier.fillMaxWidth().border(1.dp, accent.copy(alpha = .30f), RoundedCornerShape(28.dp))
                         ) {
-                            Column(Modifier.padding(18.dp)) {
+                            Column(Modifier.padding(22.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.size(9.dp).background(if (connected) Green else if (connecting) Color(0xFFFFB44A) else Muted, CircleShape))
+                                    Box(Modifier.size(10.dp).background(if (connected) Green else if (connecting) Color(0xFFFFB44A) else Muted, CircleShape).border(3.dp, (if (connected) Green else if (connecting) Color(0xFFFFB44A) else Muted).copy(alpha = .18f), CircleShape))
                                     Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        when { connected -> "متصل"; connecting -> "در حال اتصال"; connection == ConnectionState.ERROR || status.phase == PowPhase.FAILED -> "خطا در اتصال"; else -> "آماده اتصال" },
-                                        color = if (connected) Green else Color.White, fontWeight = FontWeight.SemiBold
-                                    )
+                                    Column {
+                                        Text(
+                                            when { connected -> "اتصال امن برقرار است"; connecting -> "در حال برقراری تونل"; connection == ConnectionState.ERROR || status.phase == PowPhase.FAILED -> "اتصال ناموفق بود"; else -> "آماده برای اتصال" },
+                                            color = if (connected) Green else Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp
+                                        )
+                                        Text(if (connected) "ترافیک از تونل عبور می‌کند" else "برای شروع، دکمه اتصال را لمس کن", color = Muted, fontSize = 10.sp)
+                                    }
                                     Spacer(Modifier.weight(1f))
                                     Text("${status.progressPercent}%", color = Muted, fontSize = 12.sp)
                                 }
@@ -165,15 +178,15 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                     Surface(
                                         onClick = { if (connected || connecting) onDisconnect() else onConnect() },
                                         shape = CircleShape,
-                                        color = Color(0xFF101F30),
-                                        modifier = Modifier.size(190.dp).border(2.dp, accent.copy(alpha = .65f), CircleShape)
+                                        color = PanelRaised,
+                                        modifier = Modifier.size(176.dp).border(2.dp, accent.copy(alpha = .75f), CircleShape)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(if (connected || connecting) Icons.Outlined.PowerSettingsNew else Icons.Outlined.FlashOn, null, tint = accent, modifier = Modifier.size(42.dp))
+                                                Icon(if (connected || connecting) Icons.Outlined.PowerSettingsNew else Icons.Outlined.bolt, null, tint = accent, modifier = Modifier.size(40.dp))
                                                 Spacer(Modifier.height(8.dp))
-                                                Text(if (connected || connecting) "قطع اتصال" else "اتصال", fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                                                Text(if (connected) "SECURE TUNNEL" else "UAC POW ENGINE", color = Muted, fontSize = 9.sp)
+                                                Text(if (connected || connecting) "قطع اتصال" else "اتصال", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                                Text(if (connected) "PROTECTED" else "TAP TO CONNECT", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
                                             }
                                         }
                                     }
@@ -191,13 +204,17 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                         }
                         Spacer(Modifier.height(14.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                            InfoTile("کشور خروجی", settings.exitCountryCode.ifBlank { "خودکار" }, Modifier.weight(1f)) { page = "countries" }
-                            InfoTile("پروتکل", settings.linkRecipe.uppercase(), Modifier.weight(1f)) { page = "settings" }
+                            InfoTile("موقعیت خروجی", settings.exitCountryCode.ifBlank { "خودکار" }, Modifier.weight(1f), Icons.Outlined.Public) { page = "countries" }
+                            InfoTile("پروتکل اتصال", settings.linkRecipe.uppercase(), Modifier.weight(1f), Icons.Outlined.Hub) { page = "settings" }
                         }
                         Spacer(Modifier.height(14.dp))
-                        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(14.dp)) {
-                                Text("وضعیت مسیر زنده", fontWeight = FontWeight.Bold)
+                        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(22.dp))) {
+                            Column(Modifier.padding(18.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Outlined.AccountTree, null, tint = Cyan, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("جزئیات مسیر اتصال", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                }
                                 Spacer(Modifier.height(10.dp))
                                 PathLine("دستگاه", "ترافیک برنامه‌ها")
                                 PathLine("اپراتور سیم‌کارت", carrierLabel)
@@ -228,7 +245,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                             }
                         }
                         Spacer(Modifier.weight(1f))
-                        Text("ATOM VPN  •  UAC PoW Standalone", color = Muted, fontSize = 10.sp)
+                        Text("ATOM  •  POWERED BY UAC PoW", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
                     }
                 }
             }
@@ -331,8 +348,8 @@ private fun PowSettingsPage(
 @Composable
 private fun CountryRow(title: String, code: String, selected: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp))
-            .border(1.dp, if (selected) Blue.copy(alpha = .6f) else Color.White.copy(alpha = .06f), RoundedCornerShape(12.dp))
+        Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(16.dp))
+            .border(1.dp, if (selected) Blue.copy(alpha = .7f) else Color.White.copy(alpha = .07f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -342,16 +359,23 @@ private fun CountryRow(title: String, code: String, selected: Boolean, onClick: 
 }
 
 @Composable
-private fun InfoTile(title: String, value: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = Panel), modifier = modifier) {
-        Column(Modifier.padding(14.dp)) { Text(title, color = Muted, fontSize = 11.sp); Text(value, fontWeight = FontWeight.Bold, maxLines = 1) }
+private fun InfoTile(title: String, value: String, modifier: Modifier = Modifier, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp), modifier = modifier.border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = Cyan, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(title, color = Muted, fontSize = 10.sp)
+                Text(value, fontWeight = FontWeight.Bold, maxLines = 1, fontSize = 13.sp)
+            }
+        }
     }
 }
 
 @Composable
 private fun SettingCard(title: String, value: String, action: String, onClick: () -> Unit) {
-    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = Panel), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))) {
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.SemiBold); Text(value, color = Muted, fontSize = 12.sp) }
             Text(action, color = Blue, fontSize = 12.sp)
         }
