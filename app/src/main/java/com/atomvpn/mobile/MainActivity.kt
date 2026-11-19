@@ -51,6 +51,7 @@ import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.core.ConnectionStateStore
 import com.uacspoofer.mobile.engine.pow.*
 import com.uacspoofer.mobile.settings.AdvancedSettingsStore
+import com.uacspoofer.mobile.settings.NetworkGuardStore
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -678,6 +679,10 @@ private fun PowSettingsPage(
     onOpenCountries: () -> Unit,
     onSave: (PowEngineSettings) -> Unit
 ) {
+    val context = LocalContext.current
+    val networkGuard = remember(context) { NetworkGuardStore.get(context) }
+    val guardSettings by networkGuard.settings.collectAsStateWithLifecycle()
+
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
         ScreenHeader("تنظیمات", "مدیریت اتصال", onBack)
         Spacer(Modifier.height(12.dp))
@@ -749,6 +754,50 @@ private fun PowSettingsPage(
                     SettingCard("بهینه‌سازی اتصال", if (settings.optimizedMode) "فعال" else "غیرفعال", "تغییر", {
                         onSave(settings.copy(optimizedMode = !settings.optimizedMode).validated())
                     })
+                }
+            }
+            item {
+                Reveal(7) {
+                    val enabled = guardSettings.quicBlock
+                    val source = remember { MutableInteractionSource() }
+                    Card(
+                        onClick = { networkGuard.setQuicBlock(!enabled) },
+                        interactionSource = source,
+                        colors = CardDefaults.cardColors(containerColor = Panel),
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth()
+                            .pressScale(source)
+                            .border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("مسدودسازی QUIC", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (enabled) "فعال · مسدودسازی UDP پورت ۴۴۳" else "غیرفعال · عبور عادی ترافیک QUIC",
+                                    color = Muted,
+                                    fontSize = 12.sp
+                                )
+                                Text(
+                                    "تغییر وضعیت بدون قطع اتصال VPN اعمال می‌شود",
+                                    color = Muted.copy(alpha = .78f),
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Switch(
+                                checked = enabled,
+                                onCheckedChange = { networkGuard.setQuicBlock(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Blue,
+                                    uncheckedThumbColor = Muted,
+                                    uncheckedTrackColor = PanelRaised
+                                )
+                            )
+                        }
+                    }
                 }
             }
             item {
