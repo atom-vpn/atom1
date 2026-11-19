@@ -17,6 +17,7 @@ import com.uacspoofer.mobile.engine.pow.PowStatusStore
 import com.uacspoofer.mobile.engine.pow.PowTun2Socks
 import com.uacspoofer.mobile.settings.AdvancedSettingsData
 import com.uacspoofer.mobile.settings.AdvancedSettingsStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,6 +43,7 @@ class PowVpnService : VpnService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var coordinator: PowConnectionCoordinator
+    private var connectJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -58,22 +60,29 @@ class PowVpnService : VpnService() {
     }
 
     private fun connect() {
-        startForeground(NOTIFICATION_ID, notification("در حال آماده‌سازی UAC PoW"))
-        scope.launch {
+        // ثبت حالت قبل از شروع موتور ضروری است؛ موتور فقط از CONNECTING به CONNECTED می‌رود.
+        if (!ConnectionStateStore.tryBeginConnect()) return
+        startForeground(NOTIFICATION_ID, notification("در حال آماده‌سازی اتصال"))
+        connectJob = scope.launch {
             try {
                 val settings = AdvancedSettingsStore(this@PowVpnService).snapshot()
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
-                ConnectionStateStore.markConnected()
-                updateNotification("اتصال امن برقرار شد")
+                if (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
+                    updateNotification("اتصال امن برقرار شد")
+                }
+            } catch (cancelled: CancellationException) {
+                // لغو دستی، خطای اتصال محسوب نمی‌شود.
             } catch (error: Throwable) {
-                PowStatusStore.update(
-                    com.uacspoofer.mobile.engine.pow.PowPhase.FAILED,
-                    0,
-                    error.message ?: "اتصال ناموفق بود"
-                )
-                ConnectionStateStore.markError()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                if (ConnectionStateStore.state.value != com.uacspoofer.mobile.core.ConnectionState.DISCONNECTING) {
+                    PowStatusStore.update(
+                        com.uacspoofer.mobile.engine.pow.PowPhase.FAILED,
+                        0,
+                        error.message ?: "اتصال ناموفق بود"
+                    )
+                    ConnectionStateStore.markError()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         }
     }
@@ -93,6 +102,9 @@ class PowVpnService : VpnService() {
     }
 
     private fun disconnect() {
+        ConnectionStateStore.tryBeginDisconnect()
+        // اتصالِ درحال اجرا نباید پس از درخواست قطع، وضعیت را دوباره CONNECTED کند.
+        connectJob?.cancel()
         coordinator.signalStop()
         scope.launch {
             runCatching { coordinator.stop() }
