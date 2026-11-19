@@ -46,6 +46,7 @@ android {
 }
 
 dependencies {
+    implementation("com.posthog:posthog-android:3.72.10")
     implementation(project(":engine"))
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
