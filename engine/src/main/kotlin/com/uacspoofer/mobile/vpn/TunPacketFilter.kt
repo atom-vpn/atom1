@@ -14,7 +14,7 @@ import java.io.FileDescriptor
  * Packet splice between Android's TUN and HEV tun2socks.
  * The packet loop reads only a cached flag; it never touches preferences.
  */
-internal object TunPacketFilter {
+object TunPacketFilter {
     @Volatile private var quicEnabled = false
     private val lock = Any()
     private var realTun: ParcelFileDescriptor? = null
