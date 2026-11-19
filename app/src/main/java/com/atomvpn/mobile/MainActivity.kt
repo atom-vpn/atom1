@@ -8,6 +8,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +17,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -79,7 +92,15 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val scope = rememberCoroutineScope()
     val connected = connection == ConnectionState.CONNECTED
     val connecting = connection == ConnectionState.CONNECTING || status.phase in setOf(PowPhase.STARTING, PowPhase.OUTER, PowPhase.INNER, PowPhase.BRIDGING)
-    val accent = if (connected) Green else Blue
+    val targetAccent = if (connected) Green else Blue
+    val accent by animateColorAsState(targetAccent, tween(650), label = "connection-accent")
+    val pulseTransition = rememberInfiniteTransition(label = "connection-pulse")
+    val pulseScale = pulseTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.035f,
+        animationSpec = infiniteRepeatable(animation = tween(1800), repeatMode = RepeatMode.Reverse),
+        label = "connection-pulse-scale"
+    ).value
     val carrierLabel = when {
         settings.carrierMode == PowCoreConfig.CARRIER_OFF -> "تشخیص خاموش · مسیر عمومی"
         settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
@@ -92,7 +113,12 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
         primary = Blue, background = Bg, surface = Panel, onBackground = Color.White, onSurface = Color.White
     )) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF080D19), Color(0xFF101B2D), Color(0xFF0A1726))))) {
-            when (page) {
+            AnimatedContent(
+                targetState = page,
+                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(160)) },
+                label = "page-transition"
+            ) { currentPage ->
+            when (currentPage) {
                 "settings" -> PowSettingsPage(
                     settings = settings,
                     onBack = { page = "home" },
@@ -133,13 +159,14 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                 else -> {
                     Column(
                         Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
+                            .verticalScroll(rememberScrollState())
                             .padding(horizontal = 20.dp, vertical = 18.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(Modifier.size(42.dp).background(Brush.linearGradient(listOf(Blue, Cyan)), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                    Box(Modifier.size(46.dp).background(Brush.linearGradient(listOf(Blue, Cyan)), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
                                         Icon(Icons.Outlined.Bolt, null, tint = Color.White, modifier = Modifier.size(25.dp))
                                     }
                                     Spacer(Modifier.width(11.dp))
@@ -153,21 +180,25 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                 Icon(Icons.Outlined.Tune, "تنظیمات", tint = Color.White)
                             }
                         }
-                        Spacer(Modifier.height(24.dp))
+                        Spacer(Modifier.height(28.dp))
                         Card(
                             colors = CardDefaults.cardColors(containerColor = Panel),
-                            shape = RoundedCornerShape(28.dp),
-                            modifier = Modifier.fillMaxWidth().border(1.dp, accent.copy(alpha = .30f), RoundedCornerShape(28.dp))
+                            shape = RoundedCornerShape(30.dp),
+                            modifier = Modifier.fillMaxWidth()
+                                .border(1.dp, accent.copy(alpha = .34f), RoundedCornerShape(30.dp))
                         ) {
-                            Column(Modifier.padding(22.dp)) {
+                            Column(Modifier.padding(24.dp).animateContentSize(tween(350))) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(Modifier.size(10.dp).background(if (connected) Green else if (connecting) Color(0xFFFFB44A) else Muted, CircleShape).border(3.dp, (if (connected) Green else if (connecting) Color(0xFFFFB44A) else Muted).copy(alpha = .18f), CircleShape))
                                     Spacer(Modifier.width(8.dp))
                                     Column {
-                                        Text(
-                                            when { connected -> "اتصال امن برقرار است"; connecting -> "در حال برقراری تونل"; connection == ConnectionState.ERROR || status.phase == PowPhase.FAILED -> "اتصال ناموفق بود"; else -> "آماده برای اتصال" },
-                                            color = if (connected) Green else Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp
-                                        )
+                                        AnimatedContent(
+                                            targetState = when { connected -> "اتصال امن برقرار است"; connecting -> "در حال برقراری تونل"; connection == ConnectionState.ERROR || status.phase == PowPhase.FAILED -> "اتصال ناموفق بود"; else -> "آماده برای اتصال" },
+                                            transitionSpec = { fadeIn(tween(240)) togetherWith fadeOut(tween(160)) },
+                                            label = "status-text"
+                                        ) { label ->
+                                            Text(label, color = if (connected) Green else Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        }
                                         Text(if (connected) "ترافیک از تونل عبور می‌کند" else "برای شروع، دکمه اتصال را لمس کن", color = Muted, fontSize = 10.sp)
                                     }
                                     Spacer(Modifier.weight(1f))
@@ -179,11 +210,13 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                         onClick = { if (connected || connecting) onDisconnect() else onConnect() },
                                         shape = CircleShape,
                                         color = PanelRaised,
-                                        modifier = Modifier.size(176.dp).border(2.dp, accent.copy(alpha = .75f), CircleShape)
+                                        modifier = Modifier.size(184.dp)
+                                            .graphicsLayer { scaleX = if (connecting || connected) pulseScale else 1f; scaleY = if (connecting || connected) pulseScale else 1f }
+                                            .border(2.dp, accent.copy(alpha = .82f), CircleShape)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(if (connected || connecting) Icons.Outlined.PowerSettingsNew else Icons.Outlined.Bolt, null, tint = accent, modifier = Modifier.size(40.dp))
+                                                Icon(if (connected || connecting) Icons.Outlined.PowerSettingsNew else Icons.Outlined.Bolt, null, tint = accent, modifier = Modifier.size(42.dp))
                                                 Spacer(Modifier.height(8.dp))
                                                 Text(if (connected || connecting) "قطع اتصال" else "اتصال", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                                 Text(if (connected) "PROTECTED" else "TAP TO CONNECT", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
@@ -244,10 +277,11 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                 )
                             }
                         }
-                        Spacer(Modifier.weight(1f))
+                        Spacer(Modifier.height(24.dp))
                         Text("ATOM  •  POWERED BY UAC PoW", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
                     }
                 }
+            }
             }
         }
     }
