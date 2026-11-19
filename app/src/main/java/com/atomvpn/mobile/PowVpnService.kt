@@ -114,7 +114,7 @@ class PowVpnService : VpnService() {
             TrafficSpeedRepository.clear()
             while (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
                 delay(1_000L)
-                val current = PowTun2Socks.stats()
+                val current = coordinator.tunStats()
                 val now = SystemClock.elapsedRealtime()
                 val elapsed = (now - previousAt).coerceAtLeast(1L)
                 val download = ((current.rxBytes - previous.rxBytes).coerceAtLeast(0L) * 1_000L) / elapsed
