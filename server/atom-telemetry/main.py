@@ -1,6 +1,7 @@
 import hmac
 import os
 import sqlite3
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
@@ -41,8 +42,21 @@ def connect_db():
     return connection
 
 
+@contextmanager
+def database():
+    db = connect_db()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 def init_db():
-    with connect_db() as db:
+    with database() as db:
         db.executescript(
             """
             CREATE TABLE IF NOT EXISTS processed_events (
@@ -95,7 +109,7 @@ def ingest(batch: EventBatch):
     accepted = 0
     duplicates = 0
 
-    with connect_db() as db:
+    with database() as db:
         db.execute("BEGIN IMMEDIATE")
         for event in batch.events:
             event_id = str(event.event_id)
@@ -147,7 +161,7 @@ def get_stats(x_admin_token: str | None = Header(default=None)):
     month_start = today - timedelta(days=29)
     week_start = today - timedelta(days=6)
 
-    with connect_db() as db:
+    with database() as db:
         total_installs = db.execute(
             "SELECT COUNT(*) FROM installations"
         ).fetchone()[0]
