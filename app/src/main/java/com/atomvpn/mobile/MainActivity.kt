@@ -525,10 +525,11 @@ private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        when {
-                            on -> "قطع اتصال"
-                            s == UiState.FAILED -> "تلاش دوباره"
-                            else -> "اتصال"
+                        when (s) {
+                            UiState.CONNECTED -> "قطع اتصال"
+                            UiState.CONNECTING -> "لغو اتصال"
+                            UiState.FAILED -> "تلاش دوباره"
+                            UiState.IDLE -> "اتصال"
                         },
                         fontSize = 20.sp, fontWeight = FontWeight.Bold
                     )
