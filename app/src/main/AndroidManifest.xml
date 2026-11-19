@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".AtomApplication"
         android:allowBackup="false"
         android:label="Atom VPN"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
