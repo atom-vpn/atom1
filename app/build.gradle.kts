@@ -17,6 +17,20 @@ android {
         versionName = "1.0.0"
     }
 
+    // Publish a broad-compatibility APK and a smaller ARM64-only APK.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("universal") {
+            dimension = "distribution"
+        }
+        create("arm64") {
+            dimension = "distribution"
+            ndk {
+                abiFilters += "arm64-v8a"
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
