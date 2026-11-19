@@ -69,6 +69,16 @@ object PowRegions {
         "BE", "IT", "RS", "RO", "LT", "FI", "NO", "IE", "ES",
     )
 
+    /** Country performance measured independently for each physical network. */
+    internal data class PowRegionStats(
+        val attempts: Int,
+        val successes: Int,
+        val totalConnectMs: Long,
+    ) {
+        val successRate: Double get() = if (attempts <= 0) 0.0 else successes.toDouble() / attempts
+        val averageConnectMs: Long get() = if (successes <= 0) Long.MAX_VALUE else totalConnectMs / successes
+    }
+
     /**
      * Country for the short head-start attempt when the user left the exit on
      * Automatic. A nearby country that worked on this network wins; otherwise
@@ -80,15 +90,29 @@ object PowRegions {
         remembered: String?,
         available: Collection<String>,
         rememberedOnly: Boolean = false,
+        performance: Map<String, PowRegionStats> = emptyMap(),
     ): List<String> {
         val live = available.map { it.trim().uppercase(Locale.US) }.filter(::isCode).toSet()
         val usable = { code: String -> live.isEmpty() || code in live }
         val last = remembered?.trim()?.uppercase(Locale.US)
             ?.takeIf { it in NEARBY && usable(it) }
         if (rememberedOnly) return listOfNotNull(last)
+        val candidates = NEARBY.filter(usable)
+        val remaining = candidates.filter { it != last }.sortedWith(
+            compareBy<String> {
+                val stats = performance[it]
+                when {
+                    stats == null || stats.attempts <= 0 -> 1
+                    stats.successes > 0 -> 0
+                    else -> 2
+                }
+            }.thenByDescending { performance[it]?.successRate ?: 0.0 }
+                .thenBy { performance[it]?.averageConnectMs ?: Long.MAX_VALUE }
+                .thenByDescending { performance[it]?.attempts ?: 0 },
+        )
         return buildList {
             if (last != null) add(last)
-            NEARBY.filter(usable).forEach { if (it != last) add(it) }
+            addAll(remaining)
         }
     }
 
