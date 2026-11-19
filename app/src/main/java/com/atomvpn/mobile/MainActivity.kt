@@ -310,7 +310,7 @@ private fun HomePage(
                         Spacer(Modifier.width(11.dp))
                         Column {
                             Text("ATOM", fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
-                            Text("UAC POW  •  PRIVATE NETWORK", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
+                            Text("PRIVATE NETWORK", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
                         }
                     }
                     IconButton(onClick = onOpenSettings) {
@@ -339,7 +339,7 @@ private fun HomePage(
                                 ) { s ->
                                     Text(
                                         when (s) {
-                                            UiState.CONNECTED -> "اتصال امن برقرار است"
+                                            UiState.CONNECTED -> "متصل"
                                             UiState.CONNECTING -> "در حال برقراری تونل"
                                             UiState.FAILED -> "اتصال ناموفق بود"
                                             UiState.IDLE -> "آماده برای اتصال"
@@ -377,7 +377,7 @@ private fun HomePage(
                         )
                         Spacer(Modifier.height(10.dp))
                         AnimatedContent(
-                            targetState = detail.ifBlank { "موتور UAC PoW آماده است" },
+                            targetState = detail.ifBlank { "موتور اتصال آماده است" },
                             transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
                             label = "detail-text"
                         ) { text ->
@@ -430,7 +430,7 @@ private fun HomePage(
                         PathLine(
                             "تونل VPN",
                             when {
-                                connected -> "فعال"
+                                connected -> "متصل"
                                 connecting -> "در حال برقراری"
                                 else -> "قطع"
                             }
@@ -439,7 +439,7 @@ private fun HomePage(
                 }
             }
             Spacer(Modifier.height(24.dp))
-            Text("ATOM  •  POWERED BY UAC PoW", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
+            Text("ATOM  •  PRIVATE NETWORK", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
         }
     }
 }
@@ -635,7 +635,7 @@ private fun PowSettingsPage(
     onSave: (PowEngineSettings) -> Unit
 ) {
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
-        ScreenHeader("UAC PoW", "تنظیمات موتور اتصال", onBack)
+        ScreenHeader("تنظیمات", "مدیریت اتصال", onBack)
         Spacer(Modifier.height(12.dp))
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
