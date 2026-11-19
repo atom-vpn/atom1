@@ -126,7 +126,7 @@ object TunPacketFilter {
             } catch (error: ErrnoException) {
                 when (error.errno) {
                     OsConstants.EINTR -> continue
-                    OsConstants.EAGAIN -> { waitFor(fd, OsConstants.POLLIN); continue }
+                    OsConstants.EAGAIN -> { waitFor(fd, OsConstants.POLLIN.toShort()); continue }
                     OsConstants.EPIPE, OsConstants.EBADF, OsConstants.ECONNRESET -> return null
                     else -> { if (running) throw error else return null }
                 }
@@ -145,7 +145,7 @@ object TunPacketFilter {
             } catch (error: ErrnoException) {
                 when (error.errno) {
                     OsConstants.EINTR -> continue
-                    OsConstants.EAGAIN -> { waitFor(fd, OsConstants.POLLOUT); continue }
+                    OsConstants.EAGAIN -> { waitFor(fd, OsConstants.POLLOUT.toShort()); continue }
                     OsConstants.EPIPE, OsConstants.EBADF, OsConstants.ECONNRESET -> return
                     else -> { if (running) throw error else return }
                 }
