@@ -17,6 +17,7 @@ internal object PowNetworkScoreboard {
     private const val KEY_PREFIX_RTT = "pow_net_rtt_"
     private const val KEY_PREFIX_REGION = "pow_net_region_"
     private const val KEY_PREFIX_STRAT_RTT = "pow_net_srtt_"
+    private const val KEY_PREFIX_REGION_STATS = "pow_net_region_stats_"
 
     fun networkKey(context: Context): String {
         return runCatching {
@@ -114,6 +115,42 @@ internal object PowNetworkScoreboard {
     fun loadRegion(prefs: android.content.SharedPreferences, netKey: String): String? =
         prefs.getString(KEY_PREFIX_REGION + netKey, null)?.takeIf { it.length == 2 }
 
+    /** Record one automatic nearby-country attempt on the current physical network. */
+    fun recordRegionResult(
+        prefs: android.content.SharedPreferences,
+        netKey: String,
+        region: String,
+        success: Boolean,
+        connectMs: Long,
+    ) {
+        val code = region.trim().uppercase()
+        if (code !in PowRegions.NEARBY) return
+        val prefix = KEY_PREFIX_REGION_STATS + netKey + "_" + code + "_"
+        synchronized(prefs) {
+            val attempts = prefs.getInt(prefix + "attempts", 0) + 1
+            val successes = prefs.getInt(prefix + "successes", 0) + if (success) 1 else 0
+            val totalMs = prefs.getLong(prefix + "total_ms", 0L) +
+                if (success) connectMs.coerceAtLeast(1L) else 0L
+            prefs.edit()
+                .putInt(prefix + "attempts", attempts)
+                .putInt(prefix + "successes", successes)
+                .putLong(prefix + "total_ms", totalMs)
+                .putLong(prefix + "last_ms", if (success) connectMs.coerceAtLeast(1L) else 0L)
+                .apply()
+        }
+    }
+
+    fun regionStats(prefs: android.content.SharedPreferences, netKey: String): Map<String, PowRegionStats> =
+        PowRegions.NEARBY.mapNotNull { code ->
+            val prefix = KEY_PREFIX_REGION_STATS + netKey + "_" + code + "_"
+            val attempts = prefs.getInt(prefix + "attempts", 0)
+            if (attempts <= 0) null else code to PowRegionStats(
+                attempts = attempts,
+                successes = prefs.getInt(prefix + "successes", 0),
+                totalConnectMs = prefs.getLong(prefix + "total_ms", 0L),
+            )
+        }.toMap()
+
     fun loadRttMs(prefs: android.content.SharedPreferences, netKey: String): Long? =
         runCatching { prefs.getLong(KEY_PREFIX_RTT + netKey, 0L) }.getOrNull()?.takeIf { it > 0L }
 
@@ -153,7 +190,8 @@ internal object PowNetworkScoreboard {
                 key.startsWith(KEY_PREFIX_STRAT_SHAPE) ||
                 key.startsWith(KEY_PREFIX_RTT) ||
                 key.startsWith(KEY_PREFIX_REGION) ||
-                key.startsWith(KEY_PREFIX_STRAT_RTT)
+                key.startsWith(KEY_PREFIX_STRAT_RTT) ||
+                key.startsWith(KEY_PREFIX_REGION_STATS)
         }
         if (keys.isEmpty()) return 0
         prefs.edit().also { editor -> keys.forEach(editor::remove) }.apply()
