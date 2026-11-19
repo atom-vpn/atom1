@@ -16,6 +16,8 @@ import com.uacspoofer.mobile.engine.pow.PowConnectionCoordinator
 import com.uacspoofer.mobile.engine.pow.PowEngineStore
 import com.uacspoofer.mobile.engine.pow.PowStatusStore
 import com.uacspoofer.mobile.engine.pow.PowTun2Socks
+import com.uacspoofer.mobile.settings.NetworkGuardStore
+import com.uacspoofer.mobile.vpn.TunPacketFilter
 import com.uacspoofer.mobile.settings.AdvancedSettingsData
 import com.uacspoofer.mobile.settings.AdvancedSettingsStore
 import kotlinx.coroutines.CancellationException
@@ -53,6 +55,9 @@ class PowVpnService : VpnService() {
         super.onCreate()
         createChannel()
         coordinator = PowConnectionCoordinator(this)
+        val networkGuard = NetworkGuardStore.get(this)
+        TunPacketFilter.applyFlags(networkGuard.snapshot())
+        scope.launch { networkGuard.settings.collect { TunPacketFilter.applyFlags(it) } }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -138,7 +143,7 @@ class PowVpnService : VpnService() {
 
     private fun establishTun(address: PowTun2Socks.PrivateAddress, mtu: Int): ParcelFileDescriptor? {
         val tunMtu = mtu.coerceIn(576, 9000)
-        return Builder()
+        val realTun = Builder()
             .setSession("Atom VPN")
             .setBlocking(false)
             .setMtu(tunMtu)
@@ -147,7 +152,15 @@ class PowVpnService : VpnService() {
             .addDnsServer(address.router)
             .addDisallowedApplication(packageName)
             .allowFamily(OsConstants.AF_INET)
-            .establish()
+            .establish() ?: return null
+
+        // The filter owns the Android TUN; HEV receives only the filtered socketpair endpoint.
+        TunPacketFilter.applyFlags(NetworkGuardStore.get(this).snapshot())
+        return runCatching { TunPacketFilter.attach(realTun, tunMtu) }
+            .onFailure { error ->
+                android.util.Log.w("AtomVPN", "QUIC packet filter unavailable; using direct TUN", error)
+            }
+            .getOrDefault(realTun)
     }
 
     private fun disconnect() {
