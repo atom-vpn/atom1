@@ -53,6 +53,7 @@ object ExitIpInfoRepository {
         } catch (error: Throwable) {
             val message = error.message?.replace(Regex("\\s+"), " ")?.trim()?.take(100)
                 .orEmpty().ifBlank { error.javaClass.simpleName }
+            android.util.Log.e("AtomVPN-IP", "Public exit IP lookup failed on SOCKS port $socksPort: $message", error)
             mutableState.value = ExitIpInfoState(errorMessage = message)
         }
     }
