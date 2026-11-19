@@ -82,7 +82,16 @@ class PowVpnService : VpnService() {
                     // never through the phone's direct network.
                     exitIpJob?.cancel()
                     exitIpJob = scope.launch {
-                        ExitIpInfoRepository.refresh(coordinator.socksPort())
+                        // Psiphon may report CONNECTED briefly before its SOCKS tunnel is usable.
+                        // Give it time to settle, then retry transient SOCKS/API failures.
+                        repeat(EXIT_IP_MAX_ATTEMPTS) { attempt ->
+                            if (ConnectionStateStore.state.value != com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
+                                return@launch
+                            }
+                            delay(EXIT_IP_RETRY_DELAY_MS)
+                            ExitIpInfoRepository.refresh(coordinator.socksPort())
+                            if (ExitIpInfoRepository.state.value.info != null) return@launch
+                        }
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -196,5 +205,7 @@ class PowVpnService : VpnService() {
         const val ACTION_DISCONNECT = "com.atomvpn.mobile.DISCONNECT"
         private const val CHANNEL_ID = "atom_vpn_connection"
         private const val NOTIFICATION_ID = 4101
+        private const val EXIT_IP_MAX_ATTEMPTS = 8
+        private const val EXIT_IP_RETRY_DELAY_MS = 2_000L
     }
 }
