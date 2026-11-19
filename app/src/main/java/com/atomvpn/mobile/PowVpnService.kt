@@ -109,7 +109,7 @@ class PowVpnService : VpnService() {
     private fun startTrafficSpeedMonitor() {
         trafficSpeedJob?.cancel()
         trafficSpeedJob = scope.launch {
-            var previous = PowTun2Socks.stats()
+            var previous = coordinator.tunStats()
             var previousAt = SystemClock.elapsedRealtime()
             TrafficSpeedRepository.clear()
             while (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
