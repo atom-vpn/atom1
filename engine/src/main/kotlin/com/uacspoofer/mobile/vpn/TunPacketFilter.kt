@@ -54,7 +54,6 @@ internal object TunPacketFilter {
                 running = false
                 runCatching { filterPfd.close() }
                 runCatching { enginePfd.close() }
-                runCatching { tun.close() }
                 throw error
             }
         }
