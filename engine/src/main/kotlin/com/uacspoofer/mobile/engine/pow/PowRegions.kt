@@ -70,7 +70,7 @@ object PowRegions {
     )
 
     /** Country performance measured independently for each physical network. */
-    internal data class PowRegionStats(
+    data class PowRegionStats(
         val attempts: Int,
         val successes: Int,
         val totalConnectMs: Long,
