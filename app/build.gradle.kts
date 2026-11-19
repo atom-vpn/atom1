@@ -15,6 +15,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        val telemetryBaseUrl = providers.gradleProperty("ATOM_TELEMETRY_URL").orNull ?: ""
+        buildConfigField("String", "TELEMETRY_BASE_URL", "\"${telemetryBaseUrl}\"")
     }
 
     // Publish a broad-compatibility APK and a smaller ARM64-only APK.
@@ -36,7 +38,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     packaging {
         jniLibs { useLegacyPackaging = true }
         resources {
@@ -46,7 +48,7 @@ android {
 }
 
 dependencies {
-    implementation("com.posthog:posthog-android:3.72.10")
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation(project(":engine"))
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
