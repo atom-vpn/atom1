@@ -44,6 +44,7 @@ class PowVpnService : VpnService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var coordinator: PowConnectionCoordinator
     private var connectJob: kotlinx.coroutines.Job? = null
+    private var exitIpJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -62,6 +63,8 @@ class PowVpnService : VpnService() {
     private fun connect() {
         // ثبت حالت قبل از شروع موتور ضروری است؛ موتور فقط از CONNECTING به CONNECTED می‌رود.
         if (!ConnectionStateStore.tryBeginConnect()) return
+        exitIpJob?.cancel()
+        ExitIpInfoRepository.clear()
         startForeground(NOTIFICATION_ID, notification("در حال آماده‌سازی اتصال"))
         connectJob = scope.launch {
             try {
@@ -69,6 +72,12 @@ class PowVpnService : VpnService() {
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
                 if (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
                     updateNotification("اتصال امن برقرار شد")
+                    // Resolve the public IP through the engine's own SOCKS listener,
+                    // never through the phone's direct network.
+                    exitIpJob?.cancel()
+                    exitIpJob = scope.launch {
+                        ExitIpInfoRepository.refresh(coordinator.socksPort())
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 // لغو دستی، خطای اتصال محسوب نمی‌شود.
@@ -80,6 +89,8 @@ class PowVpnService : VpnService() {
                         error.message ?: "اتصال ناموفق بود"
                     )
                     ConnectionStateStore.markError()
+                    exitIpJob?.cancel()
+                    ExitIpInfoRepository.clear()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -105,6 +116,8 @@ class PowVpnService : VpnService() {
         ConnectionStateStore.tryBeginDisconnect()
         // اتصالِ درحال اجرا نباید پس از درخواست قطع، وضعیت را دوباره CONNECTED کند.
         connectJob?.cancel()
+        exitIpJob?.cancel()
+        ExitIpInfoRepository.clear()
         coordinator.signalStop()
         scope.launch {
             runCatching { coordinator.stop() }
@@ -137,6 +150,8 @@ class PowVpnService : VpnService() {
 
     override fun onDestroy() {
         coordinator.signalStop()
+        exitIpJob?.cancel()
+        ExitIpInfoRepository.clear()
         scope.cancel()
         super.onDestroy()
     }
