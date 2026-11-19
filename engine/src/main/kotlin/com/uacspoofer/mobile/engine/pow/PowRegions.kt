@@ -76,18 +76,28 @@ object PowRegions {
      * has the most nearby servers in the bundled list. Null when Psiphon told
      * us its regions and none of them is nearby.
      */
+    fun autoBiasRegions(
+        remembered: String?,
+        available: Collection<String>,
+        rememberedOnly: Boolean = false,
+    ): List<String> {
+        val live = available.map { it.trim().uppercase(Locale.US) }.filter(::isCode).toSet()
+        val usable = { code: String -> live.isEmpty() || code in live }
+        val last = remembered?.trim()?.uppercase(Locale.US)
+            ?.takeIf { it in NEARBY && usable(it) }
+        if (rememberedOnly) return listOfNotNull(last)
+        return buildList {
+            if (last != null) add(last)
+            NEARBY.filter(usable).forEach { if (it != last) add(it) }
+        }
+    }
+
+    /** Backward-compatible single-country selector. */
     fun autoBiasRegion(
         remembered: String?,
         available: Collection<String>,
         rememberedOnly: Boolean = false,
-    ): String? {
-        val live = available.map { it.trim().uppercase(Locale.US) }.filter(::isCode).toSet()
-        val usable = { code: String -> live.isEmpty() || code in live }
-        val last = remembered?.trim()?.uppercase(Locale.US)
-        if (last != null && last in NEARBY && usable(last)) return last
-        if (rememberedOnly) return null
-        return NEARBY.firstOrNull(usable)
-    }
+    ): String? = autoBiasRegions(remembered, available, rememberedOnly).firstOrNull()
 
     fun isCode(code: String): Boolean {
         val key = code.trim().uppercase(Locale.US)
