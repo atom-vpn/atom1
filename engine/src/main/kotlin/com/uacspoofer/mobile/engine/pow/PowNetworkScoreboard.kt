@@ -140,7 +140,7 @@ internal object PowNetworkScoreboard {
         }
     }
 
-    fun regionStats(prefs: android.content.SharedPreferences, netKey: String): Map<String, PowRegionStats> =
+    fun regionStats(prefs: android.content.SharedPreferences, netKey: String): Map<String, PowRegions.PowRegionStats> =
         PowRegions.NEARBY.mapNotNull { code ->
             val prefix = KEY_PREFIX_REGION_STATS + netKey + "_" + code + "_"
             val attempts = prefs.getInt(prefix + "attempts", 0)
