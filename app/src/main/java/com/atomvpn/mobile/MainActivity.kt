@@ -417,7 +417,7 @@ private fun HomePage(
                     shape = RoundedCornerShape(22.dp),
                     modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(22.dp))
                 ) {
-                    Column(Modifier.padding(18.dp)) {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.Public, null, tint = Cyan, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -427,23 +427,18 @@ private fun HomePage(
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Cyan)
                             }
                         }
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(5.dp))
                         Text(
                             exitIpState.info?.ipAddress ?: when {
-                                !connected -> "پس از اتصال نمایش داده می‌شود"
-                                exitIpState.isLoading -> "در حال دریافت IP از مسیر تونل…"
-                                exitIpState.errorMessage != null -> "دریافت IP ناموفق بود"
-                                else -> "در انتظار اطلاعات خروجی"
+                                !connected -> "—"
+                                exitIpState.isLoading -> "در حال دریافت…"
+                                exitIpState.errorMessage != null -> "ناموفق: ${exitIpState.errorMessage}"
+                                else -> "IP در دسترس نیست"
                             },
                             color = if (exitIpState.info != null && connected) Color.White else Muted,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            if (exitIpState.info != null && connected) "این IP برای سایت‌ها و سرویس‌ها قابل مشاهده است"
-                            else "درخواست شناسایی فقط از طریق SOCKS موتور PoW ارسال می‌شود",
-                            color = Muted,
-                            fontSize = 10.sp
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
                         )
                     }
                 }
@@ -486,49 +481,7 @@ private fun HomePage(
             }
             Spacer(Modifier.height(14.dp))
 
-            Reveal(5) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Panel),
-                    shape = RoundedCornerShape(22.dp),
-                    modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(22.dp))
-                ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.AccountTree, null, tint = Cyan, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("جزئیات مسیر اتصال", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        PathLine("دستگاه", "ترافیک برنامه‌ها")
-                        PathLine("اپراتور سیم‌کارت", carrierLabel)
-                        PathLine(
-                            "مسیر انتخابی",
-                            when (settings.exitMode) {
-                                PowEngineSettings.EXIT_WARP -> "WARP مستقیم"
-                                PowEngineSettings.EXIT_PSIPHON -> "Psiphon مستقیم"
-                                else -> "Psiphon روی WARP"
-                            }
-                        )
-                        PathLine(
-                            "WARP / Aether",
-                            if (settings.exitMode == PowEngineSettings.EXIT_PSIPHON) {
-                                "در این حالت استفاده نمی‌شود"
-                            } else {
-                                outerLabel.ifBlank { "پس از شروع اتصال مشخص می‌شود" }
-                            }
-                        )
-                        PathLine(
-                            "تونل VPN",
-                            when {
-                                connected -> "متصل"
-                                connecting -> "در حال برقراری"
-                                else -> "قطع"
-                            }
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(18.dp))
             Text("ATOM  •  PRIVATE NETWORK", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
         }
     }
