@@ -105,6 +105,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val connection by ConnectionStateStore.state.collectAsStateWithLifecycle()
     val status by PowStatusStore.status.collectAsStateWithLifecycle()
     val exitIpState by ExitIpInfoRepository.state.collectAsStateWithLifecycle()
+    val trafficSpeedState by TrafficSpeedRepository.state.collectAsStateWithLifecycle()
     val engine = remember(context) { PowEngineStore.get(context) }
     val settings by engine.settings.collectAsStateWithLifecycle()
     var page by remember { mutableStateOf("home") }
@@ -240,6 +241,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                             carrierLabel = carrierLabel,
                             exitCountryLabel = exitCountryLabel,
                             exitIpState = exitIpState,
+                            trafficSpeedState = trafficSpeedState,
                             onConnect = onConnect,
                             onDisconnect = onDisconnect,
                             onOpenSettings = { page = "settings" },
@@ -264,6 +266,7 @@ private fun HomePage(
     carrierLabel: String,
     exitCountryLabel: String,
     exitIpState: ExitIpInfoState,
+    trafficSpeedState: TrafficSpeedState,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -448,6 +451,42 @@ private fun HomePage(
             Spacer(Modifier.height(14.dp))
 
             Reveal(4) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Panel),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(22.dp))
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Speed, null, tint = Cyan, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("سرعت لحظه‌ای اینترنت", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(Modifier.weight(1f))
+                            Text(if (connected) "زنده" else "غیرفعال", color = if (connected) Green else Muted, fontSize = 10.sp)
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            TrafficSpeedTile(
+                                title = "دانلود",
+                                value = if (connected) formatTrafficRate(trafficSpeedState.downloadBytesPerSecond) else "—",
+                                icon = Icons.Outlined.ArrowDownward,
+                                tint = Cyan,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TrafficSpeedTile(
+                                title = "آپلود",
+                                value = if (connected) formatTrafficRate(trafficSpeedState.uploadBytesPerSecond) else "—",
+                                icon = Icons.Outlined.ArrowUpward,
+                                tint = Blue,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+
+            Reveal(5) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Panel),
                     shape = RoundedCornerShape(22.dp),
@@ -917,4 +956,34 @@ private fun PathLine(title: String, value: String) {
             Text(v, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     }
+}
+
+@Composable
+private fun TrafficSpeedTile(
+    title: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(PanelRaised.copy(alpha = .72f))
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(9.dp))
+        Column {
+            Text(title, color = Muted, fontSize = 10.sp)
+            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+private fun formatTrafficRate(bytesPerSecond: Long): String {
+    if (bytesPerSecond < 1_000L) return "$bytesPerSecond B/s"
+    if (bytesPerSecond < 1_000_000L) return String.format(Locale.US, "%.1f KB/s", bytesPerSecond / 1_000.0)
+    return String.format(Locale.US, "%.2f MB/s", bytesPerSecond / 1_000_000.0)
 }
