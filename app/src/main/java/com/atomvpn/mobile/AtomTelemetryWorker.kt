@@ -24,9 +24,14 @@ class AtomTelemetryWorker(
         val events = AtomTelemetry.pendingEvents(applicationContext)
         if (events.length() == 0) return@withContext Result.success()
 
+        // The API intentionally caps batches at 100 events.
+        val batch = org.json.JSONArray()
+        for (index in 0 until minOf(events.length(), 100)) {
+            batch.put(events.getJSONObject(index))
+        }
         val sentIds = buildSet {
-            for (index in 0 until events.length()) {
-                events.optJSONObject(index)?.optString("event_id")
+            for (index in 0 until batch.length()) {
+                batch.optJSONObject(index)?.optString("event_id")
                     ?.takeIf { it.isNotBlank() }?.let(::add)
             }
         }
@@ -43,7 +48,7 @@ class AtomTelemetryWorker(
             }
 
             try {
-                val payload = JSONObject().put("events", JSONArray(events.toString()))
+                val payload = JSONObject().put("events", batch)
                 connection.outputStream.use {
                     it.write(payload.toString().toByteArray(Charsets.UTF_8))
                 }
@@ -51,7 +56,8 @@ class AtomTelemetryWorker(
                 when {
                     status in 200..299 -> {
                         AtomTelemetry.removeSentEvents(applicationContext, sentIds)
-                        Result.success()
+                        if (AtomTelemetry.pendingEvents(applicationContext).length() > 0) Result.retry()
+                        else Result.success()
                     }
                     status == 429 || status >= 500 -> Result.retry()
                     else -> Result.failure()
