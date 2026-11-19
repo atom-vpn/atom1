@@ -18,7 +18,6 @@ import com.uacspoofer.mobile.engine.pow.PowStatusStore
 import com.uacspoofer.mobile.engine.pow.PowTun2Socks
 import com.uacspoofer.mobile.settings.NetworkGuardStore
 import com.uacspoofer.mobile.vpn.TunPacketFilter
-import com.posthog.PostHog
 import com.uacspoofer.mobile.settings.AdvancedSettingsData
 import com.uacspoofer.mobile.settings.AdvancedSettingsStore
 import kotlinx.coroutines.CancellationException
@@ -82,7 +81,6 @@ class PowVpnService : VpnService() {
                 val settings = AdvancedSettingsStore(this@PowVpnService).snapshot()
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
                 if (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
-                    PostHog.capture("vpn_connected")
                     updateNotification("اتصال امن برقرار شد")
                     startTrafficSpeedMonitor()
                     // Resolve the public IP through the engine's own SOCKS listener,
