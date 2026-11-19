@@ -98,7 +98,7 @@ object PowRegions {
             ?.takeIf { it in NEARBY && usable(it) }
         if (rememberedOnly) return listOfNotNull(last)
         val candidates = NEARBY.filter(usable)
-        val remaining = candidates.filter { it != last }.sortedWith(
+        return candidates.sortedWith(
             compareBy<String> {
                 val stats = performance[it]
                 when {
@@ -108,12 +108,9 @@ object PowRegions {
                 }
             }.thenByDescending { performance[it]?.successRate ?: 0.0 }
                 .thenBy { performance[it]?.averageConnectMs ?: Long.MAX_VALUE }
+                .thenByDescending { it == last }
                 .thenByDescending { performance[it]?.attempts ?: 0 },
         )
-        return buildList {
-            if (last != null) add(last)
-            addAll(remaining)
-        }
     }
 
     /** Backward-compatible single-country selector. */
