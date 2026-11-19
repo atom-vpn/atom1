@@ -104,12 +104,20 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val context = LocalContext.current
     val connection by ConnectionStateStore.state.collectAsStateWithLifecycle()
     val status by PowStatusStore.status.collectAsStateWithLifecycle()
+    val exitIpState by ExitIpInfoRepository.state.collectAsStateWithLifecycle()
     val engine = remember(context) { PowEngineStore.get(context) }
     val settings by engine.settings.collectAsStateWithLifecycle()
     var page by remember { mutableStateOf("home") }
     var countryQuery by remember { mutableStateOf("") }
 
     val connected = connection == ConnectionState.CONNECTED
+    val exitCountryLabel = when {
+        !connected -> "—"
+        status.exitRegion.isNotBlank() -> PowRegions.name(status.exitRegion, Locale("fa")).ifBlank { status.exitRegion }
+        !exitIpState.info?.countryCode.isNullOrBlank() -> PowRegions.name(exitIpState.info!!.countryCode, Locale("fa")).ifBlank { exitIpState.info!!.countryCode }
+        exitIpState.isLoading -> "در حال شناسایی…"
+        else -> "نامشخص"
+    }
     val connecting = connection == ConnectionState.CONNECTING ||
         status.phase in setOf(PowPhase.STARTING, PowPhase.OUTER, PowPhase.INNER, PowPhase.BRIDGING)
     // پیام "Job was cancelled" یعنی کاربر خودش لغو کرده؛ شکست حساب نمی‌شود
@@ -230,6 +238,8 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                             outerLabel = status.outerLabel,
                             settings = settings,
                             carrierLabel = carrierLabel,
+                            exitCountryLabel = exitCountryLabel,
+                            exitIpState = exitIpState,
                             onConnect = onConnect,
                             onDisconnect = onDisconnect,
                             onOpenSettings = { page = "settings" },
@@ -252,6 +262,8 @@ private fun HomePage(
     outerLabel: String,
     settings: PowEngineSettings,
     carrierLabel: String,
+    exitCountryLabel: String,
+    exitIpState: ExitIpInfoState,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -390,13 +402,52 @@ private fun HomePage(
 
             Reveal(2) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    InfoTile("موقعیت خروجی", settings.exitCountryCode.ifBlank { "خودکار" }, Modifier.weight(1f), Icons.Outlined.Public) { onOpenCountries() }
+                    InfoTile("کشور خروجی", exitCountryLabel, Modifier.weight(1f), Icons.Outlined.Public) { onOpenCountries() }
                     InfoTile("پروتکل اتصال", settings.linkRecipe.uppercase(), Modifier.weight(1f), Icons.Outlined.Hub) { onOpenSettings() }
                 }
             }
             Spacer(Modifier.height(14.dp))
 
             Reveal(3) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Panel),
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(22.dp))
+                ) {
+                    Column(Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Public, null, tint = Cyan, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("IP خروجی عمومی", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(Modifier.weight(1f))
+                            if (exitIpState.isLoading && connected) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Cyan)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            exitIpState.info?.ipAddress ?: when {
+                                !connected -> "پس از اتصال نمایش داده می‌شود"
+                                exitIpState.isLoading -> "در حال دریافت IP از مسیر تونل…"
+                                exitIpState.errorMessage != null -> "دریافت IP ناموفق بود"
+                                else -> "در انتظار اطلاعات خروجی"
+                            },
+                            color = if (exitIpState.info != null && connected) Color.White else Muted,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            if (exitIpState.info != null && connected) "این IP برای سایت‌ها و سرویس‌ها قابل مشاهده است"
+                            else "درخواست شناسایی فقط از طریق SOCKS موتور PoW ارسال می‌شود",
+                            color = Muted,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+
+            Reveal(4) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Panel),
                     shape = RoundedCornerShape(22.dp),
