@@ -244,6 +244,7 @@ class PowConnectionCoordinator(
         proxyMode = settings.connectionMode == CONNECTION_MODE_PROXY
         socksPort = if (proxyMode) settings.socksPort else PowCoreConfig.SOCKS_PORT
         PowLiveExit.reset()
+        PowStatusStore.reset()
         armRegionPhase()
         ladderIndex = rememberedLadderStart()
         ladderAttempts = 0
