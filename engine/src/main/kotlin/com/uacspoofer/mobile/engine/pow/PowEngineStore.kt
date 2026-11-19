@@ -187,7 +187,7 @@ class PowEngineStore private constructor(context: Context) {
         PowNetworkScoreboard.saveRegion(prefs, PowNetworkScoreboard.networkKey(appContext), region)
     }
 
-    fun regionStats(): Map<String, PowRegionStats> =
+    fun regionStats(): Map<String, PowRegions.PowRegionStats> =
         PowNetworkScoreboard.regionStats(prefs, PowNetworkScoreboard.networkKey(appContext))
 
     fun recordRegionResult(region: String, success: Boolean, connectMs: Long) {
