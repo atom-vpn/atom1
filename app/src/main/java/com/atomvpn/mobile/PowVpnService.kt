@@ -8,6 +8,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import android.system.OsConstants
 import androidx.core.app.NotificationCompat
 import com.uacspoofer.mobile.core.ConnectionStateStore
@@ -22,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class PowVpnService : VpnService() {
@@ -45,6 +47,7 @@ class PowVpnService : VpnService() {
     private lateinit var coordinator: PowConnectionCoordinator
     private var connectJob: kotlinx.coroutines.Job? = null
     private var exitIpJob: kotlinx.coroutines.Job? = null
+    private var trafficSpeedJob: kotlinx.coroutines.Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -64,7 +67,9 @@ class PowVpnService : VpnService() {
         // ثبت حالت قبل از شروع موتور ضروری است؛ موتور فقط از CONNECTING به CONNECTED می‌رود.
         if (!ConnectionStateStore.tryBeginConnect()) return
         exitIpJob?.cancel()
+        trafficSpeedJob?.cancel()
         ExitIpInfoRepository.clear()
+        TrafficSpeedRepository.clear()
         startForeground(NOTIFICATION_ID, notification("در حال آماده‌سازی اتصال"))
         connectJob = scope.launch {
             try {
@@ -72,6 +77,7 @@ class PowVpnService : VpnService() {
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
                 if (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
                     updateNotification("اتصال امن برقرار شد")
+                    startTrafficSpeedMonitor()
                     // Resolve the public IP through the engine's own SOCKS listener,
                     // never through the phone's direct network.
                     exitIpJob?.cancel()
@@ -90,11 +96,34 @@ class PowVpnService : VpnService() {
                     )
                     ConnectionStateStore.markError()
                     exitIpJob?.cancel()
+                    trafficSpeedJob?.cancel()
                     ExitIpInfoRepository.clear()
+                    TrafficSpeedRepository.clear()
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
             }
+        }
+    }
+
+    private fun startTrafficSpeedMonitor() {
+        trafficSpeedJob?.cancel()
+        trafficSpeedJob = scope.launch {
+            var previous = PowTun2Socks.stats()
+            var previousAt = SystemClock.elapsedRealtime()
+            TrafficSpeedRepository.clear()
+            while (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
+                delay(1_000L)
+                val current = PowTun2Socks.stats()
+                val now = SystemClock.elapsedRealtime()
+                val elapsed = (now - previousAt).coerceAtLeast(1L)
+                val download = ((current.rxBytes - previous.rxBytes).coerceAtLeast(0L) * 1_000L) / elapsed
+                val upload = ((current.txBytes - previous.txBytes).coerceAtLeast(0L) * 1_000L) / elapsed
+                TrafficSpeedRepository.update(download, upload)
+                previous = current
+                previousAt = now
+            }
+            TrafficSpeedRepository.clear()
         }
     }
 
@@ -117,7 +146,9 @@ class PowVpnService : VpnService() {
         // اتصالِ درحال اجرا نباید پس از درخواست قطع، وضعیت را دوباره CONNECTED کند.
         connectJob?.cancel()
         exitIpJob?.cancel()
+        trafficSpeedJob?.cancel()
         ExitIpInfoRepository.clear()
+        TrafficSpeedRepository.clear()
         coordinator.signalStop()
         scope.launch {
             runCatching { coordinator.stop() }
@@ -151,7 +182,9 @@ class PowVpnService : VpnService() {
     override fun onDestroy() {
         coordinator.signalStop()
         exitIpJob?.cancel()
+        trafficSpeedJob?.cancel()
         ExitIpInfoRepository.clear()
+        TrafficSpeedRepository.clear()
         scope.cancel()
         super.onDestroy()
     }
