@@ -96,6 +96,11 @@ class MainActivity : ComponentActivity() {
             }
         ) }
     }
+
+    override fun onResume() {
+        super.onResume()
+        AtomTelemetry.recordAppOpen(this)
+    }
 }
 
 // ───────────────────────────── Root ─────────────────────────────
@@ -682,6 +687,7 @@ private fun PowSettingsPage(
     val context = LocalContext.current
     val networkGuard = remember(context) { NetworkGuardStore.get(context) }
     val guardSettings by networkGuard.settings.collectAsStateWithLifecycle()
+    var telemetryEnabled by remember(context) { mutableStateOf(AtomTelemetry.isEnabled(context)) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
         ScreenHeader("تنظیمات", "مدیریت اتصال", onBack)
@@ -789,6 +795,48 @@ private fun PowSettingsPage(
                             Switch(
                                 checked = enabled,
                                 onCheckedChange = { networkGuard.setQuicBlock(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = Blue,
+                                    uncheckedThumbColor = Muted,
+                                    uncheckedTrackColor = PanelRaised
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+            item {
+                Reveal(8) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Panel),
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth()
+                            .border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("آمار ناشناس Atom", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "ارسال اختیاری آمار نصب و کاربران فعال؛ بدون IP یا اطلاعات ترافیک",
+                                    color = Muted,
+                                    fontSize = 11.sp
+                                )
+                                Text(
+                                    "هر زمان بخواهید می‌توانید ارسال گزارش‌ها را متوقف کنید",
+                                    color = Muted.copy(alpha = .78f),
+                                    fontSize = 10.sp
+                                )
+                            }
+                            Switch(
+                                checked = telemetryEnabled,
+                                onCheckedChange = {
+                                    telemetryEnabled = it
+                                    AtomTelemetry.setEnabled(context, it)
+                                },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = Blue,
