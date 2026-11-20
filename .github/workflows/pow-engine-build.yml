@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - pow-standalone
+      - atom-engine-rename
     paths:
       - "app/**"
       - "engine/**"
