@@ -12,8 +12,8 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = Path(os.environ.get("POW_V2RAY_SRC", ROOT / "app" / "libs" / "libv2ray-native-tun.aar"))
-DST = Path(os.environ.get("POW_V2RAY_DST", ROOT / "app" / "libs" / "libv2ray-seqpatched.aar"))
+SRC = Path(os.environ.get("ATOM_V2RAY_SRC", ROOT / "vendor" / "aars" / "libv2ray-native-tun.aar"))
+DST = Path(os.environ.get("ATOM_V2RAY_DST", ROOT / "build" / "generated" / "engine-aars" / "libv2ray-seqpatched.aar"))
 LOADER = "com/uacspoofer/mobile/engine/pow/GoJniLoader"
 
 
