@@ -14,7 +14,7 @@ on:
       - "*.gradle.kts"
       - "settings.gradle.kts"
       - "gradle/**"
-      - ".github/workflows/pow-engine-build.yml"
+      - ".github/workflows/atom-engine-build.yml"
   workflow_dispatch:
 
 permissions:
