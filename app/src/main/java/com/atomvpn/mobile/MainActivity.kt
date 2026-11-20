@@ -135,6 +135,11 @@ private fun pageDepth(page: String) = when (page) {
     else -> 0
 }
 
+private fun atomDisplayText(value: String): String = value
+    .replace(Regex("(?i)\\bUAC\\s*PoW\\b"), "Atom")
+    .replace(Regex("(?i)\\bUAC\\b"), "Atom")
+    .replace(Regex("(?i)\\bPoW\\b"), "Atom")
+
 class MainActivity : ComponentActivity() {
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK || VpnService.prepare(this) == null) {
@@ -264,7 +269,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                 countries.filter { PowRegions.matches(it, countryQuery) }
                             }
                             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
-                                ScreenHeader("کشور خروجی", "انتخاب مسیر خروجی PoW") { page = "settings" }
+                                ScreenHeader("کشور خروجی", "انتخاب مسیر خروجی") { page = "settings" }
                                 OutlinedTextField(
                                     value = countryQuery,
                                     onValueChange = { countryQuery = it },
@@ -321,7 +326,7 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                         else -> HomePage(
                             ui = ui,
                             progress = status.progressPercent / 100f,
-                            detail = if (cancelled && !connecting && !connected) "اتصال لغو شد" else status.detail,
+                            detail = atomDisplayText(if (cancelled && !connecting && !connected) "اتصال لغو شد" else status.detail),
                             settings = settings,
                             exitCountryLabel = exitCountryLabel,
                             exitCountryCode = exitCountryCode,
