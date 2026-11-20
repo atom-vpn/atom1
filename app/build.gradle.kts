@@ -22,14 +22,10 @@ android {
     // Publish a broad-compatibility APK and a smaller ARM64-only APK.
     flavorDimensions += "distribution"
     productFlavors {
-        create("universal") {
-            dimension = "distribution"
-        }
+        create("universal") { dimension = "distribution" }
         create("arm64") {
             dimension = "distribution"
-            ndk {
-                abiFilters += "arm64-v8a"
-            }
+            ndk { abiFilters += "arm64-v8a" }
         }
     }
 
@@ -41,9 +37,7 @@ android {
     buildFeatures { compose = true; buildConfig = true }
     packaging {
         jniLibs { useLegacyPackaging = true }
-        resources {
-            excludes += "META-INF/versions/**/OSGI-INF/MANIFEST.MF"
-        }
+        resources { excludes += "META-INF/versions/**/OSGI-INF/MANIFEST.MF" }
     }
 }
 
@@ -64,5 +58,5 @@ dependencies {
 }
 // Generate the flattened engine AAR inputs before the app resolves its runtime classpath.
 tasks.named("preBuild").configure {
-    dependsOn(":engine:flattenPowAars")
+    dependsOn(":engine:flattenEngineAars")
 }
