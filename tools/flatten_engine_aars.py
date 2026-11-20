@@ -14,10 +14,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PSIPHON = Path(os.environ["POW_PSIPHON_AAR"])
-V2RAY = Path(os.environ["POW_V2RAY_AAR"])
+PSIPHON = Path(os.environ["ATOM_PSIPHON_AAR"])
+V2RAY = Path(os.environ["ATOM_V2RAY_AAR"])
 BASE_MANIFEST = ROOT / "engine/src/main/AndroidManifest.xml"
-OUT = Path(os.environ["POW_FLAT_OUT"])
+OUT = Path(os.environ["ATOM_ENGINE_FLAT_OUT"])
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 
 
