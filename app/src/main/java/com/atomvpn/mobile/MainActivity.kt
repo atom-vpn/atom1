@@ -143,7 +143,7 @@ private fun atomDisplayText(value: String): String = value
 class MainActivity : ComponentActivity() {
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK || VpnService.prepare(this) == null) {
-            startService(Intent(this, PowVpnService::class.java).setAction(PowVpnService.ACTION_CONNECT))
+            startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_CONNECT))
         }
     }
 
@@ -157,11 +157,11 @@ class MainActivity : ComponentActivity() {
         setContent { AtomPowApp(
             onConnect = {
                 val intent = VpnService.prepare(this)
-                if (intent == null) startService(Intent(this, PowVpnService::class.java).setAction(PowVpnService.ACTION_CONNECT))
+                if (intent == null) startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_CONNECT))
                 else vpnPermission.launch(intent)
             },
             onDisconnect = {
-                startService(Intent(this, PowVpnService::class.java).setAction(PowVpnService.ACTION_DISCONNECT))
+                startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_DISCONNECT))
             }
         ) }
     }

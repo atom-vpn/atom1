@@ -28,7 +28,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class PowVpnService : VpnService() {
+class AtomVpnService : VpnService() {
     /**
      * JNI callback used by libaether_jni to protect native sockets from VPN routing.
      * Keep the exact public JVM signature: protectSocket(int): boolean.
@@ -78,7 +78,7 @@ class PowVpnService : VpnService() {
         startForeground(NOTIFICATION_ID, notification("در حال آماده‌سازی اتصال"))
         connectJob = scope.launch {
             try {
-                val settings = AdvancedSettingsStore(this@PowVpnService).snapshot()
+                val settings = AdvancedSettingsStore(this@AtomVpnService).snapshot()
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
                 if (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
                     updateNotification("اتصال امن برقرار شد")
