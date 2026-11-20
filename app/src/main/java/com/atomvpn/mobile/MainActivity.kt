@@ -46,6 +46,19 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uacspoofer.mobile.core.ConnectionState
 import com.uacspoofer.mobile.core.ConnectionStateStore
@@ -56,15 +69,62 @@ import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val Bg = Color(0xFF080D19)
-private val Panel = Color(0xF0142033)
-private val PanelRaised = Color(0xFF1A2940)
-private val Blue = Color(0xFF8B7CFF)
-private val Cyan = Color(0xFF45D6D0)
-private val Green = Color(0xFF36D9A2)
-private val Amber = Color(0xFFFFB44A)
-private val Red = Color(0xFFFF7A7A)
-private val Muted = Color(0xFF9AA8BC)
+@Immutable
+private class AtomPalette(
+    val dark: Boolean,
+    val bg: Color,
+    val card: Color,
+    val cardRaised: Color,
+    val line: Color,
+    val text: Color,
+    val muted: Color,
+    val accent: Color,
+    val onAccent: Color,
+    val error: Color,
+    val warn: Color
+)
+
+private val DarkAtom = AtomPalette(
+    dark = true,
+    bg = Color(0xFF151413),
+    card = Color(0xFF211F1D),
+    cardRaised = Color(0xFF2B2825),
+    line = Color(0x17FFFFFF),
+    text = Color(0xFFF4F0E8),
+    muted = Color(0xFF948F86),
+    accent = Color(0xFFFF8A3D),
+    onAccent = Color(0xFF1A1210),
+    error = Color(0xFFFF5C7A),
+    warn = Color(0xFFE8B04A)
+)
+
+private val LightAtom = AtomPalette(
+    dark = false,
+    bg = Color(0xFFF6F2EB),
+    card = Color(0xFFFFFFFF),
+    cardRaised = Color(0xFFEFE9DF),
+    line = Color(0x1F1C1A17),
+    text = Color(0xFF1C1A17),
+    muted = Color(0xFF7B756B),
+    accent = Color(0xFFE8590C),
+    onAccent = Color(0xFFFFFFFF),
+    error = Color(0xFFC81E3A),
+    warn = Color(0xFFB7791F)
+)
+
+private val LocalAtom = staticCompositionLocalOf { DarkAtom }
+
+// این‌ها فقط داخل Composable خوانده می‌شوند و با تم گوشی (تیره/روشن) خودکار عوض می‌شوند
+private val Bg: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.bg
+private val Panel: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.card
+private val PanelRaised: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.cardRaised
+private val Line: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.line
+private val Ink: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.text
+private val Muted: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.muted
+private val Accent: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.accent
+private val OnAccent: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.onAccent
+private val ErrorC: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.error
+private val Warn: Color @Composable @ReadOnlyComposable get() = LocalAtom.current.warn
 
 private enum class UiState { IDLE, CONNECTING, CONNECTED, FAILED }
 
@@ -81,10 +141,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        AtomTelemetry.recordAppOpen(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(8, 13, 25)
-        window.navigationBarColor = android.graphics.Color.rgb(8, 13, 25)
         setContent { AtomPowApp(
             onConnect = {
                 val intent = VpnService.prepare(this)
@@ -95,11 +158,6 @@ class MainActivity : ComponentActivity() {
                 startService(Intent(this, PowVpnService::class.java).setAction(PowVpnService.ACTION_DISCONNECT))
             }
         ) }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        AtomTelemetry.recordAppOpen(this)
     }
 }
 
@@ -137,25 +195,46 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
         else -> UiState.IDLE
     }
 
-    val carrierLabel = when {
-        settings.carrierMode == PowCoreConfig.CARRIER_OFF -> "تشخیص خاموش · مسیر عمومی"
-        settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
-            settings.firewallProfile == PowCoreConfig.FIREWALL_MCI -> "همراه اول · انتخاب دستی"
-        settings.carrierMode == PowCoreConfig.CARRIER_MANUAL -> "ایرانسل · انتخاب دستی"
-        else -> "خودکار · بدون تشخیص اپراتور"
-    }
+    val exitCountryCode = status.exitRegion.ifBlank { exitIpState.info?.countryCode.orEmpty() }
+
+    // زمان شروع اتصال؛ تایمر صفحه‌ی اصلی از روی آن شمرده می‌شود
+    var connectedAt by remember { mutableStateOf(0L) }
+    LaunchedEffect(connected) { connectedAt = if (connected) System.currentTimeMillis() else 0L }
 
     // دکمه Back سیستم: قبلاً نبود و برنامه مستقیم بسته می‌شد
     BackHandler(enabled = page != "home") {
         page = if (page == "countries") "settings" else "home"
     }
 
-    MaterialTheme(colorScheme = darkColorScheme(
-        primary = Blue, background = Bg, surface = Panel, onBackground = Color.White, onSurface = Color.White
-    )) {
-        // رنگ پیش‌فرض متن بیرون از Card سفید می‌شود (قبلاً «ATOM» و «UAC PoW» مشکی و نامرئی بودند)
-        CompositionLocalProvider(LocalContentColor provides Color.White) {
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF080D19), Color(0xFF101B2D), Color(0xFF0A1726))))) {
+    val atom = if (isSystemInDarkTheme()) DarkAtom else LightAtom
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.context as? Activity)?.window ?: return@SideEffect
+        window.statusBarColor = atom.bg.toArgb()
+        window.navigationBarColor = atom.bg.toArgb()
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !atom.dark
+            isAppearanceLightNavigationBars = !atom.dark
+        }
+    }
+    val scheme = if (atom.dark) {
+        darkColorScheme(
+            primary = atom.accent, onPrimary = atom.onAccent, background = atom.bg, onBackground = atom.text,
+            surface = atom.card, onSurface = atom.text, surfaceVariant = atom.cardRaised,
+            onSurfaceVariant = atom.muted, outline = atom.line, error = atom.error
+        )
+    } else {
+        lightColorScheme(
+            primary = atom.accent, onPrimary = atom.onAccent, background = atom.bg, onBackground = atom.text,
+            surface = atom.card, onSurface = atom.text, surfaceVariant = atom.cardRaised,
+            onSurfaceVariant = atom.muted, outline = atom.line, error = atom.error
+        )
+    }
+
+    MaterialTheme(colorScheme = scheme) {
+        // رنگ متن پیش‌فرض بیرون از Card هم از تم گوشی می‌آید
+        CompositionLocalProvider(LocalAtom provides atom, LocalContentColor provides atom.text) {
+            Box(Modifier.fillMaxSize().background(atom.bg)) {
                 AnimatedContent(
                     targetState = page,
                     transitionSpec = {
@@ -201,9 +280,9 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                         }
                                     },
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Blue,
-                                        unfocusedBorderColor = Color.White.copy(alpha = .1f),
-                                        cursorColor = Blue,
+                                        focusedBorderColor = Accent,
+                                        unfocusedBorderColor = Line,
+                                        cursorColor = Accent,
                                         focusedContainerColor = Panel,
                                         unfocusedContainerColor = Panel
                                     )
@@ -242,12 +321,12 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                             ui = ui,
                             progress = status.progressPercent / 100f,
                             detail = if (cancelled && !connecting && !connected) "اتصال لغو شد" else status.detail,
-                            outerLabel = status.outerLabel,
                             settings = settings,
-                            carrierLabel = carrierLabel,
                             exitCountryLabel = exitCountryLabel,
+                            exitCountryCode = exitCountryCode,
                             exitIpState = exitIpState,
                             trafficSpeedState = trafficSpeedState,
+                            connectedAt = connectedAt,
                             onConnect = onConnect,
                             onDisconnect = onDisconnect,
                             onOpenSettings = { page = "settings" },
@@ -260,6 +339,33 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     }
 }
 
+// ───────────────────────────── Logo ─────────────────────────────
+
+/** لوگوی Letter A: حرف A که هسته‌ی اتم نقش خط افقی آن را دارد. */
+@Composable
+private fun AtomMark(tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val s = size.minDimension / 64f
+        val path = Path().apply {
+            moveTo(15f * s, 50f * s)
+            lineTo(32f * s, 13f * s)
+            lineTo(49f * s, 50f * s)
+        }
+        drawPath(path, tint, style = Stroke(width = 5.5f * s, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(tint, radius = 5.5f * s, center = Offset(32f * s, 40f * s))
+    }
+}
+
+@Composable
+private fun AtomLogoTile(size: Dp) {
+    Box(
+        Modifier.size(size).background(Accent, RoundedCornerShape(size * 0.28f)),
+        contentAlignment = Alignment.Center
+    ) {
+        AtomMark(OnAccent, Modifier.fillMaxSize(0.64f))
+    }
+}
+
 // ───────────────────────────── Home ─────────────────────────────
 
 @Composable
@@ -267,12 +373,12 @@ private fun HomePage(
     ui: UiState,
     progress: Float,
     detail: String,
-    outerLabel: String,
     settings: PowEngineSettings,
-    carrierLabel: String,
     exitCountryLabel: String,
+    exitCountryCode: String,
     exitIpState: ExitIpInfoState,
     trafficSpeedState: TrafficSpeedState,
+    connectedAt: Long,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -282,225 +388,376 @@ private fun HomePage(
     val connecting = ui == UiState.CONNECTING
     val active = connected || connecting
 
-    // انیمیشن‌های رنگ فقط همین صفحه را بازترکیب می‌کنند، نه کل برنامه
-    val accent by animateColorAsState(
-        when (ui) {
-            UiState.CONNECTED -> Green
-            UiState.FAILED -> Red
-            else -> Blue
-        },
-        tween(650), label = "connection-accent"
-    )
     val statusColor by animateColorAsState(
         when (ui) {
-            UiState.CONNECTED -> Green
-            UiState.CONNECTING -> Amber
-            UiState.FAILED -> Red
+            UiState.CONNECTED -> Accent
+            UiState.CONNECTING -> Warn
+            UiState.FAILED -> ErrorC
             UiState.IDLE -> Muted
         },
         tween(400), label = "status-color"
     )
-    val animatedProgress by animateFloatAsState(progress.coerceIn(0f, 1f), tween(500, easing = FastOutSlowInEasing), label = "progress")
+    val animatedProgress by animateFloatAsState(
+        progress.coerceIn(0f, 1f), tween(500, easing = FastOutSlowInEasing), label = "progress"
+    )
+    val percent = (progress.coerceIn(0f, 1f) * 100).roundToInt()
+    val routeLabel = when (settings.exitMode) {
+        PowEngineSettings.EXIT_WARP -> "WARP مستقیم"
+        PowEngineSettings.EXIT_PSIPHON -> "Psiphon مستقیم"
+        else -> "Psiphon روی WARP"
+    }
+    val section = when (ui) {
+        UiState.CONNECTED -> 1
+        UiState.FAILED -> 2
+        else -> 0
+    }
 
-    Box(
-        Modifier.fillMaxSize().drawBehind {
-            drawRect(
-                Brush.radialGradient(
-                    listOf(accent.copy(alpha = .16f), Color.Transparent),
-                    center = Offset(size.width / 2f, size.height * 0.34f),
-                    radius = size.width * 0.95f
-                )
-            )
-        }
+    Column(
+        Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Reveal(0) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(46.dp).background(Brush.linearGradient(listOf(Blue, Cyan)), RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Outlined.Bolt, null, tint = Color.White, modifier = Modifier.size(25.dp))
-                        }
-                        Spacer(Modifier.width(11.dp))
-                        Column {
-                            Text("ATOM", fontSize = 24.sp, fontWeight = FontWeight.Black, letterSpacing = 2.5.sp)
-                            Text("PRIVATE NETWORK", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
-                        }
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Outlined.Tune, "تنظیمات", tint = Color.White)
+        Reveal(0) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                AtomLogoTile(36.dp)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "ATOM",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 3.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Outlined.Tune, "تنظیمات", tint = Ink)
+                }
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+
+        Reveal(1) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                AnimatedContent(
+                    targetState = ui,
+                    transitionSpec = { fadeIn(tween(240, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
+                    label = "status-text"
+                ) { s ->
+                    Text(
+                        when (s) {
+                            UiState.CONNECTED -> "متصل"
+                            UiState.CONNECTING -> "در حال برقراری اتصال"
+                            UiState.FAILED -> "اتصال ناموفق بود"
+                            UiState.IDLE -> "آماده برای اتصال"
+                        },
+                        color = statusColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
+                SessionTimer(connectedAt = connectedAt, active = connected)
+                Spacer(Modifier.height(14.dp))
+                ConnectButton(ui = ui) {
+                    if (active) onDisconnect() else onConnect()
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    when (ui) {
+                        UiState.CONNECTED -> "برای قطع اتصال لمس کنید"
+                        UiState.CONNECTING -> "در حال اتصال · ${percent}٪ · برای لغو لمس کنید"
+                        UiState.FAILED -> "برای تلاش دوباره لمس کنید"
+                        UiState.IDLE -> "برای اتصال لمس کنید"
+                    },
+                    color = Muted,
+                    fontSize = 12.sp
+                )
+                AnimatedVisibility(connecting) {
+                    LinearProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier.padding(top = 12.dp).fillMaxWidth(0.55f).height(4.dp).clip(CircleShape),
+                        color = Accent,
+                        trackColor = Line
+                    )
+                }
+                if (ui != UiState.FAILED) {
+                    AnimatedContent(
+                        targetState = detail.ifBlank { "موتور اتصال آماده است" },
+                        transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
+                        label = "detail-text"
+                    ) { text ->
+                        Text(
+                            text,
+                            color = Muted,
+                            fontSize = 11.sp,
+                            maxLines = 2,
+                            modifier = Modifier.padding(top = 10.dp)
+                        )
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
+        }
+        Spacer(Modifier.height(24.dp))
 
-            Reveal(1) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Panel),
-                    shape = RoundedCornerShape(30.dp),
-                    modifier = Modifier.fillMaxWidth()
-                        .border(1.dp, accent.copy(alpha = .34f), RoundedCornerShape(30.dp))
-                ) {
-                    Column(Modifier.padding(24.dp).animateContentSize(tween(350, easing = FastOutSlowInEasing))) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            StatusDot(statusColor, pulsing = active)
-                            Spacer(Modifier.width(8.dp))
-                            Column {
-                                AnimatedContent(
-                                    targetState = ui,
-                                    transitionSpec = { fadeIn(tween(240, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
-                                    label = "status-text"
-                                ) { s ->
-                                    Text(
-                                        when (s) {
-                                            UiState.CONNECTED -> "متصل"
-                                            UiState.CONNECTING -> "در حال برقراری تونل"
-                                            UiState.FAILED -> "اتصال ناموفق بود"
-                                            UiState.IDLE -> "آماده برای اتصال"
-                                        },
-                                        color = if (s == UiState.CONNECTED) Green else Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    )
+        Reveal(2) {
+            AnimatedContent(
+                targetState = section,
+                transitionSpec = { fadeIn(tween(300, delayMillis = 80)) togetherWith fadeOut(tween(150)) },
+                label = "home-section"
+            ) { s ->
+                when (s) {
+                    1 -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        CountryIpCard(
+                            countryLabel = exitCountryLabel,
+                            countryCode = exitCountryCode,
+                            routeLabel = routeLabel,
+                            ipState = exitIpState
+                        )
+                        SpeedSection(trafficSpeedState)
+                    }
+                    2 -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Panel),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth().border(1.dp, ErrorC.copy(alpha = .6f), RoundedCornerShape(16.dp))
+                        ) {
+                            Column(Modifier.padding(14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Outlined.Warning, null, tint = ErrorC, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("اتصال برقرار نشد", color = ErrorC, fontWeight = FontWeight.Medium)
                                 }
+                                Spacer(Modifier.height(6.dp))
                                 Text(
-                                    when {
-                                        connected -> "ترافیک از تونل عبور می‌کند"
-                                        connecting -> "لطفاً چند لحظه صبر کن"
-                                        ui == UiState.FAILED -> "برای تلاش دوباره، دکمه را لمس کن"
-                                        else -> "برای شروع، دکمه اتصال را لمس کن"
-                                    },
-                                    color = Muted, fontSize = 10.sp
+                                    detail.ifBlank { "پاسخی از مسیر انتخابی دریافت نشد. دوباره تلاش کن یا روش اتصال را عوض کن." },
+                                    color = Muted,
+                                    fontSize = 12.sp
                                 )
                             }
-                            Spacer(Modifier.weight(1f))
-                            Text("${(progress.coerceIn(0f, 1f) * 100).roundToInt()}%", color = Muted, fontSize = 12.sp)
                         }
-                        Spacer(Modifier.height(10.dp))
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            ConnectButton(ui = ui, accent = accent) {
-                                if (active) onDisconnect() else onConnect()
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        LinearProgressIndicator(
-                            progress = { animatedProgress },
-                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                            color = accent,
-                            trackColor = Color.White.copy(alpha = .08f)
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        AnimatedContent(
-                            targetState = detail.ifBlank { "موتور اتصال آماده است" },
-                            transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
-                            label = "detail-text"
-                        ) { text ->
-                            Text(text, color = if (ui == UiState.FAILED) Red else Muted, fontSize = 12.sp)
-                        }
+                        InfoTilesRow(settings, onOpenCountries, onOpenSettings)
                     }
+                    else -> InfoTilesRow(settings, onOpenCountries, onOpenSettings)
                 }
             }
-            Spacer(Modifier.height(14.dp))
+        }
+        Spacer(Modifier.height(24.dp))
+        Text("ATOM  •  PRIVATE NETWORK", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
+    }
+}
 
-            Reveal(2) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    InfoTile("کشور خروجی", exitCountryLabel, Modifier.weight(1f), Icons.Outlined.Public) { onOpenCountries() }
-                    InfoTile("پروتکل اتصال", settings.linkRecipe.uppercase(), Modifier.weight(1f), Icons.Outlined.Hub) { onOpenSettings() }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
+@Composable
+private fun InfoTilesRow(settings: PowEngineSettings, onOpenCountries: () -> Unit, onOpenSettings: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        InfoTile("کشور خروجی", settings.exitCountryCode.ifBlank { "خودکار" }, Modifier.weight(1f), Icons.Outlined.Public) { onOpenCountries() }
+        InfoTile("پروتکل اتصال", settings.linkRecipe.uppercase(), Modifier.weight(1f), Icons.Outlined.Hub) { onOpenSettings() }
+    }
+}
 
-            Reveal(3) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Panel),
-                    shape = RoundedCornerShape(22.dp),
-                    modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(22.dp))
-                ) {
-                    Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Public, null, tint = Cyan, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("IP خروجی عمومی", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Spacer(Modifier.weight(1f))
-                            if (exitIpState.isLoading && connected) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Cyan)
-                            }
-                        }
-                        Spacer(Modifier.height(5.dp))
-                        Text(
-                            exitIpState.info?.ipAddress ?: when {
-                                !connected -> "—"
-                                exitIpState.isLoading -> "در حال دریافت…"
-                                exitIpState.errorMessage != null -> "ناموفق: ${exitIpState.errorMessage}"
-                                else -> "IP در دسترس نیست"
-                            },
-                            color = if (exitIpState.info != null && connected) Color.White else Muted,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-
-            Reveal(4) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Panel),
-                    shape = RoundedCornerShape(22.dp),
-                    modifier = Modifier.fillMaxWidth().border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(22.dp))
-                ) {
-                    Column(Modifier.padding(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Speed, null, tint = Cyan, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("سرعت لحظه‌ای اینترنت", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Spacer(Modifier.weight(1f))
-                            Text(if (connected) "زنده" else "غیرفعال", color = if (connected) Green else Muted, fontSize = 10.sp)
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                            TrafficSpeedTile(
-                                title = "دانلود",
-                                value = if (connected) formatTrafficRate(trafficSpeedState.downloadBytesPerSecond) else "—",
-                                icon = Icons.Outlined.ArrowDownward,
-                                tint = Cyan,
-                                modifier = Modifier.weight(1f)
-                            )
-                            TrafficSpeedTile(
-                                title = "آپلود",
-                                value = if (connected) formatTrafficRate(trafficSpeedState.uploadBytesPerSecond) else "—",
-                                icon = Icons.Outlined.ArrowUpward,
-                                tint = Blue,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-
-            Spacer(Modifier.height(18.dp))
-            Text("ATOM  •  PRIVATE NETWORK", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
+/** تایمر فقط خودش هر ثانیه بازترکیب می‌شود، نه کل صفحه. */
+@Composable
+private fun SessionTimer(connectedAt: Long, active: Boolean) {
+    val seconds by produceState(0L, connectedAt) {
+        if (connectedAt <= 0L) {
+            value = 0L
+            return@produceState
+        }
+        while (true) {
+            value = (System.currentTimeMillis() - connectedAt) / 1000
+            delay(1000)
         }
     }
+    val textColor by animateColorAsState(if (active) Ink else Muted, tween(400), label = "timer-color")
+    Text(
+        String.format(Locale.US, "%02d:%02d:%02d", seconds / 3600, seconds % 3600 / 60, seconds % 60),
+        color = textColor,
+        fontSize = 40.sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 1.sp,
+        style = TextStyle(fontFeatureSettings = "tnum")
+    )
+}
+
+// ───────────────────── Country + IP, speed ─────────────────────
+
+@Composable
+private fun CountryIpCard(countryLabel: String, countryCode: String, routeLabel: String, ipState: ExitIpInfoState) {
+    val clipboard = LocalClipboardManager.current
+    var revealed by rememberSaveable { mutableStateOf(true) }
+    var copied by remember { mutableStateOf(false) }
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(1200)
+            copied = false
+        }
+    }
+    val ip = ipState.info?.ipAddress
+    val ipText = when {
+        ip != null -> if (revealed) ip else maskIp(ip)
+        ipState.isLoading -> "در حال دریافت…"
+        ipState.errorMessage != null -> "ناموفق: ${ipState.errorMessage}"
+        else -> "IP در دسترس نیست"
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Panel),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(16.dp))
+    ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(44.dp).border(1.5.dp, Accent, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        countryCode.uppercase().take(2).ifBlank { "··" },
+                        color = Accent,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(countryLabel, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Text(routeLabel, color = Muted, fontSize = 12.sp)
+                }
+                if (ipState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Accent)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth().height(0.5.dp).background(Line))
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("IP", color = Muted, fontSize = 11.sp, letterSpacing = 1.sp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    ipText,
+                    modifier = Modifier.weight(1f),
+                    color = if (ip != null) Ink else Muted,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                IconButton(onClick = { revealed = !revealed }, enabled = ip != null, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        if (revealed) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                        "نمایش یا مخفی کردن IP", tint = Muted, modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { ip?.let { clipboard.setText(AnnotatedString(it)); copied = true } },
+                    enabled = ip != null,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
+                        "کپی IP", tint = if (copied) Accent else Muted, modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun maskIp(ip: String): String {
+    val v4 = ip.split('.')
+    if (v4.size == 4) return "${v4[0]}.${v4[1]}.•••.•••"
+    return ip.take(9) + ":••••:••••"
+}
+
+@Composable
+private fun SpeedSection(state: TrafficSpeedState) {
+    val latest by rememberUpdatedState(state)
+    val samples = 20
+    val down = remember { mutableStateListOf<Long>().apply { repeat(samples) { add(0L) } } }
+    val up = remember { mutableStateListOf<Long>().apply { repeat(samples) { add(0L) } } }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            down.removeAt(0); down.add(latest.downloadBytesPerSecond)
+            up.removeAt(0); up.add(latest.uploadBytesPerSecond)
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        SpeedTile("دانلود", Icons.Outlined.ArrowDownward, Accent, state.downloadBytesPerSecond, down, Accent, Modifier.weight(1f))
+        SpeedTile("آپلود", Icons.Outlined.ArrowUpward, Ink, state.uploadBytesPerSecond, up, Muted, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun SpeedTile(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    bytesPerSecond: Long,
+    history: List<Long>,
+    barColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val (number, unit) = rateParts(bytesPerSecond)
+    Column(
+        modifier
+            .background(Panel, RoundedCornerShape(16.dp))
+            .border(1.dp, Line, RoundedCornerShape(16.dp))
+            .padding(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(title, color = Muted, fontSize = 12.sp)
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(number, fontSize = 24.sp, fontWeight = FontWeight.Medium, style = TextStyle(fontFeatureSettings = "tnum"))
+            Spacer(Modifier.width(3.dp))
+            Text(unit, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        SpeedBars(history, barColor, Modifier.fillMaxWidth().height(30.dp))
+    }
+}
+
+/** میله‌ها فقط در مرحله‌ی draw خوانده می‌شوند. */
+@Composable
+private fun SpeedBars(history: List<Long>, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val n = history.size
+        if (n == 0) return@Canvas
+        val gap = 2.dp.toPx()
+        val barW = (size.width - gap * (n - 1)) / n
+        val max = (history.maxOrNull() ?: 1L).coerceAtLeast(1L).toFloat()
+        for (i in 0 until n) {
+            val h = (history[i] / max).coerceIn(0.08f, 1f) * size.height
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(i * (barW + gap), size.height - h),
+                size = Size(barW, h),
+                cornerRadius = CornerRadius(2.dp.toPx())
+            )
+        }
+    }
+}
+
+private fun rateParts(bytesPerSecond: Long): Pair<String, String> = when {
+    bytesPerSecond < 1_000L -> bytesPerSecond.toString() to "B/s"
+    bytesPerSecond < 1_000_000L -> String.format(Locale.US, "%.1f", bytesPerSecond / 1_000.0) to "KB/s"
+    else -> String.format(Locale.US, "%.2f", bytesPerSecond / 1_000_000.0) to "MB/s"
 }
 
 // ───────────────────────── Connect button ─────────────────────────
 
 @Composable
-private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
+private fun ConnectButton(ui: UiState, onClick: () -> Unit) {
     val connected = ui == UiState.CONNECTED
     val connecting = ui == UiState.CONNECTING
+    val failed = ui == UiState.FAILED
     val active = connected || connecting
     val haptic = LocalHapticFeedback.current
+    val accent = Accent
 
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
@@ -509,7 +766,6 @@ private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
         spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
         label = "button-press"
     )
-    val glow by animateFloatAsState(if (active) 1f else 0f, tween(600), label = "button-glow")
 
     // لرزش کوتاه و لرزش لمسی هنگام ورود به حالت ناموفق
     val shake = remember { Animatable(0f) }
@@ -520,18 +776,18 @@ private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
         }
     }
 
-    Box(
-        Modifier.size(252.dp).drawBehind {
-            drawCircle(
-                Brush.radialGradient(
-                    listOf(accent.copy(alpha = .20f * glow), Color.Transparent),
-                    center = center,
-                    radius = size.minDimension / 2f
-                )
-            )
+    val faceColor by animateColorAsState(if (connected) Accent else Panel, tween(450), label = "face")
+    val borderColor by animateColorAsState(if (failed) ErrorC else Accent, tween(450), label = "border")
+    val iconColor by animateColorAsState(
+        when {
+            connected -> OnAccent
+            failed -> ErrorC
+            else -> Accent
         },
-        contentAlignment = Alignment.Center
-    ) {
+        tween(450), label = "icon"
+    )
+
+    Box(Modifier.size(200.dp), contentAlignment = Alignment.Center) {
         // حلقه‌ها فقط وقتی فعال‌اند ساخته می‌شوند، پس در حالت بیکار هزینه‌ای ندارند
         AnimatedVisibility(
             visible = active,
@@ -539,14 +795,14 @@ private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
             enter = fadeIn(tween(400)),
             exit = fadeOut(tween(400))
         ) {
-            ConnectionRings(accent = accent, connecting = connecting, modifier = Modifier.fillMaxSize())
+            ConnectionRings(accent = accent, connecting = connecting, buttonRadius = 56.dp, modifier = Modifier.fillMaxSize())
         }
 
         Box(
-            Modifier.size(184.dp)
+            Modifier.size(112.dp)
                 .graphicsLayer { scaleX = pressScale; scaleY = pressScale; translationX = shake.value.dp.toPx() }
-                .background(Brush.radialGradient(listOf(Color(0xFF223250), PanelRaised)), CircleShape)
-                .border(2.dp, accent.copy(alpha = .82f), CircleShape)
+                .background(faceColor, CircleShape)
+                .border(2.dp, borderColor, CircleShape)
                 .clip(CircleShape)
                 .clickable(interactionSource = source, indication = null) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -554,44 +810,13 @@ private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
                 },
             contentAlignment = Alignment.Center
         ) {
-            AnimatedContent(
-                targetState = ui,
-                transitionSpec = {
-                    (fadeIn(tween(260, delayMillis = 80)) + scaleIn(tween(260, delayMillis = 80), initialScale = 0.85f)) togetherWith
-                        fadeOut(tween(120))
-                },
-                label = "button-content"
-            ) { s ->
-                val on = s == UiState.CONNECTED || s == UiState.CONNECTING
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        when {
-                            on -> Icons.Outlined.PowerSettingsNew
-                            s == UiState.FAILED -> Icons.Outlined.Refresh
-                            else -> Icons.Outlined.Bolt
-                        },
-                        null, tint = accent, modifier = Modifier.size(42.dp)
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        when (s) {
-                            UiState.CONNECTED -> "قطع اتصال"
-                            UiState.CONNECTING -> "لغو اتصال"
-                            UiState.FAILED -> "تلاش دوباره"
-                            UiState.IDLE -> "اتصال"
-                        },
-                        fontSize = 20.sp, fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        when (s) {
-                            UiState.CONNECTED -> "اتصال امن برقرار است"
-                            UiState.CONNECTING -> "در حال برقراری اتصال"
-                            UiState.FAILED -> "برای تلاش دوباره لمس کنید"
-                            else -> "برای اتصال لمس کنید"
-                        },
-                        color = Muted, fontSize = 9.sp, letterSpacing = 1.sp
-                    )
-                }
+            Crossfade(targetState = failed, animationSpec = tween(250), label = "button-icon") { isFailed ->
+                Icon(
+                    if (isFailed) Icons.Outlined.Refresh else Icons.Outlined.PowerSettingsNew,
+                    null,
+                    tint = iconColor,
+                    modifier = Modifier.size(44.dp)
+                )
             }
         }
     }
@@ -599,10 +824,10 @@ private fun ConnectButton(ui: UiState, accent: Color, onClick: () -> Unit) {
 
 /**
  * انیمیشن‌ها فقط در مرحله‌ی draw خوانده می‌شوند، پس هیچ بازترکیبی (recomposition) در هر فریم رخ نمی‌دهد.
- * حالت connecting: کمان چرخان. حالت connected: موج‌های آرام.
+ * حالت connecting: کمان چرخان. حالت connected: موج‌های آرام و نازک.
  */
 @Composable
-private fun ConnectionRings(accent: Color, connecting: Boolean, modifier: Modifier = Modifier) {
+private fun ConnectionRings(accent: Color, connecting: Boolean, buttonRadius: Dp, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "rings")
     val ripple by transition.animateFloat(
         initialValue = 0f, targetValue = 1f,
@@ -618,21 +843,21 @@ private fun ConnectionRings(accent: Color, connecting: Boolean, modifier: Modifi
 
     Canvas(modifier) {
         val c = center
-        val buttonRadius = 92.dp.toPx()
+        val r0 = buttonRadius.toPx()
         val maxRadius = size.minDimension / 2f
 
         for (i in 0..1) {
             val p = (ripple + i * 0.5f) % 1f
             drawCircle(
-                color = accent.copy(alpha = (1f - p) * .32f * (1f - spinAlpha)),
-                radius = buttonRadius + (maxRadius - buttonRadius) * p,
+                color = accent.copy(alpha = (1f - p) * .30f * (1f - spinAlpha)),
+                radius = r0 + (maxRadius - r0) * p,
                 center = c,
-                style = Stroke(2.dp.toPx())
+                style = Stroke(1.5.dp.toPx())
             )
         }
 
         if (spinAlpha > 0.01f) {
-            val r = buttonRadius + 10.dp.toPx()
+            val r = r0 + 8.dp.toPx()
             val head = accent.copy(alpha = spinAlpha)
             rotate(spin, pivot = c) {
                 drawArc(
@@ -642,37 +867,11 @@ private fun ConnectionRings(accent: Color, connecting: Boolean, modifier: Modifi
                     useCenter = false,
                     topLeft = Offset(c.x - r, c.y - r),
                     size = Size(r * 2, r * 2),
-                    style = Stroke(4.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(3.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
         }
     }
-}
-
-@Composable
-private fun StatusDot(color: Color, pulsing: Boolean) {
-    Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
-        if (pulsing) PulseHalo(color)
-        Box(Modifier.size(10.dp).background(color, CircleShape))
-    }
-}
-
-@Composable
-private fun PulseHalo(color: Color) {
-    val transition = rememberInfiniteTransition(label = "halo")
-    val p by transition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1300, easing = LinearOutSlowInEasing)),
-        label = "halo-progress"
-    )
-    Box(
-        Modifier.size(22.dp)
-            .graphicsLayer {
-                val s = 0.45f + 0.55f * p
-                scaleX = s; scaleY = s; alpha = 0.55f * (1f - p)
-            }
-            .background(color, CircleShape)
-    )
 }
 
 // ───────────────────────── Settings & countries ─────────────────────────
@@ -687,7 +886,6 @@ private fun PowSettingsPage(
     val context = LocalContext.current
     val networkGuard = remember(context) { NetworkGuardStore.get(context) }
     val guardSettings by networkGuard.settings.collectAsStateWithLifecycle()
-    var telemetryEnabled by remember(context) { mutableStateOf(AtomTelemetry.isEnabled(context)) }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
         ScreenHeader("تنظیمات", "مدیریت اتصال", onBack)
@@ -773,7 +971,7 @@ private fun PowSettingsPage(
                         shape = RoundedCornerShape(18.dp),
                         modifier = Modifier.fillMaxWidth()
                             .pressScale(source)
-                            .border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))
+                            .border(1.dp, Line, RoundedCornerShape(18.dp))
                     ) {
                         Row(
                             Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
@@ -796,50 +994,8 @@ private fun PowSettingsPage(
                                 checked = enabled,
                                 onCheckedChange = { networkGuard.setQuicBlock(it) },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Blue,
-                                    uncheckedThumbColor = Muted,
-                                    uncheckedTrackColor = PanelRaised
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-            item {
-                Reveal(8) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Panel),
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier.fillMaxWidth()
-                            .border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("آمار ناشناس Atom", fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    "ارسال اختیاری آمار نصب و کاربران فعال؛ بدون IP یا اطلاعات ترافیک",
-                                    color = Muted,
-                                    fontSize = 11.sp
-                                )
-                                Text(
-                                    "هر زمان بخواهید می‌توانید ارسال گزارش‌ها را متوقف کنید",
-                                    color = Muted.copy(alpha = .78f),
-                                    fontSize = 10.sp
-                                )
-                            }
-                            Switch(
-                                checked = telemetryEnabled,
-                                onCheckedChange = {
-                                    telemetryEnabled = it
-                                    AtomTelemetry.setEnabled(context, it)
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Blue,
+                                    checkedThumbColor = OnAccent,
+                                    checkedTrackColor = Accent,
                                     uncheckedThumbColor = Muted,
                                     uncheckedTrackColor = PanelRaised
                                 )
@@ -875,7 +1031,7 @@ private fun PowSettingsPage(
 @Composable
 private fun ScreenHeader(title: String, subtitle: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "بازگشت", tint = Color.White) }
+        IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "بازگشت", tint = Ink) }
         Spacer(Modifier.width(4.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -917,8 +1073,8 @@ private fun Modifier.pressScale(source: InteractionSource, pressedScale: Float =
 @Composable
 private fun CountryRow(title: String, code: String, selected: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
-    val borderColor by animateColorAsState(if (selected) Blue.copy(alpha = .7f) else Color.White.copy(alpha = .07f), tween(250), label = "country-border")
-    val tint by animateColorAsState(if (selected) Blue.copy(alpha = .10f) else Color.Transparent, tween(250), label = "country-tint")
+    val borderColor by animateColorAsState(if (selected) Accent.copy(alpha = .7f) else Line, tween(250), label = "country-border")
+    val tint by animateColorAsState(if (selected) Accent.copy(alpha = .10f) else Color.Transparent, tween(250), label = "country-tint")
     Row(
         Modifier.fillMaxWidth()
             .background(Panel, shape)
@@ -934,7 +1090,7 @@ private fun CountryRow(title: String, code: String, selected: Boolean, onClick: 
             Text(code, color = Muted, fontSize = 11.sp)
         }
         AnimatedVisibility(selected, enter = fadeIn() + scaleIn(initialScale = 0.5f), exit = fadeOut() + scaleOut(targetScale = 0.5f)) {
-            Icon(Icons.Outlined.CheckCircle, null, tint = Blue)
+            Icon(Icons.Outlined.CheckCircle, null, tint = Accent)
         }
     }
 }
@@ -947,10 +1103,10 @@ private fun InfoTile(title: String, value: String, modifier: Modifier = Modifier
         interactionSource = source,
         colors = CardDefaults.cardColors(containerColor = Panel),
         shape = RoundedCornerShape(18.dp),
-        modifier = modifier.pressScale(source).border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))
+        modifier = modifier.pressScale(source).border(1.dp, Line, RoundedCornerShape(18.dp))
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = Cyan, modifier = Modifier.size(22.dp))
+            Icon(icon, null, tint = Accent, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(title, color = Muted, fontSize = 10.sp)
@@ -968,7 +1124,7 @@ private fun SettingCard(title: String, value: String, action: String, onClick: (
         interactionSource = source,
         colors = CardDefaults.cardColors(containerColor = Panel),
         shape = RoundedCornerShape(18.dp),
-        modifier = Modifier.fillMaxWidth().pressScale(source).border(1.dp, Color.White.copy(alpha = .06f), RoundedCornerShape(18.dp))
+        modifier = Modifier.fillMaxWidth().pressScale(source).border(1.dp, Line, RoundedCornerShape(18.dp))
     ) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -986,8 +1142,8 @@ private fun SettingCard(title: String, value: String, action: String, onClick: (
                 }
             }
             Text(
-                action, color = Blue, fontSize = 12.sp,
-                modifier = Modifier.background(Blue.copy(alpha = .12f), CircleShape).padding(horizontal = 12.dp, vertical = 6.dp)
+                action, color = Accent, fontSize = 12.sp,
+                modifier = Modifier.background(Accent.copy(alpha = .12f), CircleShape).padding(horizontal = 12.dp, vertical = 6.dp)
             )
         }
     }
@@ -1006,34 +1162,4 @@ private fun PathLine(title: String, value: String) {
             Text(v, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     }
-}
-
-@Composable
-private fun TrafficSpeedTile(
-    title: String,
-    value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    tint: Color,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(PanelRaised.copy(alpha = .72f))
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(9.dp))
-        Column {
-            Text(title, color = Muted, fontSize = 10.sp)
-            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-private fun formatTrafficRate(bytesPerSecond: Long): String {
-    if (bytesPerSecond < 1_000L) return "$bytesPerSecond B/s"
-    if (bytesPerSecond < 1_000_000L) return String.format(Locale.US, "%.1f KB/s", bytesPerSecond / 1_000.0)
-    return String.format(Locale.US, "%.2f MB/s", bytesPerSecond / 1_000_000.0)
 }
