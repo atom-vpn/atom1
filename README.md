@@ -26,7 +26,7 @@ The engine class names, source paths, manifest components, JNI entry points and 
 
 Existing engine preferences and files are migrated to Atom-named storage locations on first use. Legacy values are copied rather than deleted, so user settings, identity material and learned route data remain available.
 
-The bundled HEV native library exports JNI symbols for its original Java bridge class. An Atom-facing wrapper delegates to that bridge; this compatibility layer is internal and does not change the tunnel API or packet path.
+The HEV native library is rebuilt from a pinned upstream revision with the JNI package and class bound directly to `com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel`. The Atom Java class declares the native methods directly; no UAC Java bridge is required at runtime. The build script writes HEV outputs to a temporary directory and copies only the HEV library into `vendor/jniLibs`, preserving the separately packaged Aether libraries.
 
 The V2Ray AAR patcher redirects its Go sequence loader to the current Atom `GoJniLoader` class. Psiphon and V2Ray runtime libraries continue to be packaged from the verified vendor inputs.
 
@@ -34,4 +34,4 @@ The V2Ray AAR patcher redirects its Go sequence loader to the current Atom `GoJn
 
 GitHub Actions workflow: [Atom VPN Android Build](https://github.com/atom-vpn/atom1/actions/workflows/atom-engine-build.yml)
 
-A successful Android build validates compilation, APK structure, manifest, alignment and signing. It does not by itself prove that a VPN tunnel connects on a physical device. Device-level connection tests are still required before merging the rename branch into the stable application branch.
+The HEV JNI rebuild and APK packaging are covered by the GitHub Actions workflow. PR #4 was merged into `pow-standalone` after the ARM64 APK passed native-library validation and a real-device VPN connection test. Post-merge CI is run separately against the merge commit.
