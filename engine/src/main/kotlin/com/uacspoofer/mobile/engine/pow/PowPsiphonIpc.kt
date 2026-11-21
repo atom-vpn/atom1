@@ -1,8 +1,8 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
-internal object PowPsiphonIpc {
-    const val SERVICE_CLASS = "com.uacspoofer.mobile.engine.pow.PowPsiphonService"
-    const val SIDECAR_SERVICE_CLASS = "com.uacspoofer.mobile.engine.pow.PowPsiphonSidecarService"
+internal object AtomPsiphonIpc {
+    const val SERVICE_CLASS = "com.atomvpn.mobile.engine.atom.AtomPsiphonService"
+    const val SIDECAR_SERVICE_CLASS = "com.atomvpn.mobile.engine.atom.AtomPsiphonSidecarService"
     const val KEY_CONFIG = "config"
     const val ASSET_SERVER_ENTRIES = "server_entries.txt"
     const val KEY_MESSAGE = "message"
