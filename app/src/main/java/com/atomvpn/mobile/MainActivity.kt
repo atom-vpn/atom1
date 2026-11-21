@@ -136,7 +136,7 @@ private fun pageDepth(page: String) = when (page) {
 }
 
 private fun atomDisplayText(value: String): String = value
-    .replace(Regex("(?i)\\bUAC\\s*PoW\\b"), "Atom")
+    .replace(Regex("(?i)\\bUAC\\s*Atom\\b"), "Atom")
     .replace(Regex("(?i)\\bUAC\\b"), "Atom")
     .replace(Regex("(?i)\\bPoW\\b"), "Atom")
 
