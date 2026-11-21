@@ -1,6 +1,6 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
-internal object PowTunRelayConfig {
+internal object AtomTunRelayConfig {
     const val MIN_MTU = 1_200
     const val MAX_MTU = 1_280
     const val DEFAULT_MTU = 1_280
