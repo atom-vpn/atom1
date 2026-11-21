@@ -8,7 +8,7 @@ internal object AtomTunRelayConfig {
     const val MAX_CUSTOM_MTU = 1_400
     const val FAKE_NET = "100.64.0.0"
     const val FAKE_MASK = "255.192.0.0"
-    // Isolated to PoW — does not affect TorTunRelayConfig (its own yaml is untouched).
+    // Isolated to Atom — does not affect TorTunRelayConfig (its own yaml is untouched).
     const val CONNECT_TIMEOUT_MS = 2_000
     const val TCP_BUFFER_SIZE = 262_144
     const val UDP_TIMEOUT_MS = 20_000
