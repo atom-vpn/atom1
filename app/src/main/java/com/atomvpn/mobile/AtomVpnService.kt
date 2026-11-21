@@ -11,15 +11,15 @@ import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.system.OsConstants
 import androidx.core.app.NotificationCompat
-import com.uacspoofer.mobile.core.ConnectionStateStore
-import com.uacspoofer.mobile.engine.pow.PowConnectionCoordinator
-import com.uacspoofer.mobile.engine.pow.PowEngineStore
-import com.uacspoofer.mobile.engine.pow.PowStatusStore
-import com.uacspoofer.mobile.engine.pow.PowTun2Socks
-import com.uacspoofer.mobile.settings.NetworkGuardStore
-import com.uacspoofer.mobile.vpn.TunPacketFilter
-import com.uacspoofer.mobile.settings.AdvancedSettingsData
-import com.uacspoofer.mobile.settings.AdvancedSettingsStore
+import com.atomvpn.mobile.engine.core.ConnectionStateStore
+import com.atomvpn.mobile.engine.atom.AtomConnectionCoordinator
+import com.atomvpn.mobile.engine.atom.AtomEngineStore
+import com.atomvpn.mobile.engine.atom.AtomStatusStore
+import com.atomvpn.mobile.engine.atom.AtomTun2Socks
+import com.atomvpn.mobile.engine.settings.NetworkGuardStore
+import com.atomvpn.mobile.engine.vpn.TunPacketFilter
+import com.atomvpn.mobile.engine.settings.AdvancedSettingsData
+import com.atomvpn.mobile.engine.settings.AdvancedSettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,7 +46,7 @@ class AtomVpnService : VpnService() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private lateinit var coordinator: PowConnectionCoordinator
+    private lateinit var coordinator: AtomConnectionCoordinator
     private var connectJob: kotlinx.coroutines.Job? = null
     private var exitIpJob: kotlinx.coroutines.Job? = null
     private var trafficSpeedJob: kotlinx.coroutines.Job? = null
@@ -54,7 +54,7 @@ class AtomVpnService : VpnService() {
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        coordinator = PowConnectionCoordinator(this)
+        coordinator = AtomConnectionCoordinator(this)
         val networkGuard = NetworkGuardStore.get(this)
         TunPacketFilter.applyFlags(networkGuard.snapshot())
         scope.launch { networkGuard.settings.collect { TunPacketFilter.applyFlags(it) } }
@@ -80,7 +80,7 @@ class AtomVpnService : VpnService() {
             try {
                 val settings = AdvancedSettingsStore(this@AtomVpnService).snapshot()
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
-                if (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
+                if (ConnectionStateStore.state.value == com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
                     updateNotification("اتصال امن برقرار شد")
                     startTrafficSpeedMonitor()
                     // Resolve the public IP through the engine's own SOCKS listener,
@@ -90,7 +90,7 @@ class AtomVpnService : VpnService() {
                         // Psiphon may report CONNECTED briefly before its SOCKS tunnel is usable.
                         // Give it time to settle, then retry transient SOCKS/API failures.
                         repeat(EXIT_IP_MAX_ATTEMPTS) { attempt ->
-                            if (ConnectionStateStore.state.value != com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
+                            if (ConnectionStateStore.state.value != com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
                                 return@launch
                             }
                             delay(EXIT_IP_RETRY_DELAY_MS)
@@ -102,9 +102,9 @@ class AtomVpnService : VpnService() {
             } catch (cancelled: CancellationException) {
                 // لغو دستی، خطای اتصال محسوب نمی‌شود.
             } catch (error: Throwable) {
-                if (ConnectionStateStore.state.value != com.uacspoofer.mobile.core.ConnectionState.DISCONNECTING) {
-                    PowStatusStore.update(
-                        com.uacspoofer.mobile.engine.pow.PowPhase.FAILED,
+                if (ConnectionStateStore.state.value != com.atomvpn.mobile.engine.core.ConnectionState.DISCONNECTING) {
+                    AtomStatusStore.update(
+                        com.atomvpn.mobile.engine.atom.AtomPhase.FAILED,
                         0,
                         error.message ?: "اتصال ناموفق بود"
                     )
@@ -126,7 +126,7 @@ class AtomVpnService : VpnService() {
             var previous = coordinator.tunStats()
             var previousAt = SystemClock.elapsedRealtime()
             TrafficSpeedRepository.clear()
-            while (ConnectionStateStore.state.value == com.uacspoofer.mobile.core.ConnectionState.CONNECTED) {
+            while (ConnectionStateStore.state.value == com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
                 delay(1_000L)
                 val current = coordinator.tunStats()
                 val now = SystemClock.elapsedRealtime()
@@ -141,7 +141,7 @@ class AtomVpnService : VpnService() {
         }
     }
 
-    private fun establishTun(address: PowTun2Socks.PrivateAddress, mtu: Int): ParcelFileDescriptor? {
+    private fun establishTun(address: AtomTun2Socks.PrivateAddress, mtu: Int): ParcelFileDescriptor? {
         val tunMtu = mtu.coerceIn(576, 9000)
         val realTun = Builder()
             .setSession("Atom VPN")
