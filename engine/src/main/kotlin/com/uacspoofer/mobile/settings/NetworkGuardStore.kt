@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.settings
+package com.atomvpn.mobile.engine.settings
 
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +22,7 @@ class NetworkGuardStore private constructor(context: Context) {
     val settings: StateFlow<NetworkGuardSettings> = mutableSettings.asStateFlow()
 
     init {
-        com.uacspoofer.mobile.mci.DomesticDirect.applyEnabled(mutableSettings.value.iranDirect)
+        com.atomvpn.mobile.engine.mci.DomesticDirect.applyEnabled(mutableSettings.value.iranDirect)
         DirectDomainWhitelist.get(context.applicationContext)
     }
 
@@ -67,13 +67,13 @@ class NetworkGuardStore private constructor(context: Context) {
     @Synchronized
     fun replace(value: NetworkGuardSettings) {
         persist(value)
-        com.uacspoofer.mobile.mci.DomesticDirect.applyEnabled(value.iranDirect)
+        com.atomvpn.mobile.engine.mci.DomesticDirect.applyEnabled(value.iranDirect)
     }
 
     @Synchronized
     fun setIranDirect(enabled: Boolean) {
         persist(mutableSettings.value.copy(iranDirect = enabled))
-        com.uacspoofer.mobile.mci.DomesticDirect.applyEnabled(enabled)
+        com.atomvpn.mobile.engine.mci.DomesticDirect.applyEnabled(enabled)
     }
 
     private fun read(): NetworkGuardSettings = NetworkGuardSettings(
