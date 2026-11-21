@@ -264,9 +264,9 @@ class AtomConnectionCoordinator(
                 AtomStatusStore.update(AtomPhase.STARTING, 5, "Starting Atom")
                 if (!proxyMode) {
                     AtomTun2Socks.selectPrivateAddress()
-                    val powMtu = store.snapshot().tunMtu
-                    sessionMtu = if (powMtu > 0) {
-                        AtomTunRelayConfig.mtuForChain(powMtu, underlyingLinkMtu(), AtomTunRelayConfig.MAX_CUSTOM_MTU)
+                    val atomMtu = store.snapshot().tunMtu
+                    sessionMtu = if (atomMtu > 0) {
+                        AtomTunRelayConfig.mtuForChain(atomMtu, underlyingLinkMtu(), AtomTunRelayConfig.MAX_CUSTOM_MTU)
                     } else {
                         AtomTunRelayConfig.mtuForChain(settings.tunMtu, underlyingLinkMtu())
                     }
