@@ -3,7 +3,7 @@ package com.atomvpn.mobile.engine.atom
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Lets the home-screen ping defer while PoW quality probes or retunes are using
+ * Lets the home-screen ping defer while Atom quality probes or retunes are using
  * the same SOCKS path. Display-only; does not change engine probe behavior.
  */
 internal object AtomUiProbeGate {
