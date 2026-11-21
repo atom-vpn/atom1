@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -42,7 +42,7 @@ object MtuAutoScanner {
      */
     fun pathBudget(networkMtu: Int): Int = when (networkMtu) {
         in 576..9_000 -> (networkMtu - VPN_OVERHEAD).coerceIn(MIN_SAVED, MAX_SAVED)
-        else -> PowTunRelayConfig.DEFAULT_MTU
+        else -> AtomTunRelayConfig.DEFAULT_MTU
     }
 
     /**
@@ -56,7 +56,7 @@ object MtuAutoScanner {
             values += v
             v -= SCAN_STEP
         }
-        values += PowTunRelayConfig.DEFAULT_MTU
+        values += AtomTunRelayConfig.DEFAULT_MTU
         if (budget in MIN_SAVED..MAX_SAVED) values += budget
         return values.sortedDescending()
     }
@@ -64,7 +64,7 @@ object MtuAutoScanner {
     fun pickLargest(budget: Int): Int {
         val capped = budget.coerceIn(MIN_SAVED, MAX_SAVED)
         return sweepValues(capped).firstOrNull { it <= capped }
-            ?: PowTunRelayConfig.DEFAULT_MTU
+            ?: AtomTunRelayConfig.DEFAULT_MTU
     }
 
     fun lastScannedMtu(context: Context): Int =
@@ -91,7 +91,7 @@ object MtuAutoScanner {
         val budget = pathBudget(link)
         val candidates = sweepValues(budget)
         val tried = mutableListOf<Int>()
-        var chosen = PowTunRelayConfig.DEFAULT_MTU
+        var chosen = AtomTunRelayConfig.DEFAULT_MTU
         for (candidate in candidates) {
             tried += candidate
             onTrying(candidate)
