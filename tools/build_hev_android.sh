@@ -35,13 +35,24 @@ mkdir -p "${ROOT}/vendor/jniLibs"
   APP_BUILD_SCRIPT="${WORK_DIR}/hev/Android.mk" \
   NDK_APPLICATION_MK="${WORK_DIR}/Application.atom.mk" \
   NDK_OUT="${WORK_DIR}/obj" \
-  NDK_LIBS_OUT="${ROOT}/vendor/jniLibs" \
+  NDK_LIBS_OUT="${WORK_DIR}/libs" \
   -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
 
 for abi in armeabi-v7a arm64-v8a x86 x86_64; do
-  library="${ROOT}/vendor/jniLibs/${abi}/libhev-socks5-tunnel.so"
-  test -s "${library}" || { echo "Missing HEV output for ${abi}" >&2; exit 1; }
-  file "${library}"
+  built_library="${WORK_DIR}/libs/${abi}/libhev-socks5-tunnel.so"
+  test -s "${built_library}" || { echo "Missing HEV output for ${abi}" >&2; exit 1; }
+  mkdir -p "${ROOT}/vendor/jniLibs/${abi}"
+  cp "${built_library}" "${ROOT}/vendor/jniLibs/${abi}/libhev-socks5-tunnel.so"
+  file "${ROOT}/vendor/jniLibs/${abi}/libhev-socks5-tunnel.so"
+done
+
+# ndk-build owns only its temporary output directory. Preserve Aether binaries
+# already stored in vendor/jniLibs; CMake imports them to build libaether_jni.so.
+for abi in armeabi-v7a arm64-v8a x86_64; do
+  test -s "${ROOT}/vendor/jniLibs/${abi}/libaether.so" || {
+    echo "Aether library was lost for ${abi}" >&2
+    exit 1
+  }
 done
 
 echo "HEV JNI rebuilt for all four Android ABIs with Atom package binding."
