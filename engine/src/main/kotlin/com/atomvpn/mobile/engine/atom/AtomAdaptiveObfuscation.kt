@@ -7,7 +7,7 @@ import com.atomvpn.mobile.engine.logging.LogSource
 /**
  * Level C: Adaptive Obfuscation — enables H2 fragmentation only when DPI is likely.
  * Uses RTT variance + failure streak as cheap DPI signal. Default off for speed.
- * Isolated to PoW prefs key; never touches Xray/Tor.
+ * Isolated to Atom prefs key; never touches Xray/Tor.
  */
 internal object AtomAdaptiveObfuscation {
     /** Adaptive state lives in its own key so it never overwrites the user's H2 fragment choice. */
