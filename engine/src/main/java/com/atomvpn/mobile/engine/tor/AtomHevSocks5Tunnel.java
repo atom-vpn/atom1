@@ -1,26 +1,21 @@
 package com.atomvpn.mobile.engine.tor;
 
 /**
- * Atom-facing wrapper around the prebuilt HEV JNI entry point.
- * The legacy bridge package is retained only because the shipped native
- * library exports JNI symbols for that exact class name.
+ * Atom-owned JNI binding for the HEV SOCKS5 tunnel.
+ * The matching native library is built with this exact package and class name.
  */
 public final class AtomHevSocks5Tunnel {
     private AtomHevSocks5Tunnel() {}
 
-    public static boolean TProxyStartService(String configPath, int fd) {
-        return com.uacspoofer.mobile.engine.tor.HevSocks5Tunnel.TProxyStartService(configPath, fd);
+    static {
+        System.loadLibrary("hev-socks5-tunnel");
     }
 
-    public static boolean TProxyStopService() {
-        return com.uacspoofer.mobile.engine.tor.HevSocks5Tunnel.TProxyStopService();
-    }
+    public static native boolean TProxyStartService(String configPath, int fd);
 
-    public static boolean TProxyIsRunning() {
-        return com.uacspoofer.mobile.engine.tor.HevSocks5Tunnel.TProxyIsRunning();
-    }
+    public static native boolean TProxyStopService();
 
-    public static long[] TProxyGetStats() {
-        return com.uacspoofer.mobile.engine.tor.HevSocks5Tunnel.TProxyGetStats();
-    }
+    public static native boolean TProxyIsRunning();
+
+    public static native long[] TProxyGetStats();
 }

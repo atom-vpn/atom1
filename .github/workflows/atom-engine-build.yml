@@ -68,6 +68,8 @@ jobs:
             "build-tools;35.0.0" \
             "ndk;26.3.11579264" \
             "cmake;3.22.1"
+      - name: Rebuild HEV JNI for Atom package (all four ABIs)
+        run: bash tools/build_hev_android.sh
       - name: Build Universal and ARM64 debug APKs
         run: gradle --no-daemon --stacktrace :app:assembleUniversalDebug :app:assembleArm64Debug
       - name: Validate APK structure, manifest, alignment and signature
@@ -95,6 +97,13 @@ jobs:
               libs = [n for n in names if n.endswith(".so")]
               print("Validated:", p)
               print("Native libraries:", len(libs))
+              required_arm64 = {
+                  "lib/arm64-v8a/libaether.so",
+                  "lib/arm64-v8a/libaether_jni.so",
+                  "lib/arm64-v8a/libhev-socks5-tunnel.so",
+              }
+              missing = required_arm64.difference(names)
+              assert not missing, f"Missing required ARM64 native libraries in {p}: {sorted(missing)}"
               if "/arm64/" in p:
                   assert all("/arm64-v8a/" in n for n in libs), f"Non-ARM64 native library in {p}"
           PY
