@@ -21,13 +21,13 @@ object AppLogRepository {
     @Volatile var atomLogcatMirror: Boolean = true
     private const val LOGCAT_TAG = "ATOM-ENGINE"
 
-    /** Mirror TOR lines to logcat (tag UAC-TOR). */
+    /** Mirror TOR lines to logcat (tag ATOM-TOR). */
     @Volatile var torLogcatMirror: Boolean = true
-    private const val TOR_LOGCAT_TAG = "UAC-TOR"
+    private const val TOR_LOGCAT_TAG = "ATOM-TOR"
 
-    /** Mirror Auto/ECH (ADAPTIVE) lines to logcat (tag UAC-ADAPT). */
+    /** Mirror Auto/ECH (ADAPTIVE) lines to logcat (tag ATOM-ADAPT). */
     @Volatile var adaptLogcatMirror: Boolean = true
-    private const val ADAPT_LOGCAT_TAG = "UAC-ADAPT"
+    private const val ADAPT_LOGCAT_TAG = "ATOM-ADAPT"
 
     init {
         info(LogSource.APP, "Live logging initialized")
