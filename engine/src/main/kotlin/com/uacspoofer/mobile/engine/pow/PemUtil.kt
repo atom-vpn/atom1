@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 /**
  * Normalizes PEM blobs so BoringSSL/OpenSSL never see blank lines inside the
@@ -55,7 +55,7 @@ internal object PemUtil {
     fun sanitizeIdentityFile(file: java.io.File): Boolean {
         if (!file.isFile) return false
         val text = runCatching { file.readText(Charsets.UTF_8) }.getOrNull() ?: return false
-        val fields = PowIdentityStatus.parseTomlScalars(text)
+        val fields = AtomIdentityStatus.parseTomlScalars(text)
         val cert = fields["cert_pem"].orEmpty()
         val key = fields["key_pem"].orEmpty()
         if (cert.isEmpty() && key.isEmpty()) return false
