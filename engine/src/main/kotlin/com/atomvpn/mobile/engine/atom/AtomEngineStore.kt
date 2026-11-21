@@ -285,7 +285,8 @@ class AtomEngineStore private constructor(context: Context) {
     }
 
     companion object {
-        private const val PREFS = "uac_pow_engine_v1"
+        private const val PREFS = "atom_engine_v1"
+        private const val LEGACY_PREFS = "uac_pow_engine_v1"
         private const val KEY_EXIT_COUNTRY = "exit_country"
         private const val KEY_OUTER = "outer_transport"
         private const val KEY_OBFUSCATION = "obfuscation_profile"
@@ -329,7 +330,29 @@ class AtomEngineStore private constructor(context: Context) {
 
         @Volatile private var instance: AtomEngineStore? = null
 
+        internal fun migrateLegacyPreferences(context: Context) {
+            val app = context.applicationContext
+            val legacy = app.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
+            val current = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val oldValues = legacy.all
+            if (oldValues.isEmpty()) return
+            val editor = current.edit()
+            for ((key, value) in oldValues) {
+                if (current.contains(key)) continue
+                when (value) {
+                    is String -> editor.putString(key, value)
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Int -> editor.putInt(key, value)
+                    is Long -> editor.putLong(key, value)
+                    is Float -> editor.putFloat(key, value)
+                    is Set<*> -> editor.putStringSet(key, value.filterIsInstance<String>().toSet())
+                }
+            }
+            editor.commit()
+        }
+
         fun get(context: Context): AtomEngineStore = instance ?: synchronized(this) {
+            migrateLegacyPreferences(context)
             instance ?: AtomEngineStore(context.applicationContext).also { instance = it }
         }
     }
