@@ -44,6 +44,7 @@ class AtomEngineStore private constructor(context: Context) {
     private val appContext = context.applicationContext
 
     init {
+        AtomNetworkScoreboard.migrateLegacyKeys(prefs)
         // Toggles removed: force seamless/H2 speed features on for everyone.
         if (!prefs.getBoolean(KEY_ADV_ALWAYS_ON_MIGRATION, false)) {
             prefs.edit()
