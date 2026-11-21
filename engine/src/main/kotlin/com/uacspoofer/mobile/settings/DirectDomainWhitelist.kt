@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.settings
+package com.atomvpn.mobile.engine.settings
 
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
