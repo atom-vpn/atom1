@@ -156,7 +156,7 @@ object AtomRegions {
     fun matchesAutomatic(query: String): Boolean {
         val needle = query.trim()
         if (needle.isBlank()) return true
-        val haystacks = listOf("auto", "automatic", "best", "pow", "psiphon", "خودکار", "اتوماتیک", "بهترین")
+        val haystacks = listOf("auto", "automatic", "best", "psiphon", "خودکار", "اتوماتیک", "بهترین")
         return haystacks.any { it.contains(needle, ignoreCase = true) || needle.contains(it, ignoreCase = true) }
     }
 

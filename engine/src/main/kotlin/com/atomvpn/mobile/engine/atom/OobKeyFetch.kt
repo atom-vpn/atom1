@@ -56,7 +56,7 @@ import javax.net.ssl.X509ExtendedTrustManager
  * on POST /reg with 0 response bytes.
  */
 internal object OobKeyFetch {
-    private const val TAG = "UAC-ATOM"
+    private const val TAG = "ATOM"
     private const val HOST = "api.cloudflareclient.com"
     private const val API = "/v0a4471/reg"
     private val DEFAULT_IPS = listOf("104.16.24.84", "104.16.192.82")
