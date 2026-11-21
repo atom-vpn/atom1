@@ -1,9 +1,9 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class PowPsiphonStrategy(
+internal data class AtomPsiphonStrategy(
     val name: String,
     val label: String,
     val timeoutSeconds: Int,
@@ -11,7 +11,7 @@ internal data class PowPsiphonStrategy(
     val configure: (JSONObject) -> Unit,
 )
 
-internal object PowPsiphonProtocols {
+internal object AtomPsiphonProtocols {
     val FRONTED = listOf(
         "FRONTED-MEEK-OSSH",
         "FRONTED-MEEK-HTTP-OSSH",
@@ -67,7 +67,7 @@ internal object PowPsiphonProtocols {
     // scaled by NetworkLatencyMultiplier). WARP adds a hop, so give it more.
     const val SERVER_AFFINITY_GRACE_MS = 1_500
 
-    // "Two tunnels at once" runs a second, independent Psiphon (PowPsiphonSidecar)
+    // "Two tunnels at once" runs a second, independent Psiphon (AtomPsiphonSidecar)
     // instead of TunnelPoolSize=2: the library spreads port forwards round-robin
     // over pooled tunnels to different servers, so one service saw two exit IPs.
     const val SIDECAR_ESTABLISH_TIMEOUT_SECONDS = 90
@@ -91,8 +91,8 @@ internal object PowPsiphonProtocols {
     // there the untunneled dial goes out the phone's own network).
     val SPLIT_TUNNEL_REGIONS = listOf("IR")
 
-    val LADDER: List<PowPsiphonStrategy> = listOf(
-        PowPsiphonStrategy(
+    val LADDER: List<AtomPsiphonStrategy> = listOf(
+        AtomPsiphonStrategy(
             name = "A",
             label = "domain-fronted (CDN)",
             timeoutSeconds = 40,
@@ -105,7 +105,7 @@ internal object PowPsiphonProtocols {
             config.put("NetworkLatencyMultiplier", 1.5)
             config.useCloudflareMeekFront()
         },
-        PowPsiphonStrategy(
+        AtomPsiphonStrategy(
             name = "F",
             label = "direct through WARP",
             timeoutSeconds = 28,
@@ -126,7 +126,7 @@ internal object PowPsiphonProtocols {
      * (fronted meek first). Behind WARP the light TLS-OSSH/OSSH/SSH/SS set goes
      * first with a shorter timeout, and fronted meek is the fallback.
      */
-    fun ladder(direct: Boolean): List<PowPsiphonStrategy> {
+    fun ladder(direct: Boolean): List<AtomPsiphonStrategy> {
         if (direct) return LADDER
         val light = LADDER.first { it.name == "F" }.copy(timeoutSeconds = CHAINED_LIGHT_TIMEOUT_SECONDS)
         val heavy = LADDER.first { it.name == "A" }
@@ -143,7 +143,7 @@ internal object PowPsiphonProtocols {
      * winner; otherwise the head of the ladder.
      */
     fun startIndex(
-        ladder: List<PowPsiphonStrategy>,
+        ladder: List<AtomPsiphonStrategy>,
         remembered: Int?,
         rttByName: Map<String, Long>,
     ): Int {
@@ -158,7 +158,7 @@ internal object PowPsiphonProtocols {
         socksPort: Int,
         dataDirectory: String,
         preferredRegion: String?,
-        strategy: PowPsiphonStrategy,
+        strategy: AtomPsiphonStrategy,
         optimizedMode: Boolean = true,
         direct: Boolean = false,
         regionBias: Boolean = false,
@@ -187,7 +187,7 @@ internal object PowPsiphonProtocols {
             put("DNSResolverPreferAlternateServerProbability", if (optimizedMode) 1.0 else 0.35)
             put("DNSResolverAttemptsPerPreferredServer", if (optimizedMode) 2 else 1)
             if (!direct) {
-                put("UpstreamProxyURL", "socks5://127.0.0.1:${PowCoreConfig.CHAIN_SOCKS_PORT}")
+                put("UpstreamProxyURL", "socks5://127.0.0.1:${AtomCoreConfig.CHAIN_SOCKS_PORT}")
             }
             put("InproxyEnabled", false)
             put("InproxyAllowClient", false)
@@ -196,7 +196,7 @@ internal object PowPsiphonProtocols {
                 // Untunneled dials use UpstreamProxyURL when one is set, so
                 // behind WARP this would turn into a WARP-only exit. Only the
                 // direct leg, where the dial leaves on the phone's network
-                // (the :uacpow process is outside the VPN and protects its
+                // (the :Atom process is outside the VPN and protects its
                 // sockets), lets Psiphon send Iranian destinations direct.
                 put("SplitTunnelRegions", JSONArray(SPLIT_TUNNEL_REGIONS))
             }
