@@ -1,8 +1,8 @@
-package com.uacspoofer.mobile.mci
+package com.atomvpn.mobile.engine.mci
 
 import android.content.Context
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
