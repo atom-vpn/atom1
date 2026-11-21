@@ -12,7 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * secondary outer+inner on shadow ports (1821/1822) and atomically
  * flips upstream. TunFd stays open, user sees no RST.
  *
- * Isolated to PoW: uses shadow ports that never collide with
+ * Isolated to Atom: uses shadow ports that never collide with
  * Xray (10808) or Tor (19050/19051). Hev TUN is NOT restarted.
  */
 internal object AtomGhostHandover {
