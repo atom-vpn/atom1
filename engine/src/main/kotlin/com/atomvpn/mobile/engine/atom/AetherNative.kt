@@ -156,6 +156,8 @@ object AetherNative {
     }
 
     fun detach() {
+        // OOB key-fetch can retain the VPN service independently of the JNI global ref.
+        OobKeyFetch.bindVpn(null)
         if (!available) return
         nativeDetach()
     }
