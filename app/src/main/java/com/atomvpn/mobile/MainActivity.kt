@@ -154,7 +154,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { AtomPowApp(
+        setContent { AtomApp(
             onConnect = {
                 val intent = VpnService.prepare(this)
                 if (intent == null) startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_CONNECT))
@@ -170,7 +170,7 @@ class MainActivity : ComponentActivity() {
 // ───────────────────────────── Root ─────────────────────────────
 
 @Composable
-private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
+private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val context = LocalContext.current
     val connection by ConnectionStateStore.state.collectAsStateWithLifecycle()
     val status by AtomStatusStore.status.collectAsStateWithLifecycle()
