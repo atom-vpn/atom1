@@ -3,7 +3,7 @@ package com.atomvpn.mobile.engine.atom
 import android.content.Context
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
-import com.uacspoofer.mobile.engine.tor.HevSocks5Tunnel
+import com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel
 import com.atomvpn.mobile.engine.logging.AppLogRepository
 import com.atomvpn.mobile.engine.logging.LogSource
 import com.atomvpn.mobile.engine.vpn.TunStats
@@ -24,7 +24,7 @@ object AtomTun2Socks {
         private set
 
     val isRunning: Boolean
-        get() = runCatching { HevSocks5Tunnel.TProxyIsRunning() }.getOrDefault(false)
+        get() = runCatching { AtomHevSocks5Tunnel.TProxyIsRunning() }.getOrDefault(false)
 
     fun selectPrivateAddress(): PrivateAddress {
         val selected = defaultPrivateAddress()
@@ -56,7 +56,7 @@ object AtomTun2Socks {
         configFile.parentFile?.mkdirs()
         configFile.writeText(yaml)
         val started = runCatching {
-            HevSocks5Tunnel.TProxyStartService(configFile.absolutePath, tunFd.fd)
+            AtomHevSocks5Tunnel.TProxyStartService(configFile.absolutePath, tunFd.fd)
         }.getOrElse { error ->
             AppLogRepository.warning(LogSource.ATOM, "tun2socks library failed to load: ${error.message}")
             stopLocked()
@@ -77,7 +77,7 @@ object AtomTun2Socks {
     @Synchronized
     fun stats(): TunStats {
         if (!isRunning) return TunStats.ZERO
-        val values = runCatching { HevSocks5Tunnel.TProxyGetStats() }.getOrNull()
+        val values = runCatching { AtomHevSocks5Tunnel.TProxyGetStats() }.getOrNull()
             ?: return TunStats.ZERO
         if (values.size < 4) return TunStats.ZERO
         return TunStats(
@@ -99,7 +99,7 @@ object AtomTun2Socks {
     }
 
     private fun stopLocked() {
-        runCatching { HevSocks5Tunnel.TProxyStopService() }
+        runCatching { AtomHevSocks5Tunnel.TProxyStopService() }
     }
 
     private fun defaultPrivateAddress() =
