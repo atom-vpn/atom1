@@ -1,8 +1,8 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import java.io.File
 
-internal object PowQualityPolicy {
+internal object AtomQualityPolicy {
     const val CACHE_TTL_MS = 12L * 60_000L
     // Level A: faster settle so baseline is ready in ~5s instead of 12s
     const val SETTLE_MS = 5_000L
