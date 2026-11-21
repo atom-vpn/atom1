@@ -19,7 +19,6 @@ on:
       - pow-standalone
       - atom-engine-rename
       - atom-final-cleanup
-      - atom-legacy-identifier-migration
     paths:
       - "app/**"
       - "engine/**"
