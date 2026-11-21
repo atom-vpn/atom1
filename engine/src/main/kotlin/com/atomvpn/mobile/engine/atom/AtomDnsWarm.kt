@@ -201,7 +201,7 @@ internal object AtomDnsWarm {
         lastPassAt = 0L
     }
 
-    private fun prefs(context: Context) {
+    private fun prefs(context: Context): android.content.SharedPreferences {
         val app = context.applicationContext
         val legacy = app.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
         val current = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
