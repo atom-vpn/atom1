@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
 /**
- * Name warm-up for the PoW TUN path.
+ * Name warm-up for the Atom TUN path.
  *
  * In TUN mode hev answers DNS locally with a fake IP (no network, sub-ms), and
  * the real lookup happens at the Psiphon server when the relay sends SOCKS
