@@ -18,6 +18,7 @@ on:
     branches:
       - pow-standalone
       - atom-engine-rename
+      - atom-final-cleanup
     paths:
       - "app/**"
       - "engine/**"
