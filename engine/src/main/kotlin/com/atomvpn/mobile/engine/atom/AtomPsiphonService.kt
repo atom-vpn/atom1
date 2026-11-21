@@ -247,6 +247,6 @@ open class AtomPsiphonService : Service() {
     }
 
     companion object {
-        private const val TAG = "UAC-ATOM-INNER"
+        private const val TAG = "ATOM-ATOM-INNER"
     }
 }
