@@ -5,7 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 
 /**
- * Level B: Per-network scoreboard isolated to PoW.
+ * Level B: Per-network scoreboard isolated to Atom.
  * Key = networkType + (operator/carrier) — stored inside AtomEngineStore prefs,
  * never touches XRAY or Tor stores. Keeps outerProtocol + strategy winner per
  * physical network so reconnect on the same WiFi/cell is instant.
