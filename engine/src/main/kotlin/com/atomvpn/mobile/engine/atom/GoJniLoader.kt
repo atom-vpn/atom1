@@ -6,27 +6,27 @@ import java.io.File
 object GoJniLoader {
     const val XRAY_LIBRARY = "gojni"
     const val ATOM_LIBRARY = "gopsi"
-    const val ATOM_PROCESS_SUFFIX = ":Atom"
-    const val ATOM_SIDECAR_PROCESS_SUFFIX = ":Atom2"
+    const val ATOM_PROCESS_SUFFIX = ":atomengine"
+    const val ATOM_SIDECAR_PROCESS_SUFFIX = ":atomengine2"
 
     @Volatile
     private var forcedLibrary: String? = null
 
     @JvmStatic
-    fun forcePowLibrary() {
+    fun forceAtomLibrary() {
         forcedLibrary = ATOM_LIBRARY
     }
 
     @JvmStatic
     fun load() {
-        System.loadLibrary(forcedLibrary ?: if (isPowProcess()) ATOM_LIBRARY else XRAY_LIBRARY)
+        System.loadLibrary(forcedLibrary ?: if (isAtomProcess()) ATOM_LIBRARY else XRAY_LIBRARY)
     }
 
     @JvmStatic
-    fun isPowProcess(): Boolean = isPowProcessName(processName())
+    fun isAtomProcess(): Boolean = isAtomProcessName(processName())
 
     @JvmStatic
-    fun isPowProcessName(name: String): Boolean =
+    fun isAtomProcessName(name: String): Boolean =
         name.endsWith(ATOM_PROCESS_SUFFIX) || name.endsWith(ATOM_SIDECAR_PROCESS_SUFFIX)
 
     private fun processName(): String {
