@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Lets the home-screen ping defer while PoW quality probes or retunes are using
  * the same SOCKS path. Display-only; does not change engine probe behavior.
  */
-internal object PowUiProbeGate {
+internal object AtomUiProbeGate {
     const val COOLDOWN_MS = 2_500L
 
     private val probeInFlight = AtomicBoolean(false)
