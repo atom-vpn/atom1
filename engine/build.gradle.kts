@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.uacspoofer.mobile"
+    namespace = "com.atomvpn.mobile.engine"
     compileSdk = 35
     ndkVersion = "26.3.11579264"
 
@@ -26,13 +26,13 @@ android {
         buildConfig = false
     }
 
-    val flatPowDir = layout.buildDirectory.dir("generated/pow-aar-flat")
+    val flatEngineDir = layout.buildDirectory.dir("generated/engine-aar-flat")
     sourceSets {
         getByName("main") {
-            manifest.srcFile(flatPowDir.map { it.file("AndroidManifest.xml") })
-            assets.srcDirs(rootProject.file("vendor/assets"), flatPowDir.map { it.dir("assets") })
-            res.srcDir(flatPowDir.map { it.dir("res") })
-            jniLibs.srcDirs(rootProject.file("vendor/jniLibs"), flatPowDir.map { it.dir("jniLibs") })
+            manifest.srcFile(flatEngineDir.map { it.file("AndroidManifest.xml") })
+            assets.srcDirs(rootProject.file("vendor/assets"), flatEngineDir.map { it.dir("assets") })
+            res.srcDir(flatEngineDir.map { it.dir("res") })
+            jniLibs.srcDirs(rootProject.file("vendor/jniLibs"), flatEngineDir.map { it.dir("jniLibs") })
         }
     }
 
@@ -50,12 +50,12 @@ android {
     }
 }
 
-val generatedPowAars = layout.buildDirectory.dir("generated/pow-aars")
-val flattenedPowAars = layout.buildDirectory.dir("generated/pow-aar-flat")
+val generatedEngineAars = layout.buildDirectory.dir("generated/engine-aars")
+val flattenedEngineAars = layout.buildDirectory.dir("generated/engine-aar-flat")
 val psiphonInput = rootProject.file("vendor/aars/psiphontunnel-2.0.39.aar")
 val v2rayInput = rootProject.file("vendor/aars/libv2ray-native-tun.aar")
-val isolatedPsiphonFile = generatedPowAars.map { it.file("psiphontunnel-isolated.aar") }
-val patchedV2rayFile = generatedPowAars.map { it.file("libv2ray-seqpatched.aar") }
+val isolatedPsiphonFile = generatedEngineAars.map { it.file("psiphontunnel-isolated.aar") }
+val patchedV2rayFile = generatedEngineAars.map { it.file("libv2ray-seqpatched.aar") }
 
 val isolatePsiphonAar = tasks.register<Exec>("isolatePsiphonAar") {
     val script = rootProject.file("tools/isolate_psiphon_aar.py")
@@ -63,8 +63,8 @@ val isolatePsiphonAar = tasks.register<Exec>("isolatePsiphonAar") {
     inputs.file(script)
     outputs.file(isolatedPsiphonFile)
     commandLine("python", script.absolutePath)
-    environment("POW_PSIPHON_SRC", psiphonInput.absolutePath)
-    environment("POW_PSIPHON_DST", isolatedPsiphonFile.get().asFile.absolutePath)
+    environment("ATOM_PSIPHON_SRC", psiphonInput.absolutePath)
+    environment("ATOM_PSIPHON_DST", isolatedPsiphonFile.get().asFile.absolutePath)
 }
 
 val patchV2raySeqAar = tasks.register<Exec>("patchV2raySeqAar") {
@@ -73,32 +73,32 @@ val patchV2raySeqAar = tasks.register<Exec>("patchV2raySeqAar") {
     inputs.file(script)
     outputs.file(patchedV2rayFile)
     commandLine("python", script.absolutePath)
-    environment("POW_V2RAY_SRC", v2rayInput.absolutePath)
-    environment("POW_V2RAY_DST", patchedV2rayFile.get().asFile.absolutePath)
+    environment("ATOM_V2RAY_SRC", v2rayInput.absolutePath)
+    environment("ATOM_V2RAY_DST", patchedV2rayFile.get().asFile.absolutePath)
 }
 
-val flattenPowAars = tasks.register<Exec>("flattenPowAars") {
-    val script = rootProject.file("tools/flatten_pow_aars.py")
+val flattenEngineAars = tasks.register<Exec>("flattenEngineAars") {
+    val script = rootProject.file("tools/flatten_engine_aars.py")
     inputs.file(isolatedPsiphonFile)
     inputs.file(patchedV2rayFile)
     inputs.file(script)
     inputs.file("src/main/AndroidManifest.xml")
-    outputs.dir(flattenedPowAars)
+    outputs.dir(flattenedEngineAars)
     dependsOn(isolatePsiphonAar, patchV2raySeqAar)
     commandLine("python", script.absolutePath)
-    environment("POW_PSIPHON_AAR", isolatedPsiphonFile.get().asFile.absolutePath)
-    environment("POW_V2RAY_AAR", patchedV2rayFile.get().asFile.absolutePath)
-    environment("POW_FLAT_OUT", flattenedPowAars.get().asFile.absolutePath)
+    environment("ATOM_PSIPHON_AAR", isolatedPsiphonFile.get().asFile.absolutePath)
+    environment("ATOM_V2RAY_AAR", patchedV2rayFile.get().asFile.absolutePath)
+    environment("ATOM_ENGINE_FLAT_OUT", flattenedEngineAars.get().asFile.absolutePath)
 }
 
 dependencies {
     api("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
-    implementation(files(flattenedPowAars.map { it.file("libs/psiphon-classes.jar") }))
-    implementation(files(flattenedPowAars.map { it.file("libs/v2ray-classes.jar") }))
-    implementation(fileTree(flattenedPowAars.map { it.dir("libs") }) { include("*.jar") })
+    implementation(files(flattenedEngineAars.map { it.file("libs/psiphon-classes.jar") }))
+    implementation(files(flattenedEngineAars.map { it.file("libs/v2ray-classes.jar") }))
+    implementation(fileTree(flattenedEngineAars.map { it.dir("libs") }) { include("*.jar") })
 }
 
 tasks.named("preBuild").configure {
-    dependsOn(flattenPowAars)
+    dependsOn(flattenEngineAars)
 }

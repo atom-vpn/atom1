@@ -7,8 +7,8 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = Path(os.environ.get("POW_PSIPHON_SRC", ROOT / "app" / "libs" / "psiphontunnel-2.0.39.aar"))
-DST = Path(os.environ.get("POW_PSIPHON_DST", ROOT / "app" / "libs" / "psiphontunnel-isolated.aar"))
+SRC = Path(os.environ.get("ATOM_PSIPHON_SRC", ROOT / "vendor" / "aars" / "psiphontunnel-2.0.39.aar"))
+DST = Path(os.environ.get("ATOM_PSIPHON_DST", ROOT / "build" / "generated" / "engine-aars" / "psiphontunnel-isolated.aar"))
 
 
 def rewrite_jar(src: bytes) -> bytes:

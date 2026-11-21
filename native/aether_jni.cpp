@@ -88,7 +88,7 @@ jstring last_string(JNIEnv* env, const char* value) {
 }  // namespace
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativePrepare(JNIEnv* env, jobject, jstring config) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativePrepare(JNIEnv* env, jobject, jstring config) {
     const auto config_text = copy_jstring(env, config);
     if (config_text.empty()) return -1;
     const int code = aether_prepare_json(config_text.c_str());
@@ -96,12 +96,12 @@ Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativePrepare(JNIEnv* env, jo
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeLastResult(JNIEnv* env, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeLastResult(JNIEnv* env, jobject) {
     return last_string(env, aether_last_result());
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeRequestEmailCode(
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeRequestEmailCode(
     JNIEnv* env, jobject, jstring team, jstring email) {
     const auto team_text = copy_jstring(env, team);
     const auto email_text = copy_jstring(env, email);
@@ -109,59 +109,59 @@ Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeRequestEmailCode(
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeConfirmEmailCode(
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeConfirmEmailCode(
     JNIEnv* env, jobject, jstring code) {
     const auto code_text = copy_jstring(env, code);
     return aether_zt_confirm_email_code(code_text.c_str());
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeStart(JNIEnv* env, jobject, jstring config, jint tun_fd) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeStart(JNIEnv* env, jobject, jstring config, jint tun_fd) {
     const auto config_text = copy_jstring(env, config);
     if (config_text.empty()) return -1;
     return aether_start_json_with_tun(config_text.c_str(), tun_fd);
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeStartProxy(JNIEnv* env, jobject, jstring config) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeStartProxy(JNIEnv* env, jobject, jstring config) {
     const auto config_text = copy_jstring(env, config);
     if (config_text.empty()) return -1;
     return aether_start_json(config_text.c_str());
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeStop(JNIEnv*, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeStop(JNIEnv*, jobject) {
     return aether_stop();
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeCancelPrepare(JNIEnv*, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeCancelPrepare(JNIEnv*, jobject) {
     return aether_cancel_prepare();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeIsRunning(JNIEnv*, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeIsRunning(JNIEnv*, jobject) {
     return aether_is_running() != 0;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeIsReady(JNIEnv*, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeIsReady(JNIEnv*, jobject) {
     return aether_is_ready() != 0;
 }
 
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeLastError(JNIEnv* env, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeLastError(JNIEnv* env, jobject) {
     return last_string(env, aether_last_error());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeLastLog(JNIEnv* env, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeLastLog(JNIEnv* env, jobject) {
     return last_string(env, aether_last_log());
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeAttach(JNIEnv* env, jobject, jobject service) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeAttach(JNIEnv* env, jobject, jobject service) {
     std::lock_guard<std::mutex> lock(g_service_mutex);
     if (g_service != nullptr) env->DeleteGlobalRef(g_service);
     g_service = env->NewGlobalRef(service);
@@ -174,7 +174,7 @@ Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeAttach(JNIEnv* env, job
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_uacspoofer_mobile_engine_pow_AetherNative_nativeDetach(JNIEnv* env, jobject) {
+Java_com_atomvpn_mobile_engine_atom_AetherNative_nativeDetach(JNIEnv* env, jobject) {
     std::lock_guard<std::mutex> lock(g_service_mutex);
     aether_set_event_callback(nullptr);
     aether_set_socket_protector(nullptr);
