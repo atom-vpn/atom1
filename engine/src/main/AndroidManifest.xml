@@ -7,15 +7,15 @@
 
     <application>
         <service
-            android:name="com.uacspoofer.mobile.engine.pow.PowPsiphonService"
+            android:name="com.atomvpn.mobile.engine.atom.AtomPsiphonService"
             android:exported="false"
-            android:process=":uacpow"
+            android:process=":Atom"
             android:stopWithTask="false" />
 
         <service
-            android:name="com.uacspoofer.mobile.engine.pow.PowPsiphonSidecarService"
+            android:name="com.atomvpn.mobile.engine.atom.AtomPsiphonSidecarService"
             android:exported="false"
-            android:process=":uacpow2"
+            android:process=":Atom2"
             android:stopWithTask="false" />
     </application>
 </manifest>
