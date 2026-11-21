@@ -435,12 +435,17 @@ class AtomConnectionCoordinator(
             if (forcedSession != sessionGeneration.get()) return@Thread
             runCatching { AtomSocksConnectOnly.stop() }
             runCatching { AetherNative.stop() }
+            // Release both the JNI global reference and OOB's service reference only
+            // after the native core has stopped, and never detach a newer session.
+            if (forcedSession != sessionGeneration.get()) return@Thread
+            runCatching { AetherNative.detach() }
             if (client != null && forcedSession == sessionGeneration.get()) {
                 runCatching {
                     kotlinx.coroutines.runBlocking {
                         kotlinx.coroutines.withTimeoutOrNull(FORCE_NATIVE_EXIT_MS) { client.stop() }
                     }
                 }
+                runCatching { client.close() }
             }
         }, "atom-engine-force-release")
         reaper.isDaemon = true
