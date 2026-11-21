@@ -1,9 +1,9 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import android.os.SystemClock
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import java.io.InputStream
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -33,7 +33,7 @@ import kotlinx.coroutines.sync.withPermit
  * Battery: one pass per connect; retunes only re-run after a long gap; Power
  * Save trims the pass to the user's top few names.
  */
-internal object PowDnsWarm {
+internal object AtomDnsWarm {
     val POPULAR: List<String> = listOf(
         "google.com",
         "www.google.com",
@@ -139,7 +139,7 @@ internal object PowDnsWarm {
         val merged = mergeTop(learned(context), snapshot)
         prefs(context).edit().putString(KEY_TOP, encode(merged)).apply()
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             "DNS warm: learned ${snapshot.size} names this session; saved top ${merged.size}",
         )
     }
@@ -158,7 +158,7 @@ internal object PowDnsWarm {
         val gap = if (optimized) REFRESH_OPTIMIZED_MS else REFRESH_FULL_MS
         if (!force && lastPassAt > 0L && now - lastPassAt < gap) {
             AppLogRepository.debug(
-                LogSource.POW,
+                LogSource.ATOM,
                 "DNS warm: skipped (last pass ${(now - lastPassAt) / 60_000L} min ago)",
             )
             return
@@ -171,9 +171,9 @@ internal object PowDnsWarm {
             val saved = learned(appContext)
             val learnedHosts = saved.keys.toList()
             val hosts = plan(learnedHosts, optimized, powerSave)
-            val (domestic, remote) = hosts.partition(PowSocksConnectOnly::isDomesticHost)
+            val (domestic, remote) = hosts.partition(AtomSocksConnectOnly::isDomesticHost)
             val started = SystemClock.elapsedRealtime()
-            val localOk = domestic.count { PowSocksConnectOnly.prefetchDomestic(it) }
+            val localOk = domestic.count { AtomSocksConnectOnly.prefetchDomestic(it) }
             val gate = Semaphore(PARALLEL)
             val results = remote.map { host ->
                 async { gate.withPermit { connectOnly(socksPort, host) } }
@@ -181,7 +181,7 @@ internal object PowDnsWarm {
             val ok = results.count { it }
             val learnedUsed = hosts.count { it in saved }
             AppLogRepository.info(
-                LogSource.POW,
+                LogSource.ATOM,
                 "DNS warm: $ok/${remote.size} names primed at the $exitLabel exit" +
                     (if (domestic.isNotEmpty()) ", $localOk/${domestic.size} .ir resolved locally" else "") +
                     " in ${SystemClock.elapsedRealtime() - started}ms " +
