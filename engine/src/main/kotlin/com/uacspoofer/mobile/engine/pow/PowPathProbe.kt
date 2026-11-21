@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.os.SystemClock
 import java.io.InputStream
@@ -9,7 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 
-internal object PowPathProbe {
+internal object AtomPathProbe {
     private data class ProbeTarget(val host: String, val http: String)
 
     private val TARGETS = listOf(
@@ -31,7 +31,7 @@ internal object PowPathProbe {
 
     suspend fun measureMs(
         socksPort: Int,
-        timeoutMs: Int = PowQualityPolicy.PROBE_TIMEOUT_MS,
+        timeoutMs: Int = AtomQualityPolicy.PROBE_TIMEOUT_MS,
     ): Long = withContext(Dispatchers.IO) {
         val started = SystemClock.elapsedRealtime()
         // Level A: parallel probes — wall time ~ single target, not sum.
@@ -53,7 +53,7 @@ internal object PowPathProbe {
      */
     suspend fun measureMsLite(
         socksPort: Int,
-        timeoutMs: Int = PowQualityPolicy.PROBE_TIMEOUT_MS,
+        timeoutMs: Int = AtomQualityPolicy.PROBE_TIMEOUT_MS,
     ): Long = withContext(Dispatchers.IO) {
         val sample = measureSingleTargetMs(socksPort, timeoutMs, TARGETS.first(), drainBody = false)
         if (sample > 0L) sample else -1L
@@ -63,7 +63,7 @@ internal object PowPathProbe {
     suspend fun warmMapDns(socksPort: Int): Boolean = withContext(Dispatchers.IO) {
         runCatching {
             val jobs = TARGETS.take(2).map { target ->
-                async { measureSingleTargetMs(socksPort, PowQualityPolicy.DNS_WARM_TIMEOUT_MS, target) }
+                async { measureSingleTargetMs(socksPort, AtomQualityPolicy.DNS_WARM_TIMEOUT_MS, target) }
             }
             val results = jobs.awaitAll()
             results.count { it > 0L } >= 1
