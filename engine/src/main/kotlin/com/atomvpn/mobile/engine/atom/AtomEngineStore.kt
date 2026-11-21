@@ -90,6 +90,8 @@ class AtomEngineStore private constructor(context: Context) {
             runCatching { AtomCoreConfig.lastconnPath(appContext).takeIf { it.isFile }?.delete() }
             runCatching { AtomCoreConfig.goolLastconnPath(appContext).takeIf { it.isFile }?.delete() }
         }
+        // Run after the one-time scoreboard reset above, so migrated values survive.
+        AtomNetworkScoreboard.migrateLegacyKeys(prefs)
     }
 
     private val mutableSettings = MutableStateFlow(read())
