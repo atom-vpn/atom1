@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.core
+package com.atomvpn.mobile.engine.core
 
 data class ConnectRouteProgress(
     val current: Int = 0,
