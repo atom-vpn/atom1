@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -6,11 +6,11 @@ import android.net.NetworkCapabilities
 
 /**
  * Level B: Per-network scoreboard isolated to PoW.
- * Key = networkType + (operator/carrier) — stored inside PowEngineStore prefs,
+ * Key = networkType + (operator/carrier) — stored inside AtomEngineStore prefs,
  * never touches XRAY or Tor stores. Keeps outerProtocol + strategy winner per
  * physical network so reconnect on the same WiFi/cell is instant.
  */
-internal object PowNetworkScoreboard {
+internal object AtomNetworkScoreboard {
     private const val KEY_PREFIX_OUTER = "pow_net_outer_"
     private const val KEY_PREFIX_STRATEGY = "pow_net_strat_"
     private const val KEY_PREFIX_STRAT_SHAPE = "pow_net_strat_shape_"
@@ -69,12 +69,12 @@ internal object PowNetworkScoreboard {
     }
 
     fun saveOuter(prefs: android.content.SharedPreferences, netKey: String, protocol: String) {
-        val clean = protocol.trim().lowercase().takeIf { it in PowCoreConfig.OUTER_LADDER } ?: return
+        val clean = protocol.trim().lowercase().takeIf { it in AtomCoreConfig.OUTER_LADDER } ?: return
         prefs.edit().putString(KEY_PREFIX_OUTER + netKey, clean).apply()
     }
 
     fun loadOuter(prefs: android.content.SharedPreferences, netKey: String): String? =
-        prefs.getString(KEY_PREFIX_OUTER + netKey, null)?.takeIf { it in PowCoreConfig.OUTER_LADDER }
+        prefs.getString(KEY_PREFIX_OUTER + netKey, null)?.takeIf { it in AtomCoreConfig.OUTER_LADDER }
 
     fun saveStrategy(prefs: android.content.SharedPreferences, netKey: String, index: Int, shape: String, rttMs: Long = 0L) {
         prefs.edit()
@@ -124,7 +124,7 @@ internal object PowNetworkScoreboard {
         connectMs: Long,
     ) {
         val code = region.trim().uppercase()
-        if (code !in PowRegions.NEARBY) return
+        if (code !in AtomRegions.NEARBY) return
         val prefix = KEY_PREFIX_REGION_STATS + netKey + "_" + code + "_"
         synchronized(prefs) {
             val attempts = prefs.getInt(prefix + "attempts", 0) + 1
@@ -140,11 +140,11 @@ internal object PowNetworkScoreboard {
         }
     }
 
-    fun regionStats(prefs: android.content.SharedPreferences, netKey: String): Map<String, PowRegions.PowRegionStats> =
-        PowRegions.NEARBY.mapNotNull { code ->
+    fun regionStats(prefs: android.content.SharedPreferences, netKey: String): Map<String, AtomRegions.AtomRegionStats> =
+        AtomRegions.NEARBY.mapNotNull { code ->
             val prefix = KEY_PREFIX_REGION_STATS + netKey + "_" + code + "_"
             val attempts = prefs.getInt(prefix + "attempts", 0)
-            if (attempts <= 0) null else code to PowRegions.PowRegionStats(
+            if (attempts <= 0) null else code to AtomRegions.AtomRegionStats(
                 attempts = attempts,
                 successes = prefs.getInt(prefix + "successes", 0),
                 totalConnectMs = prefs.getLong(prefix + "total_ms", 0L),
@@ -162,13 +162,13 @@ internal object PowNetworkScoreboard {
         else -> null
     }
 
-    fun rows(prefs: android.content.SharedPreferences): List<PowScoreboardRow> {
+    fun rows(prefs: android.content.SharedPreferences): List<AtomScoreboardRow> {
         val keys = runCatching { prefs.all.keys }.getOrDefault(emptySet())
             .mapNotNull(::prefNetworkKey)
             .distinct()
             .sorted()
         return keys.map { netKey ->
-            PowScoreboardRow(
+            AtomScoreboardRow(
                 networkKey = netKey,
                 outer = loadOuter(prefs, netKey),
                 strategyIndex = runCatching {
@@ -199,7 +199,7 @@ internal object PowNetworkScoreboard {
     }
 }
 
-internal data class PowScoreboardRow(
+internal data class AtomScoreboardRow(
     val networkKey: String,
     val outer: String?,
     val strategyIndex: Int?,
