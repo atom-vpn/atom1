@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Page Turbo — warms mapdns after connect. Optional keepalive probes
- * keep the first real navigation primed. Isolated to PoW SOCKS.
+ * keep the first real navigation primed. Isolated to Atom SOCKS.
  */
 internal object AtomPageTurbo {
     @Volatile private var job: Job? = null
