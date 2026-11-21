@@ -1,7 +1,7 @@
 # JNI entry points are resolved by native symbol names.
 -keep class com.atomvpn.mobile.engine.atom.AetherNative { *; }
-# Compatibility bridge: the bundled HEV binary exports JNI symbols for this legacy class.
--keep class com.uacspoofer.mobile.engine.tor.HevSocks5Tunnel { *; }
+# HEV JNI_OnLoad resolves and registers native methods on this exact Atom class.
+-keep class com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel { *; }
 
 # The patched gomobile Seq class calls this loader by its stable class/method name.
 -keep class com.atomvpn.mobile.engine.atom.GoJniLoader { *; }
