@@ -122,7 +122,7 @@ object GeoAssets {
                 connectTimeout = 30_000
                 readTimeout = 120_000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "UAC-Mobile-GeoAssets")
+                setRequestProperty("User-Agent", "ATOM-Mobile-GeoAssets")
             }
             val code = conn.responseCode
             check(code in 200..299) { "HTTP $code for $url" }
