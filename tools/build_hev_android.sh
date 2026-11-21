@@ -26,6 +26,7 @@ git -C "${WORK_DIR}/hev" submodule update --init --recursive --quiet
 cp "${WORK_DIR}/hev/Application.mk" "${WORK_DIR}/Application.atom.mk"
 cat >> "${WORK_DIR}/Application.atom.mk" <<'EOF'
 APP_CFLAGS += -DPKGNAME=com/atomvpn/mobile/engine/tor -DCLSNAME=AtomHevSocks5Tunnel
+APP_MODULES := hev-socks5-tunnel
 EOF
 
 mkdir -p "${ROOT}/vendor/jniLibs"
