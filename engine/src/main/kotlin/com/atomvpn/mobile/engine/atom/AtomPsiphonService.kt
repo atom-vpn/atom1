@@ -31,7 +31,7 @@ open class AtomPsiphonService : Service() {
     @Volatile private var tunnel: PsiphonTunnel? = null
 
     override fun attachBaseContext(newBase: Context) {
-        GoJniLoader.forcePowLibrary()
+        GoJniLoader.forceAtomLibrary()
         super.attachBaseContext(newBase)
     }
 
@@ -71,7 +71,7 @@ open class AtomPsiphonService : Service() {
         runCatching { tunnel?.stop() }
         tunnel = null
         try {
-            GoJniLoader.forcePowLibrary()
+            GoJniLoader.forceAtomLibrary()
             val serverEntries = readServerEntries()
             val next = PsiphonTunnel.newPsiphonTunnel(host)
             next.setVpnMode(false)
