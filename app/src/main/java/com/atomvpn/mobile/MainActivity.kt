@@ -61,11 +61,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.uacspoofer.mobile.core.ConnectionState
-import com.uacspoofer.mobile.core.ConnectionStateStore
-import com.uacspoofer.mobile.engine.pow.*
-import com.uacspoofer.mobile.settings.AdvancedSettingsStore
-import com.uacspoofer.mobile.settings.NetworkGuardStore
+import com.atomvpn.mobile.engine.core.ConnectionState
+import com.atomvpn.mobile.engine.core.ConnectionStateStore
+import com.atomvpn.mobile.engine.atom.*
+import com.atomvpn.mobile.engine.settings.AdvancedSettingsStore
+import com.atomvpn.mobile.engine.settings.NetworkGuardStore
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -173,10 +173,10 @@ class MainActivity : ComponentActivity() {
 private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val context = LocalContext.current
     val connection by ConnectionStateStore.state.collectAsStateWithLifecycle()
-    val status by PowStatusStore.status.collectAsStateWithLifecycle()
+    val status by AtomStatusStore.status.collectAsStateWithLifecycle()
     val exitIpState by ExitIpInfoRepository.state.collectAsStateWithLifecycle()
     val trafficSpeedState by TrafficSpeedRepository.state.collectAsStateWithLifecycle()
-    val engine = remember(context) { PowEngineStore.get(context) }
+    val engine = remember(context) { AtomEngineStore.get(context) }
     val settings by engine.settings.collectAsStateWithLifecycle()
     var page by remember { mutableStateOf("home") }
     var countryQuery by remember { mutableStateOf("") }
@@ -184,16 +184,16 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val connected = connection == ConnectionState.CONNECTED
     val exitCountryLabel = when {
         !connected -> "—"
-        status.exitRegion.isNotBlank() -> PowRegions.name(status.exitRegion, Locale("fa")).ifBlank { status.exitRegion }
-        !exitIpState.info?.countryCode.isNullOrBlank() -> PowRegions.name(exitIpState.info!!.countryCode, Locale("fa")).ifBlank { exitIpState.info!!.countryCode }
+        status.exitRegion.isNotBlank() -> AtomRegions.name(status.exitRegion, Locale("fa")).ifBlank { status.exitRegion }
+        !exitIpState.info?.countryCode.isNullOrBlank() -> AtomRegions.name(exitIpState.info!!.countryCode, Locale("fa")).ifBlank { exitIpState.info!!.countryCode }
         exitIpState.isLoading -> "در حال شناسایی…"
         else -> "نامشخص"
     }
     val connecting = connection == ConnectionState.CONNECTING ||
-        status.phase in setOf(PowPhase.STARTING, PowPhase.OUTER, PowPhase.INNER, PowPhase.BRIDGING)
+        status.phase in setOf(AtomPhase.STARTING, AtomPhase.OUTER, AtomPhase.INNER, AtomPhase.BRIDGING)
     // پیام "Job was cancelled" یعنی کاربر خودش لغو کرده؛ شکست حساب نمی‌شود
     val cancelled = status.detail.contains("cancel", ignoreCase = true)
-    val failed = (connection == ConnectionState.ERROR || status.phase == PowPhase.FAILED) && !cancelled
+    val failed = (connection == ConnectionState.ERROR || status.phase == AtomPhase.FAILED) && !cancelled
     val ui = when {
         connected -> UiState.CONNECTED
         connecting -> UiState.CONNECTING
@@ -254,19 +254,19 @@ private fun AtomPowApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                     label = "page-transition"
                 ) { currentPage ->
                     when (currentPage) {
-                        "settings" -> PowSettingsPage(
+                        "settings" -> AtomSettingsPage(
                             settings = settings,
                             onBack = { page = "home" },
                             onOpenCountries = { page = "countries" },
                             onSave = { engine.save(it) }
                         )
                         "countries" -> {
-                            val countries = remember { PowRegions.options(engine.availableRegions()) }
+                            val countries = remember { AtomRegions.options(engine.availableRegions()) }
                             val faLocale = remember { Locale("fa") }
                             // نام‌ها یک بار محاسبه می‌شوند، نه در هر فریم اسکرول
-                            val names = remember(countries) { countries.associateWith { PowRegions.name(it, faLocale) } }
+                            val names = remember(countries) { countries.associateWith { AtomRegions.name(it, faLocale) } }
                             val filtered = remember(countries, countryQuery) {
-                                countries.filter { PowRegions.matches(it, countryQuery) }
+                                countries.filter { AtomRegions.matches(it, countryQuery) }
                             }
                             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
                                 ScreenHeader("کشور خروجی", "انتخاب مسیر خروجی") { page = "settings" }
@@ -379,7 +379,7 @@ private fun HomePage(
     ui: UiState,
     progress: Float,
     detail: String,
-    settings: PowEngineSettings,
+    settings: AtomEngineSettings,
     exitCountryLabel: String,
     exitCountryCode: String,
     exitIpState: ExitIpInfoState,
@@ -408,8 +408,8 @@ private fun HomePage(
     )
     val percent = (progress.coerceIn(0f, 1f) * 100).roundToInt()
     val routeLabel = when (settings.exitMode) {
-        PowEngineSettings.EXIT_WARP -> "WARP مستقیم"
-        PowEngineSettings.EXIT_PSIPHON -> "Psiphon مستقیم"
+        AtomEngineSettings.EXIT_WARP -> "WARP مستقیم"
+        AtomEngineSettings.EXIT_PSIPHON -> "Psiphon مستقیم"
         else -> "Psiphon روی WARP"
     }
     val section = when (ui) {
@@ -553,7 +553,7 @@ private fun HomePage(
 }
 
 @Composable
-private fun InfoTilesRow(settings: PowEngineSettings, onOpenCountries: () -> Unit, onOpenSettings: () -> Unit) {
+private fun InfoTilesRow(settings: AtomEngineSettings, onOpenCountries: () -> Unit, onOpenSettings: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
         InfoTile("کشور خروجی", settings.exitCountryCode.ifBlank { "خودکار" }, Modifier.weight(1f), Icons.Outlined.Public) { onOpenCountries() }
         InfoTile("پروتکل اتصال", settings.linkRecipe.uppercase(), Modifier.weight(1f), Icons.Outlined.Hub) { onOpenSettings() }
@@ -883,11 +883,11 @@ private fun ConnectionRings(accent: Color, connecting: Boolean, buttonRadius: Dp
 // ───────────────────────── Settings & countries ─────────────────────────
 
 @Composable
-private fun PowSettingsPage(
-    settings: PowEngineSettings,
+private fun AtomSettingsPage(
+    settings: AtomEngineSettings,
     onBack: () -> Unit,
     onOpenCountries: () -> Unit,
-    onSave: (PowEngineSettings) -> Unit
+    onSave: (AtomEngineSettings) -> Unit
 ) {
     val context = LocalContext.current
     val networkGuard = remember(context) { NetworkGuardStore.get(context) }
@@ -908,23 +908,23 @@ private fun PowSettingsPage(
             }
             item {
                 val carrierModeLabel = when {
-                    settings.carrierMode == PowCoreConfig.CARRIER_OFF -> "خاموش · مسیر عمومی"
-                    settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
-                        settings.firewallProfile == PowCoreConfig.FIREWALL_MCI -> "همراه اول · دستی"
-                    settings.carrierMode == PowCoreConfig.CARRIER_MANUAL -> "ایرانسل · دستی"
+                    settings.carrierMode == AtomCoreConfig.CARRIER_OFF -> "خاموش · مسیر عمومی"
+                    settings.carrierMode == AtomCoreConfig.CARRIER_MANUAL &&
+                        settings.firewallProfile == AtomCoreConfig.FIREWALL_MCI -> "همراه اول · دستی"
+                    settings.carrierMode == AtomCoreConfig.CARRIER_MANUAL -> "ایرانسل · دستی"
                     else -> "خودکار · بدون تشخیص اپراتور"
                 }
                 Reveal(1) {
                     SettingCard("اپراتور شبکه", carrierModeLabel, "تغییر", {
                         val next = when {
-                            settings.carrierMode == PowCoreConfig.CARRIER_AUTO ->
-                                settings.copy(carrierMode = PowCoreConfig.CARRIER_MANUAL, firewallProfile = PowCoreConfig.FIREWALL_MCI)
-                            settings.carrierMode == PowCoreConfig.CARRIER_MANUAL &&
-                                settings.firewallProfile == PowCoreConfig.FIREWALL_MCI ->
-                                settings.copy(carrierMode = PowCoreConfig.CARRIER_MANUAL, firewallProfile = PowCoreConfig.FIREWALL_IRANCELL)
-                            settings.carrierMode == PowCoreConfig.CARRIER_MANUAL ->
-                                settings.copy(carrierMode = PowCoreConfig.CARRIER_OFF)
-                            else -> settings.copy(carrierMode = PowCoreConfig.CARRIER_AUTO)
+                            settings.carrierMode == AtomCoreConfig.CARRIER_AUTO ->
+                                settings.copy(carrierMode = AtomCoreConfig.CARRIER_MANUAL, firewallProfile = AtomCoreConfig.FIREWALL_MCI)
+                            settings.carrierMode == AtomCoreConfig.CARRIER_MANUAL &&
+                                settings.firewallProfile == AtomCoreConfig.FIREWALL_MCI ->
+                                settings.copy(carrierMode = AtomCoreConfig.CARRIER_MANUAL, firewallProfile = AtomCoreConfig.FIREWALL_IRANCELL)
+                            settings.carrierMode == AtomCoreConfig.CARRIER_MANUAL ->
+                                settings.copy(carrierMode = AtomCoreConfig.CARRIER_OFF)
+                            else -> settings.copy(carrierMode = AtomCoreConfig.CARRIER_AUTO)
                         }
                         onSave(next.validated())
                     })
@@ -933,7 +933,7 @@ private fun PowSettingsPage(
             item {
                 Reveal(2) {
                     SettingCard("روش اتصال", settings.linkRecipe, "تغییر روش", {
-                        val next = if (settings.linkRecipe == PowCoreConfig.RECIPE_MASQUE_H2) PowCoreConfig.RECIPE_MASQUE_H3 else PowCoreConfig.RECIPE_MASQUE_H2
+                        val next = if (settings.linkRecipe == AtomCoreConfig.RECIPE_MASQUE_H2) AtomCoreConfig.RECIPE_MASQUE_H3 else AtomCoreConfig.RECIPE_MASQUE_H2
                         onSave(settings.copy(linkRecipe = next).validated())
                     })
                 }
@@ -942,9 +942,9 @@ private fun PowSettingsPage(
                 Reveal(3) {
                     SettingCard("حالت خروجی", settings.exitMode, "تغییر حالت", {
                         val next = when (settings.exitMode) {
-                            PowEngineSettings.EXIT_CHAIN -> PowEngineSettings.EXIT_WARP
-                            PowEngineSettings.EXIT_WARP -> PowEngineSettings.EXIT_PSIPHON
-                            else -> PowEngineSettings.EXIT_CHAIN
+                            AtomEngineSettings.EXIT_CHAIN -> AtomEngineSettings.EXIT_WARP
+                            AtomEngineSettings.EXIT_WARP -> AtomEngineSettings.EXIT_PSIPHON
+                            else -> AtomEngineSettings.EXIT_CHAIN
                         }
                         onSave(settings.copy(exitMode = next).validated())
                     })
@@ -953,7 +953,7 @@ private fun PowSettingsPage(
             item {
                 Reveal(4) {
                     SettingCard("حمل‌ونقل بیرونی", settings.outerTransport, "تغییر transport", {
-                        val options = listOf(PowCoreConfig.OUTER_AUTO) + PowCoreConfig.OUTER_LADDER
+                        val options = listOf(AtomCoreConfig.OUTER_AUTO) + AtomCoreConfig.OUTER_LADDER
                         val next = options[(options.indexOf(settings.outerTransport).coerceAtLeast(0) + 1) % options.size]
                         onSave(settings.copy(outerTransport = next).validated())
                     })
@@ -1012,20 +1012,20 @@ private fun PowSettingsPage(
             }
             item {
                 val fragmentModeLabel = when (settings.h2FragmentMode) {
-                    PowEngineSettings.H2_FRAG_ON -> "فعال"
-                    PowEngineSettings.H2_FRAG_OFF -> "غیرفعال"
+                    AtomEngineSettings.H2_FRAG_ON -> "فعال"
+                    AtomEngineSettings.H2_FRAG_OFF -> "غیرفعال"
                     else -> "خودکار"
                 }
                 Reveal(6) {
                     SettingCard("تکه‌تکه‌سازی H2", fragmentModeLabel, "تغییر حالت", {
                         val nextMode = when (settings.h2FragmentMode) {
-                            PowEngineSettings.H2_FRAG_AUTO -> PowEngineSettings.H2_FRAG_ON
-                            PowEngineSettings.H2_FRAG_ON -> PowEngineSettings.H2_FRAG_OFF
-                            else -> PowEngineSettings.H2_FRAG_AUTO
+                            AtomEngineSettings.H2_FRAG_AUTO -> AtomEngineSettings.H2_FRAG_ON
+                            AtomEngineSettings.H2_FRAG_ON -> AtomEngineSettings.H2_FRAG_OFF
+                            else -> AtomEngineSettings.H2_FRAG_AUTO
                         }
                         onSave(settings.copy(
                             h2FragmentMode = nextMode,
-                            h2Fragmentation = nextMode != PowEngineSettings.H2_FRAG_OFF
+                            h2Fragmentation = nextMode != AtomEngineSettings.H2_FRAG_OFF
                         ).validated())
                     })
                 }
