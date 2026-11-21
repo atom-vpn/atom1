@@ -26,7 +26,7 @@ class ConnectionStateMachine(initial: ConnectionState = ConnectionState.DISCONNE
 
     @Synchronized
     fun markConnected(): Boolean {
-        // Idempotent: PoW coordinator may publish Connected before the VPN service
+        // Idempotent: Atom coordinator may publish Connected before the VPN service
         // also calls markConnected. Returning false here used to trigger cleanupRoute()
         // which stopped a live Psiphon while the UI stayed green.
         if (mutableState.value == ConnectionState.CONNECTED) return true
