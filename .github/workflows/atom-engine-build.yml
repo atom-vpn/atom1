@@ -1,6 +1,19 @@
 name: Atom VPN Android Build
 
 on:
+  pull_request:
+    branches:
+      - pow-standalone
+    paths:
+      - "app/**"
+      - "engine/**"
+      - "native/**"
+      - "vendor/**"
+      - "tools/**"
+      - "*.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - ".github/workflows/atom-engine-build.yml"
   push:
     branches:
       - pow-standalone
