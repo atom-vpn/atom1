@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.app.Service
 import android.content.Context
@@ -20,8 +20,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-open class PowPsiphonService : Service() {
-    private val worker = HandlerThread("uac-pow-inner", Process.THREAD_PRIORITY_FOREGROUND).apply { start() }
+open class AtomPsiphonService : Service() {
+    private val worker = HandlerThread("atom-engine-inner", Process.THREAD_PRIORITY_FOREGROUND).apply { start() }
     private val incoming = Messenger(Handler(worker.looper, ::onCommand))
     private val host = Host()
     private val stopRequested = AtomicBoolean(false)
@@ -50,18 +50,18 @@ open class PowPsiphonService : Service() {
 
     private fun onCommand(message: Message): Boolean {
         when (message.what) {
-            PowPsiphonIpc.MSG_START -> {
+            AtomPsiphonIpc.MSG_START -> {
                 callback = message.replyTo
-                configJson = message.data.getString(PowPsiphonIpc.KEY_CONFIG) ?: "{}"
+                configJson = message.data.getString(AtomPsiphonIpc.KEY_CONFIG) ?: "{}"
                 startTunnel()
             }
-            PowPsiphonIpc.MSG_STOP -> {
+            AtomPsiphonIpc.MSG_STOP -> {
                 stopRequested.set(true)
                 runCatching { tunnel?.stop() }
                 tunnel = null
-                emit(PowPsiphonIpc.MSG_STOPPED)
+                emit(AtomPsiphonIpc.MSG_STOPPED)
             }
-            PowPsiphonIpc.MSG_PROTECT_RESULT -> Unit
+            AtomPsiphonIpc.MSG_PROTECT_RESULT -> Unit
         }
         return true
     }
@@ -82,10 +82,10 @@ open class PowPsiphonService : Service() {
             tunnel = null
             Log.e(TAG, "Psiphon start failed", error)
             emit(
-                PowPsiphonIpc.MSG_START_FAILED,
+                AtomPsiphonIpc.MSG_START_FAILED,
                 Bundle().apply {
                     putString(
-                        PowPsiphonIpc.KEY_ERROR,
+                        AtomPsiphonIpc.KEY_ERROR,
                         error.message.orEmpty().ifBlank { "Psiphon failed to start" },
                     )
                 },
@@ -94,7 +94,7 @@ open class PowPsiphonService : Service() {
     }
 
     private fun readServerEntries(): String = runCatching {
-        val raw = assets.open(PowPsiphonIpc.ASSET_SERVER_ENTRIES).bufferedReader().use { it.readText().trim() }
+        val raw = assets.open(AtomPsiphonIpc.ASSET_SERVER_ENTRIES).bufferedReader().use { it.readText().trim() }
         if (!meekOnReachableFronts()) return@runCatching raw
         // Akamai fronts are reset on this carrier. Cloudflare and Fastly are the
         // fronts whose TLS still completes, so the direct meek attempt uses only
@@ -146,16 +146,16 @@ open class PowPsiphonService : Service() {
             val latch = CountDownLatch(1)
             val ok = AtomicBoolean(false)
             val reply = Messenger(Handler(result.looper) { replyMsg ->
-                if (replyMsg.what == PowPsiphonIpc.MSG_PROTECT_RESULT) {
+                if (replyMsg.what == AtomPsiphonIpc.MSG_PROTECT_RESULT) {
                     ok.set(replyMsg.arg1 == 1)
                     latch.countDown()
                 }
                 true
             })
             val payload = Bundle().apply {
-                putParcelable(PowPsiphonIpc.KEY_FD, pfd)
+                putParcelable(AtomPsiphonIpc.KEY_FD, pfd)
             }
-            val message = Message.obtain(null, PowPsiphonIpc.MSG_PROTECT).apply {
+            val message = Message.obtain(null, AtomPsiphonIpc.MSG_PROTECT).apply {
                 data = payload
                 replyTo = reply
             }
@@ -173,44 +173,44 @@ open class PowPsiphonService : Service() {
         }
 
         override fun onListeningSocksProxyPort(port: Int) {
-            emit(PowPsiphonIpc.MSG_SOCKS_PORT, arg1 = port)
+            emit(AtomPsiphonIpc.MSG_SOCKS_PORT, arg1 = port)
         }
 
         override fun onConnecting() {
-            emit(PowPsiphonIpc.MSG_CONNECTING)
+            emit(AtomPsiphonIpc.MSG_CONNECTING)
         }
 
         override fun onConnected() {
-            emit(PowPsiphonIpc.MSG_CONNECTED)
+            emit(AtomPsiphonIpc.MSG_CONNECTED)
         }
 
         override fun onExiting() {
             tunnel = null
-            emit(PowPsiphonIpc.MSG_EXITING)
+            emit(AtomPsiphonIpc.MSG_EXITING)
         }
 
         override fun onDiagnosticMessage(message: String?) {
             val text = message.orEmpty()
             if (text.isBlank()) return
             emit(
-                PowPsiphonIpc.MSG_DIAGNOSTIC,
-                Bundle().apply { putString(PowPsiphonIpc.KEY_MESSAGE, text) },
+                AtomPsiphonIpc.MSG_DIAGNOSTIC,
+                Bundle().apply { putString(AtomPsiphonIpc.KEY_MESSAGE, text) },
             )
         }
 
         override fun onClientRegion(region: String?) {
             if (region.isNullOrBlank()) return
             emit(
-                PowPsiphonIpc.MSG_CLIENT_REGION,
-                Bundle().apply { putString(PowPsiphonIpc.KEY_REGION, region) },
+                AtomPsiphonIpc.MSG_CLIENT_REGION,
+                Bundle().apply { putString(AtomPsiphonIpc.KEY_REGION, region) },
             )
         }
 
         override fun onConnectedServerRegion(region: String?) {
             if (region.isNullOrBlank()) return
             emit(
-                PowPsiphonIpc.MSG_SERVER_REGION,
-                Bundle().apply { putString(PowPsiphonIpc.KEY_REGION, region) },
+                AtomPsiphonIpc.MSG_SERVER_REGION,
+                Bundle().apply { putString(AtomPsiphonIpc.KEY_REGION, region) },
             )
         }
 
@@ -218,17 +218,17 @@ open class PowPsiphonService : Service() {
             val list = ArrayList(regions?.filterNotNull().orEmpty())
             if (list.isEmpty()) return
             emit(
-                PowPsiphonIpc.MSG_EGRESS_REGIONS,
-                Bundle().apply { putStringArrayList(PowPsiphonIpc.KEY_REGIONS, ArrayList(list)) },
+                AtomPsiphonIpc.MSG_EGRESS_REGIONS,
+                Bundle().apply { putStringArrayList(AtomPsiphonIpc.KEY_REGIONS, ArrayList(list)) },
             )
         }
 
         override fun onBytesTransferred(sent: Long, received: Long) {
             emit(
-                PowPsiphonIpc.MSG_BYTES,
+                AtomPsiphonIpc.MSG_BYTES,
                 Bundle().apply {
-                    putLong(PowPsiphonIpc.KEY_SENT, sent)
-                    putLong(PowPsiphonIpc.KEY_RECEIVED, received)
+                    putLong(AtomPsiphonIpc.KEY_SENT, sent)
+                    putLong(AtomPsiphonIpc.KEY_RECEIVED, received)
                 },
             )
         }
@@ -236,8 +236,8 @@ open class PowPsiphonService : Service() {
         override fun onClientAddress(address: String?) {
             if (address.isNullOrBlank()) return
             emit(
-                PowPsiphonIpc.MSG_CLIENT_ADDRESS,
-                Bundle().apply { putString(PowPsiphonIpc.KEY_ADDRESS, address) },
+                AtomPsiphonIpc.MSG_CLIENT_ADDRESS,
+                Bundle().apply { putString(AtomPsiphonIpc.KEY_ADDRESS, address) },
             )
         }
 
@@ -247,6 +247,6 @@ open class PowPsiphonService : Service() {
     }
 
     companion object {
-        private const val TAG = "UAC-POW-INNER"
+        private const val TAG = "UAC-ATOM-INNER"
     }
 }
