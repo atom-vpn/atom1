@@ -63,6 +63,24 @@ object AtomCoreConfig {
     fun goolLastconnPath(context: Context): File =
         migrateLegacyFile(context, "uac-pow-gool-lastconn.toml", "atom-engine-gool-lastconn.toml")
 
+    /**
+     * Clears obsolete last-connected peer hints during the one-time connect-order reset.
+     * Remove both Atom copies and their UAC-era sources so migrateLegacyFile cannot
+     * silently restore the stale hints on the next read. Identity and endpoint caches
+     * are deliberately not included.
+     */
+    fun clearObsoleteLastConnMemory(context: Context): Int {
+        val files = listOf(
+            File(context.filesDir, "atom-engine-lastconn.toml"),
+            File(context.filesDir, "uac-pow-lastconn.toml"),
+            File(context.filesDir, "atom-engine-gool-lastconn.toml"),
+            File(context.filesDir, "uac-pow-gool-lastconn.toml"),
+        )
+        return files.count { file ->
+            runCatching { file.isFile && file.delete() }.getOrDefault(false)
+        }
+    }
+
     fun pathMemoryFiles(context: Context): List<File> = listOf(
         masqueCachePath(context),
         lastconnPath(context),
