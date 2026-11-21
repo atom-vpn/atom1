@@ -27,7 +27,7 @@ internal object AtomSocksConnectOnly {
     private val running = AtomicBoolean(false)
     private val connectTimeoutMs = AtomicInteger(UPSTREAM_TIMEOUT_MS)
     private val liveSockets = ConcurrentHashMap.newKeySet<Socket>()
-    // QoS counters isolated to PoW relay only.
+    // QoS counters isolated to Atom relay only.
     private val activeStreams = AtomicInteger(0)
 
     // Level C: passive quality signal — measured on user traffic, costs zero extra radio.
