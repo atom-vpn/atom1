@@ -1,9 +1,9 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import java.util.Locale
 
-internal data class PowIdentityStatus(
+internal data class AtomIdentityStatus(
     val present: Boolean,
     val enrolled: Boolean,
     val deviceId: String,
@@ -26,7 +26,7 @@ internal data class PowIdentityStatus(
     }
 
     companion object {
-        val EMPTY = PowIdentityStatus(
+        val EMPTY = AtomIdentityStatus(
             present = false,
             enrolled = false,
             deviceId = "",
@@ -40,15 +40,15 @@ internal data class PowIdentityStatus(
             modifiedAtMs = 0L,
         )
 
-        fun read(context: Context): PowIdentityStatus {
-            val file = PowCoreConfig.identityPath(context)
+        fun read(context: Context): AtomIdentityStatus {
+            val file = AtomCoreConfig.identityPath(context)
             if (!file.isFile) return EMPTY
             val fields = runCatching { parseTomlScalars(file.readText()) }.getOrDefault(emptyMap())
             val token = fields["access_token"].orEmpty()
             val privateKey = fields["wg_private_key"].orEmpty()
             val cert = fields["cert_pem"].orEmpty()
             val peer = fields["wg_peer_public_key"].orEmpty()
-            return PowIdentityStatus(
+            return AtomIdentityStatus(
                 present = true,
                 enrolled = token.length > 8 && privateKey.length > 20,
                 deviceId = fields["device_id"].orEmpty(),
@@ -64,7 +64,7 @@ internal data class PowIdentityStatus(
         }
 
         fun forget(context: Context): Boolean =
-            PowCoreConfig.identityPath(context).let { file -> file.isFile && file.delete() }
+            AtomCoreConfig.identityPath(context).let { file -> file.isFile && file.delete() }
 
         fun parseTomlScalars(text: String): Map<String, String> {
             val out = linkedMapOf<String, String>()
