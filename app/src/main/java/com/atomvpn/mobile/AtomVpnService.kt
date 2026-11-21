@@ -50,6 +50,7 @@ class AtomVpnService : VpnService() {
     private var connectJob: kotlinx.coroutines.Job? = null
     private var exitIpJob: kotlinx.coroutines.Job? = null
     private var trafficSpeedJob: kotlinx.coroutines.Job? = null
+    @Volatile private var shutdownCompleted = false
 
     override fun onCreate() {
         super.onCreate()
@@ -173,7 +174,12 @@ class AtomVpnService : VpnService() {
         TrafficSpeedRepository.clear()
         coordinator.signalStop()
         scope.launch {
-            runCatching { coordinator.stop() }
+            val stopped = runCatching { coordinator.stop() }.isSuccess
+            if (stopped) {
+                shutdownCompleted = true
+            } else {
+                coordinator.forceRelease()
+            }
             ConnectionStateStore.markDisconnected()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -202,7 +208,14 @@ class AtomVpnService : VpnService() {
     }
 
     override fun onDestroy() {
-        coordinator.signalStop()
+        // Android may destroy/revoke the VPN service without ACTION_DISCONNECT.
+        // In that path, a signal alone does not unbind/stop the separate Psiphon
+        // services or release the TUN/HEV resources. Use the coordinator's bounded,
+        // non-blocking fallback unless the normal teardown already completed.
+        if (::coordinator.isInitialized && !shutdownCompleted) {
+            coordinator.forceRelease()
+            ConnectionStateStore.markDisconnected()
+        }
         exitIpJob?.cancel()
         trafficSpeedJob?.cancel()
         ExitIpInfoRepository.clear()
