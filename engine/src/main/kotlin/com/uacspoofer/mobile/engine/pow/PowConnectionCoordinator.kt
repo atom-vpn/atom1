@@ -1,4 +1,4 @@
-﻿package com.uacspoofer.mobile.engine.pow
+﻿package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -14,16 +14,16 @@ import android.os.ParcelFileDescriptor
 import android.os.PowerManager
 import android.os.SystemClock
 import android.system.Os
-import com.uacspoofer.mobile.core.ConnectionStateStore
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
-import com.uacspoofer.mobile.mci.DomesticDirect
-import com.uacspoofer.mobile.settings.NetworkGuardStore
-import com.uacspoofer.mobile.settings.AdvancedSettingsData
-import com.uacspoofer.mobile.settings.CONNECTION_MODE_PROXY
-import com.uacspoofer.mobile.vpn.TunStats
-import com.uacspoofer.mobile.vpn.TunPacketFilter
-import com.uacspoofer.mobile.vpn.VpnPauseStore
+import com.atomvpn.mobile.engine.core.ConnectionStateStore
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
+import com.atomvpn.mobile.engine.mci.DomesticDirect
+import com.atomvpn.mobile.engine.settings.NetworkGuardStore
+import com.atomvpn.mobile.engine.settings.AdvancedSettingsData
+import com.atomvpn.mobile.engine.settings.CONNECTION_MODE_PROXY
+import com.atomvpn.mobile.engine.vpn.TunStats
+import com.atomvpn.mobile.engine.vpn.TunPacketFilter
+import com.atomvpn.mobile.engine.vpn.VpnPauseStore
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.CountDownLatch
@@ -51,11 +51,11 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
-class PowConnectionCoordinator(
+class AtomConnectionCoordinator(
     private val service: VpnService,
 ) {
     private val appContext = service.applicationContext
-    private val store = PowEngineStore.get(appContext)
+    private val store = AtomEngineStore.get(appContext)
     private val lifecycle = Mutex()
     private val retuneMutex = Mutex()
     private val qualityScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -72,10 +72,10 @@ class PowConnectionCoordinator(
     private val rxPackets = AtomicLong(0L)
     private val ladderActive = AtomicBoolean(false)
     private val callbacks = PsiphonCallbacks()
-    @Volatile private var psiphon: PowPsiphonClient? = null
+    @Volatile private var psiphon: AtomPsiphonClient? = null
     @Volatile private var lastPsiphonConfig = ""
     private val sidecar by lazy {
-        PowPsiphonSidecar(service) { sent, received ->
+        AtomPsiphonSidecar(service) { sent, received ->
             if (sent > 0) {
                 txBytes.addAndGet(sent)
                 txPackets.incrementAndGet()
@@ -88,7 +88,7 @@ class PowConnectionCoordinator(
     }
 
     private val ghostInner by lazy {
-        PowGhostInner(service) { sent, received ->
+        AtomGhostInner(service) { sent, received ->
             if (sent > 0) {
                 txBytes.addAndGet(sent)
                 txPackets.incrementAndGet()
@@ -106,7 +106,7 @@ class PowConnectionCoordinator(
     @Volatile private var tunFd: ParcelFileDescriptor? = null
     @Volatile private var ownsTun = false
     @Volatile private var proxyMode = false
-    @Volatile private var socksPort = PowCoreConfig.SOCKS_PORT
+    @Volatile private var socksPort = AtomCoreConfig.SOCKS_PORT
     @Volatile private var outerThread: Thread? = null
     @Volatile private var outerCommitted = false
     @Volatile private var directPsiphon = false
@@ -128,9 +128,9 @@ class PowConnectionCoordinator(
     @Volatile private var ladderAttempts = 0
     @Volatile private var connectedSignal: CompletableDeferred<Unit>? = null
     @Volatile private var ladderJob: Job? = null
-    @Volatile private var currentSettings = PowEngineSettings.DEFAULT
+    @Volatile private var currentSettings = AtomEngineSettings.DEFAULT
     @Volatile private var innerStarted = false
-    @Volatile private var sessionMtu = PowTunRelayConfig.DEFAULT_MTU
+    @Volatile private var sessionMtu = AtomTunRelayConfig.DEFAULT_MTU
     @Volatile private var qualityJob: Job? = null
     @Volatile private var watchdogJob: Job? = null
     @Volatile private var passiveJob: Job? = null
@@ -150,7 +150,7 @@ class PowConnectionCoordinator(
     private val restoreAttempts = AtomicInteger(0)
     /** Ignore VPN-up / link callbacks as path-loss until first settle after ready. */
     @Volatile private var connectGraceUntilMs = 0L
-    @Volatile private var lastRadioIdentity: PowRadioIdentity? = null
+    @Volatile private var lastRadioIdentity: AtomRadioIdentity? = null
     @Volatile private var simSwitchJob: Job? = null
     private val simSwitchInFlight = AtomicBoolean(false)
     private var subscriptionsCallback: SubscriptionManager.OnSubscriptionsChangedListener? = null
@@ -161,8 +161,8 @@ class PowConnectionCoordinator(
     private val psiphonTunnelCount = AtomicInteger(0)
     @Volatile private var zeroTunnelJob: Job? = null
 
-    val tunAddress: PowTun2Socks.PrivateAddress
-        get() = PowTun2Socks.privateAddress
+    val tunAddress: AtomTun2Socks.PrivateAddress
+        get() = AtomTun2Socks.privateAddress
 
     fun isRetuning(): Boolean = retuning.get()
 
@@ -172,21 +172,21 @@ class PowConnectionCoordinator(
         !stopRequested.get() &&
             innerReady &&
             (warpOnly || psiphonTunnelCount.get() > 0) &&
-            (proxyMode || PowTun2Socks.isRunning) &&
+            (proxyMode || AtomTun2Socks.isRunning) &&
             (directPsiphon || (AetherNative.isRunning() && AetherNative.isReady()))
 
     fun isRunning(): Boolean {
         if (retuning.get()) {
-            return !stopRequested.get() && (proxyMode || PowTun2Socks.isRunning)
+            return !stopRequested.get() && (proxyMode || AtomTun2Socks.isRunning)
         }
         return innerReady &&
-            (proxyMode || PowTun2Socks.isRunning) &&
+            (proxyMode || AtomTun2Socks.isRunning) &&
             (directPsiphon || AetherNative.isRunning())
     }
 
     fun isOuterRunning(): Boolean = AetherNative.isRunning()
 
-    fun isRelayRunning(): Boolean = proxyMode || PowTun2Socks.isRunning
+    fun isRelayRunning(): Boolean = proxyMode || AtomTun2Socks.isRunning
 
     fun socksPort(): Int = socksPort
 
@@ -197,7 +197,7 @@ class PowConnectionCoordinator(
 
     fun tunStats(): TunStats {
         if (!proxyMode) {
-            val tun = PowTun2Socks.stats()
+            val tun = AtomTun2Socks.stats()
             if (tun != TunStats.ZERO) return tun
         }
         return TunStats(
@@ -210,13 +210,13 @@ class PowConnectionCoordinator(
 
     suspend fun connect(
         settings: AdvancedSettingsData,
-        establishTun: (PowTun2Socks.PrivateAddress, Int) -> ParcelFileDescriptor?,
+        establishTun: (AtomTun2Socks.PrivateAddress, Int) -> ParcelFileDescriptor?,
     ) {
         lifecycle.withLock { stopLocked() }
         DomesticDirect.ensure(appContext)
         val iranOn = NetworkGuardStore.get(appContext).snapshot().iranDirect
         DomesticDirect.applyEnabled(iranOn)
-        PowSocksConnectOnly.setDomesticDirect(iranOn)
+        AtomSocksConnectOnly.setDomesticDirect(iranOn)
         stopRequested.set(false)
         sessionGeneration.incrementAndGet()
         txBytes.set(0L)
@@ -232,7 +232,7 @@ class PowConnectionCoordinator(
         warpOnly = false
         directPsiphon = false
         psiphonOnly = false
-        sessionMtu = PowTunRelayConfig.DEFAULT_MTU
+        sessionMtu = AtomTunRelayConfig.DEFAULT_MTU
         activeTunnelProtocol = ""
         lastOuterProtocol = ""
         wonTransport = ""
@@ -243,9 +243,9 @@ class PowConnectionCoordinator(
         crashRecovers.set(0)
         currentSettings = store.snapshot()
         proxyMode = settings.connectionMode == CONNECTION_MODE_PROXY
-        socksPort = if (proxyMode) settings.socksPort else PowCoreConfig.SOCKS_PORT
-        PowLiveExit.reset()
-        PowStatusStore.reset()
+        socksPort = if (proxyMode) settings.socksPort else AtomCoreConfig.SOCKS_PORT
+        AtomLiveExit.reset()
+        AtomStatusStore.reset()
         armRegionPhase()
         ladderIndex = rememberedLadderStart()
         ladderAttempts = 0
@@ -254,31 +254,31 @@ class PowConnectionCoordinator(
         }
         try {
             coroutineScope {
-                val expired = PowCoreConfig.expireStalePathMemory(appContext)
+                val expired = AtomCoreConfig.expireStalePathMemory(appContext)
                 if (expired > 0) {
                     AppLogRepository.info(
-                        LogSource.POW,
+                        LogSource.ATOM,
                         "Dropped $expired stale WARP endpoint cache(s) so the next hop can be measured again",
                     )
                 }
-                PowStatusStore.update(PowPhase.STARTING, 5, "Starting UAC PoW")
+                AtomStatusStore.update(AtomPhase.STARTING, 5, "Starting Atom")
                 if (!proxyMode) {
-                    PowTun2Socks.selectPrivateAddress()
+                    AtomTun2Socks.selectPrivateAddress()
                     val powMtu = store.snapshot().tunMtu
                     sessionMtu = if (powMtu > 0) {
-                        PowTunRelayConfig.mtuForChain(powMtu, underlyingLinkMtu(), PowTunRelayConfig.MAX_CUSTOM_MTU)
+                        AtomTunRelayConfig.mtuForChain(powMtu, underlyingLinkMtu(), AtomTunRelayConfig.MAX_CUSTOM_MTU)
                     } else {
-                        PowTunRelayConfig.mtuForChain(settings.tunMtu, underlyingLinkMtu())
+                        AtomTunRelayConfig.mtuForChain(settings.tunMtu, underlyingLinkMtu())
                     }
                 }
-                psiphonOnly = currentSettings.exitMode == PowEngineSettings.EXIT_PSIPHON
+                psiphonOnly = currentSettings.exitMode == AtomEngineSettings.EXIT_PSIPHON
                 val outer = if (psiphonOnly) {
-                    AppLogRepository.info(LogSource.POW, "Exit: Psiphon only - WARP leg skipped")
+                    AppLogRepository.info(LogSource.ATOM, "Exit: Psiphon only - WARP leg skipped")
                     null
                 } else {
                     AetherNative.attach(service)
                     raiseOuterLeg(
-                        scanMode = PowCoreConfig.normalizeScanMode(currentSettings.scanMode),
+                        scanMode = AtomCoreConfig.normalizeScanMode(currentSettings.scanMode),
                     )
                 }
                 val chain = currentSettings.chainPsiphon
@@ -295,7 +295,7 @@ class PowConnectionCoordinator(
                 outerName = outer ?: "Psiphon"
                 if (directPsiphon && !psiphonOnly) {
                     AppLogRepository.warning(
-                        LogSource.POW,
+                        LogSource.ATOM,
                         "No WARP transport came up; Psiphon will connect on its own",
                     )
                 }
@@ -306,8 +306,8 @@ class PowConnectionCoordinator(
                 ladderAttempts = 0
                 logPsiphonPlan()
                 ensureActive()
-                PowStatusStore.update(
-                    PowPhase.INNER,
+                AtomStatusStore.update(
+                    AtomPhase.INNER,
                     55,
                     if (directPsiphon) "Starting Psiphon directly" else "Starting Psiphon through $outerName",
                     outerLabel = outerName,
@@ -327,19 +327,19 @@ class PowConnectionCoordinator(
                 if (!proxyMode) {
                     openDeviceTun(establishTun)
                     val fd = tunFd ?: error("VPN interface missing")
-                    PowStatusStore.update(PowPhase.BRIDGING, 90, "Routing device traffic through UAC PoW")
-                    if (!PowSocksConnectOnly.start(PowCoreConfig.TUN_SOCKS_PORT, socksPort)) {
+                    AtomStatusStore.update(AtomPhase.BRIDGING, 90, "Routing device traffic through Atom")
+                    if (!AtomSocksConnectOnly.start(AtomCoreConfig.TUN_SOCKS_PORT, socksPort)) {
                         error("Could not start whole-device routing")
                     }
-                    if (!PowTun2Socks.start(
+                    if (!AtomTun2Socks.start(
                             appContext,
                             fd,
-                            PowCoreConfig.TUN_SOCKS_PORT,
+                            AtomCoreConfig.TUN_SOCKS_PORT,
                             sessionMtu,
                             tunAddress,
                         )
                     ) {
-                        PowSocksConnectOnly.stop()
+                        AtomSocksConnectOnly.stop()
                         error("Could not start whole-device routing")
                     }
                     routing = true
@@ -348,29 +348,29 @@ class PowConnectionCoordinator(
                 innerReady = true
                 rememberConnectedMode()
                 val ready = when {
-                    proxyMode -> "UAC PoW ready · Proxy SOCKS 127.0.0.1:$socksPort"
-                    warpOnly -> "UAC PoW ready · Tunnel VPN through WARP"
-                    directPsiphon -> "UAC PoW ready · Tunnel VPN through Psiphon"
-                    else -> "UAC PoW ready · Tunnel VPN through Psiphon over WARP"
+                    proxyMode -> "Atom ready · Proxy SOCKS 127.0.0.1:$socksPort"
+                    warpOnly -> "Atom ready · Tunnel VPN through WARP"
+                    directPsiphon -> "Atom ready · Tunnel VPN through Psiphon"
+                    else -> "Atom ready · Tunnel VPN through Psiphon over WARP"
                 }
-                PowStatusStore.update(PowPhase.CONNECTED, 100, ready, outerLabel = outerName)
-                AppLogRepository.success(LogSource.POW, ready)
+                AtomStatusStore.update(AtomPhase.CONNECTED, 100, ready, outerLabel = outerName)
+                AppLogRepository.success(LogSource.ATOM, ready)
                 // Arm before markConnected: VPN-up callbacks race the service's second
                 // markConnected and must not treat TUN bring-up as path loss.
                 connectGraceUntilMs = SystemClock.elapsedRealtime() + CONNECT_GRACE_MS
                 ConnectionStateStore.markConnected()
             }
             startSessionWatch()
-            PowPageTurbo.kick(qualityScope, socksPort, keepWarm = true)
+            AtomPageTurbo.kick(qualityScope, socksPort, keepWarm = true)
             kickDnsWarm(force = true)
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) { stop() }
             throw cancelled
         } catch (error: Throwable) {
-            PowStatusStore.update(
-                PowPhase.FAILED,
+            AtomStatusStore.update(
+                AtomPhase.FAILED,
                 0,
-                error.message.orEmpty().ifBlank { "UAC PoW connect failed" },
+                error.message.orEmpty().ifBlank { "Atom connect failed" },
             )
             withContext(NonCancellable) { stop() }
             throw error
@@ -381,8 +381,8 @@ class PowConnectionCoordinator(
         signalStop()
         cancelNetworkRestore()
         cancelQualityWork()
-        PowPageTurbo.cancel()
-        PowDnsWarm.cancel()
+        AtomPageTurbo.cancel()
+        AtomDnsWarm.cancel()
         connectedSignal?.cancel()
         unregisterNetworkCallback()
         lifecycle.withLock { stopLocked() }
@@ -416,8 +416,8 @@ class PowConnectionCoordinator(
         val forcedSession = sessionGeneration.incrementAndGet()
         cancelNetworkRestore()
         cancelQualityWork()
-        PowPageTurbo.cancel()
-        PowDnsWarm.cancel()
+        AtomPageTurbo.cancel()
+        AtomDnsWarm.cancel()
         unregisterNetworkCallback()
         ladderJob?.cancel()
         runCatching { sidecar.forceRelease() }
@@ -427,13 +427,13 @@ class PowConnectionCoordinator(
         val client = psiphon
         val fd = if (ownsTun) tunFd else null
         val reaper = Thread({
-            runCatching { PowTun2Socks.stop() }
-            runCatching { PowTun2Socks.awaitNativeExit(FORCE_NATIVE_EXIT_MS) }
+            runCatching { AtomTun2Socks.stop() }
+            runCatching { AtomTun2Socks.awaitNativeExit(FORCE_NATIVE_EXIT_MS) }
             runCatching { TunPacketFilter.stop() }
             runCatching { fd?.close() }
             // Anything after the wait must not touch a session the user started meanwhile.
             if (forcedSession != sessionGeneration.get()) return@Thread
-            runCatching { PowSocksConnectOnly.stop() }
+            runCatching { AtomSocksConnectOnly.stop() }
             runCatching { AetherNative.stop() }
             if (client != null && forcedSession == sessionGeneration.get()) {
                 runCatching {
@@ -442,13 +442,13 @@ class PowConnectionCoordinator(
                     }
                 }
             }
-        }, "uac-pow-force-release")
+        }, "atom-engine-force-release")
         reaper.isDaemon = true
         reaper.start()
-        if (PowStatusStore.status.value.phase != PowPhase.FAILED) {
-            PowStatusStore.reset()
+        if (AtomStatusStore.status.value.phase != AtomPhase.FAILED) {
+            AtomStatusStore.reset()
         }
-        AppLogRepository.warning(LogSource.POW, "UAC PoW force-released after stop timeout")
+        AppLogRepository.warning(LogSource.ATOM, "Atom force-released after stop timeout")
     }
 
     fun notifyPathLost(reason: String) {
@@ -457,15 +457,15 @@ class PowConnectionCoordinator(
 
     suspend fun recoverBehindTun(reason: String, force: Boolean = false): Boolean {
         if (stopRequested.get()) return false
-        if (!proxyMode && !PowTun2Socks.isRunning) return false
+        if (!proxyMode && !AtomTun2Socks.isRunning) return false
         return retuneMutex.withLock {
             if (stopRequested.get()) return@withLock false
             if (!force && isHealthyPath()) return@withLock true
             if (
                 !restoreWaiting.get() &&
-                crashRecovers.incrementAndGet() > PowQualityPolicy.MAX_CRASH_RECOVERS
+                crashRecovers.incrementAndGet() > AtomQualityPolicy.MAX_CRASH_RECOVERS
             ) {
-                AppLogRepository.warning(LogSource.POW, "UAC PoW path refresh limit reached")
+                AppLogRepository.warning(LogSource.ATOM, "Atom path refresh limit reached")
                 return@withLock false
             }
             // Outer must accept SOCKS and actually forward traffic — isRunning alone can be a zombie.
@@ -474,10 +474,10 @@ class PowConnectionCoordinator(
                 AetherNative.isReady() &&
                 outerProxyResponsive()
             val recovered = if (outerAlive) {
-                AppLogRepository.info(LogSource.POW, "Outer still healthy — inner-only rebuild")
+                AppLogRepository.info(LogSource.ATOM, "Outer still healthy — inner-only rebuild")
                 retuneInnerOnly(reason)
             } else {
-                AppLogRepository.info(LogSource.POW, "Outer down or SOCKS dead — full outer then Psiphon rebuild")
+                AppLogRepository.info(LogSource.ATOM, "Outer down or SOCKS dead — full outer then Psiphon rebuild")
                 retuneLocked(reason, quality = false)
             }
             if (recovered && currentSettings.optimizedMode) resetWatchdogBaseline()
@@ -497,7 +497,7 @@ class PowConnectionCoordinator(
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 if (
-                    !PowNetworkRestore.shouldRetryOnAvailable(
+                    !AtomNetworkRestore.shouldRetryOnAvailable(
                         waiting = restoreWaiting.get(),
                         stopRequested = stopRequested.get(),
                         pathReady = innerReady,
@@ -505,13 +505,13 @@ class PowConnectionCoordinator(
                 ) {
                     return
                 }
-                AppLogRepository.info(LogSource.POW, "Network restored — retrying UAC PoW now")
+                AppLogRepository.info(LogSource.ATOM, "Network restored — retrying Atom now")
                 restoreAttempts.set(0)
                 scheduleRestoreAttempt("network restored", immediate = true)
             }
 
             override fun onLost(network: Network) {
-                if (PowNetworkRestore.shouldVerifyOnLost(
+                if (AtomNetworkRestore.shouldVerifyOnLost(
                         sessionLive = sessionSupposedUp(),
                         retuning = retuning.get(),
                         stopRequested = stopRequested.get(),
@@ -546,7 +546,7 @@ class PowConnectionCoordinator(
             }
         }
         if (!latch.await(5, TimeUnit.SECONDS)) {
-            AppLogRepository.debug(LogSource.POW, "Subscription listener register timed out on main")
+            AppLogRepository.debug(LogSource.ATOM, "Subscription listener register timed out on main")
             return
         }
         failure?.let { throw it }
@@ -559,13 +559,13 @@ class PowConnectionCoordinator(
             override fun onSubscriptionsChanged() {
                 if (stopRequested.get() || VpnPauseStore.isPaused() || retuning.get()) return
                 val previous = lastRadioIdentity
-                val current = PowCarrier.radioIdentity(appContext)
+                val current = AtomCarrier.radioIdentity(appContext)
                 // VPN bring-up fires this with no baseline — only learn identity, never wipe.
                 if (previous == null) {
                     if (sessionSupposedUp()) {
                         lastRadioIdentity = current
                         AppLogRepository.debug(
-                            LogSource.POW,
+                            LogSource.ATOM,
                             "Subscription event — baseline radio ${current.summary()}",
                         )
                     }
@@ -589,7 +589,7 @@ class PowConnectionCoordinator(
         }
         if (registered.isFailure) {
             AppLogRepository.debug(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Subscription listener unavailable: ${registered.exceptionOrNull()?.message}",
             )
             return
@@ -620,13 +620,13 @@ class PowConnectionCoordinator(
         cancelQualityWork()
         publishReconnecting(reason)
         registerNetworkCallback()
-        AppLogRepository.warning(LogSource.POW, "UAC PoW waiting to reconnect: $reason")
+        AppLogRepository.warning(LogSource.ATOM, "Atom waiting to reconnect: $reason")
         scheduleRestoreAttempt(reason, immediate = false)
     }
 
     private fun scheduleRestoreAttempt(reason: String, immediate: Boolean) {
         restoreJob?.cancel()
-        val delayMs = if (immediate) 0L else PowNetworkRestore.delayMs(restoreAttempts.getAndIncrement())
+        val delayMs = if (immediate) 0L else AtomNetworkRestore.delayMs(restoreAttempts.getAndIncrement())
         val session = sessionGeneration.get()
         restoreJob = qualityScope.launch {
             if (delayMs > 0L) delay(delayMs)
@@ -643,8 +643,8 @@ class PowConnectionCoordinator(
                 finishNetworkRestore()
             } else {
                 AppLogRepository.warning(
-                    LogSource.POW,
-                    "UAC PoW reconnect missed ($reason); waiting for the next attempt",
+                    LogSource.ATOM,
+                    "Atom reconnect missed ($reason); waiting for the next attempt",
                 )
                 if (!stopRequested.get() && restoreWaiting.get()) {
                     scheduleRestoreAttempt(reason, immediate = false)
@@ -675,37 +675,37 @@ class PowConnectionCoordinator(
     private fun publishReconnecting(reason: String) {
         if (stopRequested.get()) return
         ConnectionStateStore.markConnecting()
-        PowStatusStore.update(
-            PowPhase.STARTING,
+        AtomStatusStore.update(
+            AtomPhase.STARTING,
             8,
-            PowNetworkRestore.statusDetail(reason),
+            AtomNetworkRestore.statusDetail(reason),
         )
         notificationSink?.invoke(false)
     }
 
     private fun publishConnected() {
         if (stopRequested.get()) return
-        lastRadioIdentity = PowCarrier.radioIdentity(appContext)
+        lastRadioIdentity = AtomCarrier.radioIdentity(appContext)
         ConnectionStateStore.markConnecting()
         ConnectionStateStore.markConnected()
-        val outer = PowStatusStore.status.value.outerLabel.ifBlank {
-            PowCoreConfig.outerLabel(lastOuterProtocol.ifBlank { store.rememberedOuterProtocol().orEmpty() })
+        val outer = AtomStatusStore.status.value.outerLabel.ifBlank {
+            AtomCoreConfig.outerLabel(lastOuterProtocol.ifBlank { store.rememberedOuterProtocol().orEmpty() })
         }
         val ready = when {
-            proxyMode -> "UAC PoW ready · Proxy SOCKS 127.0.0.1:$socksPort"
-            warpOnly -> "UAC PoW ready · Tunnel VPN through WARP"
-            directPsiphon -> "UAC PoW ready · Tunnel VPN through Psiphon"
-            else -> "UAC PoW ready · Tunnel VPN through Psiphon over WARP"
+            proxyMode -> "Atom ready · Proxy SOCKS 127.0.0.1:$socksPort"
+            warpOnly -> "Atom ready · Tunnel VPN through WARP"
+            directPsiphon -> "Atom ready · Tunnel VPN through Psiphon"
+            else -> "Atom ready · Tunnel VPN through Psiphon over WARP"
         }
-        PowStatusStore.update(PowPhase.CONNECTED, 100, ready, outerLabel = outer)
+        AtomStatusStore.update(AtomPhase.CONNECTED, 100, ready, outerLabel = outer)
         notificationSink?.invoke(true)
     }
 
     private suspend fun retuneInnerOnly(reason: String): Boolean {
         if (stopRequested.get() || warpOnly) return !stopRequested.get() && warpOnly
         setRetuning(true)
-        PowSocksConnectOnly.setFailFast(true)
-        AppLogRepository.info(LogSource.POW, "Inner-only rebuild ($reason)")
+        AtomSocksConnectOnly.setFailFast(true)
+        AppLogRepository.info(LogSource.ATOM, "Inner-only rebuild ($reason)")
         dropGhost("inner rebuild")
         innerReady = false
         return try {
@@ -716,35 +716,35 @@ class PowConnectionCoordinator(
             delay(400)
             armRegionPhase(retune = true); ladderIndex = rememberedLadderStart(); ladderAttempts = 0
             ladderActive.set(false); ladderJob?.cancel()
-            val keepExit = PowRegions.egressRegion(currentSettings.exitCountryCode) != null
+            val keepExit = AtomRegions.egressRegion(currentSettings.exitCountryCode) != null
             val connected = CompletableDeferred<Unit>()
             retuneSignal = connected
             innerCallbacksArmed.set(true)
             startPsiphonTunnel(keepExit = keepExit)
             ladderJob = qualityScope.launch { watchLadder() }
-            withTimeout(PowQualityPolicy.INNER_RETUNE_TIMEOUT_MS) { connected.await() }
+            withTimeout(AtomQualityPolicy.INNER_RETUNE_TIMEOUT_MS) { connected.await() }
             if (stopRequested.get()) return false
             lastRetuneAt = SystemClock.elapsedRealtime()
-            val sample = PowPathProbe.measureMsLite(socksPort)
+            val sample = AtomPathProbe.measureMsLite(socksPort)
             if (sample > 0L) {
                 baselineRttMs = sample
                 recordStrategyRtt(sample)
             }
             AppLogRepository.success(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Inner-only path rebuilt" + if (sample > 0L) " ${sample}ms" else "",
             )
             true
         } catch (_: TimeoutCancellationException) {
-            AppLogRepository.warning(LogSource.POW, "Inner-only rebuild timeout — escalating to full handover")
+            AppLogRepository.warning(LogSource.ATOM, "Inner-only rebuild timeout — escalating to full handover")
             retuneLocked(reason, quality = false)
         } catch (e: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "Inner-only failed: ${e.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Inner-only failed: ${e.message}")
             false
         } finally {
             retuneSignal = null
             innerCallbacksArmed.set(true)
-            PowSocksConnectOnly.setFailFast(false)
+            AtomSocksConnectOnly.setFailFast(false)
             setRetuning(false)
         }
     }
@@ -809,19 +809,19 @@ class PowConnectionCoordinator(
                     if (message.startsWith("Key:") ||
                         message.startsWith("MASQUE H2: TLS fingerprint") || message.startsWith("MASQUE: IP")
                     ) {
-                        AppLogRepository.info(LogSource.POW, message.take(500))
+                        AppLogRepository.info(LogSource.ATOM, message.take(500))
                     } else {
-                        AppLogRepository.debug(LogSource.POW, message.take(240))
+                        AppLogRepository.debug(LogSource.ATOM, message.take(240))
                     }
                     stageLine(message)?.let { line ->
                         if (line.startsWith("Scan ")) {
-                            PowStatusStore.scan(line, line.substringAfterLast(' '))
+                            AtomStatusStore.scan(line, line.substringAfterLast(' '))
                         } else {
                             val failed = line.startsWith("Every saved") ||
                                 line.startsWith("Tunnel did not") ||
                                 line.startsWith("UDP/1701 did not") ||
                                 line.startsWith("No usable MASQUE")
-                            PowStatusStore.note(line, failed)
+                            AtomStatusStore.note(line, failed)
                         }
                     }
                 }
@@ -830,19 +830,19 @@ class PowConnectionCoordinator(
     }
 
     private suspend fun raiseOuterLeg(
-        discovery: String = PowCoreConfig.DISCOVERY_CACHE,
-        scanMode: String = PowCoreConfig.SCAN_BALANCED,
+        discovery: String = AtomCoreConfig.DISCOVERY_CACHE,
+        scanMode: String = AtomCoreConfig.SCAN_BALANCED,
         silent: Boolean = false,
         retune: Boolean = false,
-        chainPort: Int = PowCoreConfig.CHAIN_SOCKS_PORT,
+        chainPort: Int = AtomCoreConfig.CHAIN_SOCKS_PORT,
     ): String? {
-        val mci = PowCoreConfig.usesMciFirewall(appContext, currentSettings)
-        val plan = PowCoreConfig.outerPlan(currentSettings, mci, PowCarrier.carrierClass(appContext))
+        val mci = AtomCoreConfig.usesMciFirewall(appContext, currentSettings)
+        val plan = AtomCoreConfig.outerPlan(currentSettings, mci, AtomCarrier.carrierClass(appContext))
         val ladder = plan.protocols
         val auto = ladder.size > 1 && !plan.fixedOrder
         val remembered = store.rememberedOuterProtocol()
         val ordered = when {
-            retune -> PowQualityPolicy.outerOrder(ladder, lastOuterProtocol.ifBlank { remembered.orEmpty() })
+            retune -> AtomQualityPolicy.outerOrder(ladder, lastOuterProtocol.ifBlank { remembered.orEmpty() })
             plan.fixedOrder -> ladder
             auto -> {
                 val first = ladder.firstOrNull()
@@ -856,30 +856,30 @@ class PowConnectionCoordinator(
         }
         if (!silent) {
             val firewall = when (currentSettings.firewallProfile) {
-                PowCoreConfig.FIREWALL_MCI -> "Hamrah Aval"
-                PowCoreConfig.FIREWALL_IRANCELL -> "Irancell"
-                else -> when (PowCarrier.carrierClass(appContext)) {
+                AtomCoreConfig.FIREWALL_MCI -> "Hamrah Aval"
+                AtomCoreConfig.FIREWALL_IRANCELL -> "Irancell"
+                else -> when (AtomCarrier.carrierClass(appContext)) {
                     "mci" -> "Hamrah Aval from SIM"
                     "irancell" -> "Irancell from SIM"
                     else -> "unspecified network"
                 }
             }
             AppLogRepository.info(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Firewall $firewall · ${plan.summary} · key ${currentSettings.keyFetch} · " +
-                    when (currentSettings.exitMode) { PowEngineSettings.EXIT_WARP -> "WARP only"; PowEngineSettings.EXIT_PSIPHON -> "Psiphon only"; else -> "Psiphon chain" },
+                    when (currentSettings.exitMode) { AtomEngineSettings.EXIT_WARP -> "WARP only"; AtomEngineSettings.EXIT_PSIPHON -> "Psiphon only"; else -> "Psiphon chain" },
             )
         }
         for ((offset, protocol) in ordered.withIndex()) {
             coroutineContext.ensureActive()
             if (stopRequested.get()) return null
-            val label = PowCoreConfig.outerLabel(protocol)
+            val label = AtomCoreConfig.outerLabel(protocol)
             val attemptScan = if (!retune && offset == 0 && protocol == "masque") {
-                PowCoreConfig.SCAN_THOROUGH
+                AtomCoreConfig.SCAN_THOROUGH
             } else {
                 scanMode
             }
-            val budget = PowCoreConfig.outerBudgetMs(
+            val budget = AtomCoreConfig.outerBudgetMs(
                 protocol,
                 retune = retune,
                 scanMode = attemptScan,
@@ -888,20 +888,20 @@ class PowConnectionCoordinator(
                 stopOuterLeg()
             }
             if (!silent) {
-                PowStatusStore.update(
-                    PowPhase.OUTER,
+                AtomStatusStore.update(
+                    AtomPhase.OUTER,
                     20 + (offset * 10),
                     "Connecting $label",
                     outerLabel = label,
                 )
             }
             AppLogRepository.info(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Outer attempt ${offset + 1}/${ordered.size}: $label (${budget / 1000}s, $attemptScan)" +
                     if (retune) " fresh" else "",
             )
-            val config = if (chainPort == PowCoreConfig.CHAIN_SOCKS_PORT) {
-                PowCoreConfig.chainOuterJson(
+            val config = if (chainPort == AtomCoreConfig.CHAIN_SOCKS_PORT) {
+                AtomCoreConfig.chainOuterJson(
                     appContext,
                     protocol,
                     currentSettings,
@@ -910,7 +910,7 @@ class PowConnectionCoordinator(
                     mci = mci,
                 )
             } else {
-                PowGhostHandover.shadowChainJson(appContext, protocol, currentSettings, chainPort, mci)
+                AtomGhostHandover.shadowChainJson(appContext, protocol, currentSettings, chainPort, mci)
             }
             val prepared = try {
                 Result.success(AetherNative.prepareCancellable(config))
@@ -922,7 +922,7 @@ class PowConnectionCoordinator(
             if (stopRequested.get()) return null
             if (prepared.isFailure) {
                 AppLogRepository.warning(
-                    LogSource.POW,
+                    LogSource.ATOM,
                     "$label could not be prepared: ${AetherNative.lastError()}",
                 )
                 stopOuterLeg()
@@ -935,7 +935,7 @@ class PowConnectionCoordinator(
                     val result = AetherNative.startProxy(config)
                     if (result != 0 && !stopRequested.get() && generation == sessionGeneration.get()) {
                         AppLogRepository.warning(
-                            LogSource.POW,
+                            LogSource.ATOM,
                             "$label ended: ${AetherNative.lastError().ifBlank { "exit $result" }}",
                         )
                         qualityScope.launch {
@@ -943,9 +943,9 @@ class PowConnectionCoordinator(
                         }
                     }
                 } catch (error: Throwable) {
-                    AppLogRepository.warning(LogSource.POW, "$label threw: ${error.message}")
+                    AppLogRepository.warning(LogSource.ATOM, "$label threw: ${error.message}")
                 }
-            }, "uac-pow-outer-$protocol")
+            }, "atom-engine-outer-$protocol")
             thread.isDaemon = true
             outerThread = thread
             thread.start()
@@ -953,20 +953,20 @@ class PowConnectionCoordinator(
                 store.saveOuterProtocol(protocol)
                 lastOuterProtocol = protocol
                 wonTransport = if (protocol == "masque") plan.masqueTransport else ""
-                wonIp = PowCoreConfig.ipScanFor(currentSettings, plan, protocol)
+                wonIp = AtomCoreConfig.ipScanFor(currentSettings, plan, protocol)
                 outerCommitted = true
-                AppLogRepository.success(LogSource.POW, "$label is carrying the outer leg")
+                AppLogRepository.success(LogSource.ATOM, "$label is carrying the outer leg")
                 return label
             }
             if (stopRequested.get()) return null
-            AppLogRepository.warning(LogSource.POW, "$label did not come up in ${budget / 1000}s")
+            AppLogRepository.warning(LogSource.ATOM, "$label did not come up in ${budget / 1000}s")
             stopOuterLeg()
             if (protocol == "masque") {
                 AppLogRepository.warning(
-                    LogSource.POW,
+                    LogSource.ATOM,
                     "$label address scan finished. Staying on this method.",
                 )
-                PowStatusStore.note("Scan finished. Staying on this method.", true)
+                AtomStatusStore.note("Scan finished. Staying on this method.", true)
                 return null
             }
         }
@@ -975,13 +975,13 @@ class PowConnectionCoordinator(
 
     private fun rememberConnectedMode() {
         val protocol = if (directPsiphon || lastOuterProtocol.isBlank()) "psiphon" else lastOuterProtocol
-        PowLiveExit.updatePath {
+        AtomLiveExit.updatePath {
             it.copy(
                 mode = when {
-                    warpOnly -> PowEngineSettings.EXIT_WARP
-                    psiphonOnly -> PowEngineSettings.EXIT_PSIPHON
+                    warpOnly -> AtomEngineSettings.EXIT_WARP
+                    psiphonOnly -> AtomEngineSettings.EXIT_PSIPHON
                     directPsiphon -> "direct"
-                    else -> PowEngineSettings.EXIT_CHAIN
+                    else -> AtomEngineSettings.EXIT_CHAIN
                 },
                 mtu = sessionMtu,
                 outerProtocol = if (directPsiphon) "" else lastOuterProtocol,
@@ -997,13 +997,13 @@ class PowConnectionCoordinator(
     }
 
     private fun outerFailureMessage(): String =
-        if (PowCoreConfig.candidates(currentSettings).size > 1) {
+        if (AtomCoreConfig.candidates(currentSettings).size > 1) {
             "No WARP transport could carry Psiphon on this network"
         } else {
-            "${PowCoreConfig.outerLabel(PowCoreConfig.candidates(currentSettings).first())} could not carry Psiphon"
+            "${AtomCoreConfig.outerLabel(AtomCoreConfig.candidates(currentSettings).first())} could not carry Psiphon"
         }
 
-    private suspend fun awaitOuterProxy(budgetMs: Long, chainPort: Int = PowCoreConfig.CHAIN_SOCKS_PORT): Boolean {
+    private suspend fun awaitOuterProxy(budgetMs: Long, chainPort: Int = AtomCoreConfig.CHAIN_SOCKS_PORT): Boolean {
         val startedAt = SystemClock.elapsedRealtime()
         val deadline = startedAt + budgetMs
         while (SystemClock.elapsedRealtime() < deadline) {
@@ -1017,15 +1017,15 @@ class PowConnectionCoordinator(
         return false
     }
 
-    private fun outerProxyAccepts(port: Int = PowCoreConfig.CHAIN_SOCKS_PORT): Boolean = runCatching {
+    private fun outerProxyAccepts(port: Int = AtomCoreConfig.CHAIN_SOCKS_PORT): Boolean = runCatching {
         Socket().use { probe ->
             probe.connect(InetSocketAddress("127.0.0.1", port), 1_000)
         }
     }.isSuccess
 
-    private suspend fun outerProxyResponsive(port: Int = PowCoreConfig.CHAIN_SOCKS_PORT): Boolean {
+    private suspend fun outerProxyResponsive(port: Int = AtomCoreConfig.CHAIN_SOCKS_PORT): Boolean {
         if (!outerProxyAccepts(port)) return false
-        val sample = runCatching { PowPathProbe.measureMsLite(port, 2_000) }.getOrDefault(-1L)
+        val sample = runCatching { AtomPathProbe.measureMsLite(port, 2_000) }.getOrDefault(-1L)
         return sample > 0L
     }
 
@@ -1045,16 +1045,16 @@ class PowConnectionCoordinator(
             delay(200)
         }
         if (thread?.isAlive == true) {
-            AppLogRepository.warning(LogSource.POW, "Outer leg thread still alive after stop grace; detaching it")
+            AppLogRepository.warning(LogSource.ATOM, "Outer leg thread still alive after stop grace; detaching it")
         }
         outerThread = null
     }
 
     private fun openDeviceTun(
-        establishTun: (PowTun2Socks.PrivateAddress, Int) -> ParcelFileDescriptor?,
+        establishTun: (AtomTun2Socks.PrivateAddress, Int) -> ParcelFileDescriptor?,
     ) {
         if (tunFd != null) return
-        PowStatusStore.update(PowPhase.BRIDGING, 88, "Creating device VPN interface")
+        AtomStatusStore.update(AtomPhase.BRIDGING, 88, "Creating device VPN interface")
         tunFd = establishTun(tunAddress, sessionMtu) ?: error("Android could not establish the VPN interface")
         ownsTun = true
     }
@@ -1062,21 +1062,21 @@ class PowConnectionCoordinator(
     private suspend fun finishWithoutPsiphon() {
         warpOnly = true
         directPsiphon = false
-        val warpSocks = PowCoreConfig.CHAIN_SOCKS_PORT
+        val warpSocks = AtomCoreConfig.CHAIN_SOCKS_PORT
         if (proxyMode) {
-            if (socksPort != warpSocks && !PowSocksConnectOnly.start(socksPort, warpSocks)) {
+            if (socksPort != warpSocks && !AtomSocksConnectOnly.start(socksPort, warpSocks)) {
                 error("Could not expose the WARP proxy")
             }
         } else {
             val fd = tunFd ?: error("VPN interface missing")
-            PowStatusStore.update(PowPhase.BRIDGING, 90, "Routing device traffic through WARP")
-            if (!PowTun2Socks.start(appContext, fd, warpSocks, sessionMtu, tunAddress)) {
+            AtomStatusStore.update(AtomPhase.BRIDGING, 90, "Routing device traffic through WARP")
+            if (!AtomTun2Socks.start(appContext, fd, warpSocks, sessionMtu, tunAddress)) {
                 error("Could not start whole-device routing")
             }
             routing = true
             socksPort = warpSocks
         }
-        PowLiveExit.publish(socksPort, warp = true)
+        AtomLiveExit.publish(socksPort, warp = true)
     }
 
     private suspend fun startPsiphonTunnel(keepExit: Boolean = false, socks: Int = socksPort) {
@@ -1085,11 +1085,11 @@ class PowConnectionCoordinator(
         val strategy = ladder.getOrElse(ladderIndex) { ladder.first() }
         val bias = regionPhase && regionPhaseBias
         val preferred = when {
-            bias -> PowRegions.egressRegion(regionPhaseTried)
-            regionPhase || keepExit -> PowRegions.egressRegion(currentSettings.exitCountryCode)
+            bias -> AtomRegions.egressRegion(regionPhaseTried)
+            regionPhase || keepExit -> AtomRegions.egressRegion(currentSettings.exitCountryCode)
             else -> null
         }
-        val configJson = PowPsiphonProtocols.buildConfig(
+        val configJson = AtomPsiphonProtocols.buildConfig(
             socksPort = socks,
             dataDirectory = innerDataDirectory(),
             preferredRegion = preferred,
@@ -1104,9 +1104,9 @@ class PowConnectionCoordinator(
         connectedServerRegion = ""
         lastPsiphonConfig = configJson
         innerStarted = true
-        AppLogRepository.info(LogSource.POW, "Starting Psiphon inner hop in :uacpow")
+        AppLogRepository.info(LogSource.ATOM, "Starting Psiphon inner hop in :Atom")
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             "Psiphon tunnels: " + if (sidecarWanted()) "2 (each service pinned to one tunnel)" else "1",
         )
         innerClient().start(configJson)
@@ -1114,7 +1114,7 @@ class PowConnectionCoordinator(
             JSONObject(configJson).optJSONArray("LimitTunnelProtocols")?.toString()
         }.getOrNull().orEmpty()
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             "Psiphon starting strategy ${strategy.name} (${strategy.label})" +
                 (
                     when {
@@ -1128,7 +1128,7 @@ class PowConnectionCoordinator(
     }
 
     private fun innerDataDirectory(): String {
-        val dir = appContext.getDir("uac-pow-inner", 0)
+        val dir = appContext.getDir("atom-engine-inner", 0)
         return dir.absolutePath
     }
 
@@ -1139,8 +1139,8 @@ class PowConnectionCoordinator(
             val nearby = regionPhase && regionPhaseBias
             val seconds = if (nearby) {
                 strategy.timeoutSeconds
-            } else if (regionPhase && PowRegions.egressRegion(currentSettings.exitCountryCode) != null) {
-                PowPsiphonProtocols.REGION_PHASE_TIMEOUT_SECONDS
+            } else if (regionPhase && AtomRegions.egressRegion(currentSettings.exitCountryCode) != null) {
+                AtomPsiphonProtocols.REGION_PHASE_TIMEOUT_SECONDS
             } else if (directPsiphon && strategy.preferredProtocols.all { it.startsWith("FRONTED-") }) {
                 90
             } else {
@@ -1163,8 +1163,8 @@ class PowConnectionCoordinator(
                 regionPhaseTried = regionCandidates[regionCandidateIndex]
                 val nextRegion = regionPhaseTried
                 AppLogRepository.info(
-                    LogSource.POW,
-                    "Nearby country failed; trying next candidate ${PowRegions.name(nextRegion)} ($nextRegion) " +
+                    LogSource.ATOM,
+                    "Nearby country failed; trying next candidate ${AtomRegions.name(nextRegion)} ($nextRegion) " +
                         "(${regionCandidateIndex + 1}/${regionCandidates.size})",
                 )
                 restartPsiphonController()
@@ -1176,9 +1176,9 @@ class PowConnectionCoordinator(
             regionCandidates = emptyList()
             regionCandidateIndex = 0
             AppLogRepository.info(
-                LogSource.POW,
+                LogSource.ATOM,
                 (if (nearby) "Nearby country candidates exhausted" else "Preferred country ") +
-                    (if (nearby) "" else "${PowRegions.name(regionPhaseTried)} did not connect — ") +
+                    (if (nearby) "" else "${AtomRegions.name(regionPhaseTried)} did not connect — ") +
                     "trying all countries",
             )
             restartPsiphonController()
@@ -1193,9 +1193,9 @@ class PowConnectionCoordinator(
         }
         ladderIndex = (ladderIndex + 1) % ladder.size
         val next = ladder[ladderIndex]
-        AppLogRepository.info(LogSource.POW, "Trying strategy ${next.name} (${next.label})")
+        AppLogRepository.info(LogSource.ATOM, "Trying strategy ${next.name} (${next.label})")
         if (!retuning.get()) {
-            PowStatusStore.update(PowPhase.INNER, 60, "Trying ${next.label}")
+            AtomStatusStore.update(AtomPhase.INNER, 60, "Trying ${next.label}")
         }
         restartPsiphonController()
     }
@@ -1204,7 +1204,7 @@ class PowConnectionCoordinator(
         // onConnected may race a ladder escalate: never tear down a tunnel that
         // already published ready / is serving traffic.
         if (innerReady || stopRequested.get()) {
-            AppLogRepository.debug(LogSource.POW, "Psiphon restart skipped (ready=$innerReady)")
+            AppLogRepository.debug(LogSource.ATOM, "Psiphon restart skipped (ready=$innerReady)")
             return
         }
         innerStarted = false
@@ -1214,17 +1214,17 @@ class PowConnectionCoordinator(
         delay(1_200)
         if (stopRequested.get()) return
         startPsiphonTunnel(
-            keepExit = retuning.get() && PowRegions.egressRegion(currentSettings.exitCountryCode) != null,
+            keepExit = retuning.get() && AtomRegions.egressRegion(currentSettings.exitCountryCode) != null,
         )
     }
 
     /** Name warm-up for TUN mode only: proxy clients do their own lookups. */
     private fun kickDnsWarm(force: Boolean) {
         if (proxyMode || stopRequested.get()) return
-        PowDnsWarm.kick(
+        AtomDnsWarm.kick(
             qualityScope,
             appContext,
-            if (warpOnly) PowCoreConfig.CHAIN_SOCKS_PORT else socksPort,
+            if (warpOnly) AtomCoreConfig.CHAIN_SOCKS_PORT else socksPort,
             optimized = currentSettings.optimizedMode,
             exitLabel = if (warpOnly) "WARP" else "Psiphon",
             powerSave = isPowerSave(),
@@ -1248,13 +1248,13 @@ class PowConnectionCoordinator(
 
     private fun recordLadderWinner() {
         val winner = winnerIndex()
-        val shape = PowPsiphonProtocols.signature(directPsiphon)
+        val shape = AtomPsiphonProtocols.signature(directPsiphon)
         val rtt = baselineRttMs
         if (rtt > 0) store.saveStrategyWinnerWithRtt(winner, shape, rtt)
         else store.saveStrategyWinner(winner, shape)
     }
 
-    private fun activeLadder(): List<PowPsiphonStrategy> = PowPsiphonProtocols.ladder(directPsiphon)
+    private fun activeLadder(): List<AtomPsiphonStrategy> = AtomPsiphonProtocols.ladder(directPsiphon)
 
     // RTTs are kept per leg: "c" behind WARP, "d" direct.
     private fun rttKey(strategy: String): String = (if (directPsiphon) "d" else "c") + strategy
@@ -1262,10 +1262,10 @@ class PowConnectionCoordinator(
     /** Remembered winner for this network, or the lower-RTT strategy when both were measured. */
     private fun rememberedLadderStart(): Int {
         val ladder = activeLadder()
-        val remembered = store.rememberedStrategyIndex(PowPsiphonProtocols.signature(directPsiphon), ladder.size)
+        val remembered = store.rememberedStrategyIndex(AtomPsiphonProtocols.signature(directPsiphon), ladder.size)
         val saved = store.strategyRtts(ladder.map { rttKey(it.name) })
         val rtts = ladder.mapNotNull { strategy -> saved[rttKey(strategy.name)]?.let { strategy.name to it } }.toMap()
-        return PowPsiphonProtocols.startIndex(ladder, remembered, rtts)
+        return AtomPsiphonProtocols.startIndex(ladder, remembered, rtts)
     }
 
     private fun recordStrategyRtt(rttMs: Long) {
@@ -1282,7 +1282,7 @@ class PowConnectionCoordinator(
      * remembered country. Direct Psiphon is left unbiased.
      */
     private fun armRegionPhase(retune: Boolean = false) {
-        val explicit = PowRegions.egressRegion(currentSettings.exitCountryCode)
+        val explicit = AtomRegions.egressRegion(currentSettings.exitCountryCode)
         regionCandidateIndex = 0
         if (explicit != null) {
             regionCandidates = emptyList()
@@ -1294,7 +1294,7 @@ class PowConnectionCoordinator(
         regionCandidates = if (directPsiphon) {
             emptyList()
         } else {
-            PowRegions.autoBiasRegions(
+            AtomRegions.autoBiasRegions(
                 store.rememberedRegion(),
                 store.availableRegions(),
                 rememberedOnly = retune,
@@ -1315,7 +1315,7 @@ class PowConnectionCoordinator(
         val recordedSuccess = success && actualMatches
         store.recordRegionResult(attempted, recordedSuccess, elapsed)
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             "Automatic exit score: $attempted " +
                 (if (recordedSuccess) "connected in ${elapsed}ms" else "attempt failed after ${elapsed}ms"),
         )
@@ -1328,13 +1328,13 @@ class PowConnectionCoordinator(
         val ladder = activeLadder()
         val start = ladder.getOrNull(ladderIndex)?.name ?: "?"
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             "Psiphon strategy order (" + (if (directPsiphon) "direct" else "behind WARP") + "): " +
                 ladder.joinToString(" -> ") { "${it.name} ${it.label} ${it.timeoutSeconds}s" } +
                 "; starting at $start",
         )
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             when {
                 directPsiphon && proxyMode -> "Split: Psiphon sends IR destinations direct (SplitTunnelRegions=IR)"
                 directPsiphon -> "Split: Psiphon sends IR destinations direct; .ir names go direct from the TUN relay"
@@ -1343,16 +1343,16 @@ class PowConnectionCoordinator(
             },
         )
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             when {
                 regionPhase && regionPhaseBias -> {
                     val remembered = store.rememberedRegion()?.equals(regionPhaseTried, ignoreCase = true) == true
-                    "Psiphon region: Automatic -> nearby ${PowRegions.name(regionPhaseTried)} ($regionPhaseTried" +
+                    "Psiphon region: Automatic -> nearby ${AtomRegions.name(regionPhaseTried)} ($regionPhaseTried" +
                         (if (remembered) ", remembered" else "") +
                         "; candidate ${regionCandidateIndex + 1}/${regionCandidates.size}) for " +
-                        "${ladder.getOrNull(ladderIndex)?.timeoutSeconds ?: PowPsiphonProtocols.CHAINED_LIGHT_TIMEOUT_SECONDS}s each, then any country"
+                        "${ladder.getOrNull(ladderIndex)?.timeoutSeconds ?: AtomPsiphonProtocols.CHAINED_LIGHT_TIMEOUT_SECONDS}s each, then any country"
                 }
-                regionPhase -> "Psiphon region: user choice ${PowRegions.name(regionPhaseTried)}"
+                regionPhase -> "Psiphon region: user choice ${AtomRegions.name(regionPhaseTried)}"
                 else -> "Psiphon region: any country"
             },
         )
@@ -1363,10 +1363,10 @@ class PowConnectionCoordinator(
         cancelZeroTunnelTimeout()
         psiphonTunnelCount.set(0)
         cancelQualityWork()
-        PowPageTurbo.cancel()
-        PowDnsWarm.cancel()
-        PowLiveExit.reset()
-        runCatching { PowDnsWarm.persist(appContext) }
+        AtomPageTurbo.cancel()
+        AtomDnsWarm.cancel()
+        AtomLiveExit.reset()
+        runCatching { AtomDnsWarm.persist(appContext) }
         unregisterNetworkCallback()
         ghostInFlight.set(false)
         ladderActive.set(false)
@@ -1377,7 +1377,7 @@ class PowConnectionCoordinator(
         innerReady = false
         setRetuning(false)
         innerCallbacksArmed.set(true)
-        PowSocksConnectOnly.setFailFast(false)
+        AtomSocksConnectOnly.setFailFast(false)
         withContext(Dispatchers.IO + NonCancellable) {
             runCatching { sidecar.stop() }
             ghostServing = false
@@ -1389,10 +1389,10 @@ class PowConnectionCoordinator(
             innerStarted = false
             client?.close()
             psiphon = null
-            PowTun2Socks.stop()
-            PowTun2Socks.awaitNativeExit()
+            AtomTun2Socks.stop()
+            AtomTun2Socks.awaitNativeExit()
             TunPacketFilter.stop()
-            PowSocksConnectOnly.stop()
+            AtomSocksConnectOnly.stop()
             stopOuterLeg()
             AetherNative.detach()
         }
@@ -1402,14 +1402,14 @@ class PowConnectionCoordinator(
         tunFd = null
         ownsTun = false
         routing = false
-        regionPhase = PowRegions.egressRegion(store.snapshot().exitCountryCode) != null
+        regionPhase = AtomRegions.egressRegion(store.snapshot().exitCountryCode) != null
         regionPhaseBias = false
         regionPhaseTried = currentSettings.exitCountryCode
         ladderIndex = rememberedLadderStart()
         ladderAttempts = 0
         recentSamples = mutableListOf()
-        if (PowStatusStore.status.value.phase != PowPhase.FAILED) {
-            PowStatusStore.reset()
+        if (AtomStatusStore.status.value.phase != AtomPhase.FAILED) {
+            AtomStatusStore.reset()
         }
     }
 
@@ -1423,8 +1423,8 @@ class PowConnectionCoordinator(
         sidecar.ensure(config, directPsiphon)
     }
 
-    private fun innerClient(): PowPsiphonClient {
-        return psiphon ?: PowPsiphonClient(service, callbacks).also { psiphon = it }
+    private fun innerClient(): AtomPsiphonClient {
+        return psiphon ?: AtomPsiphonClient(service, callbacks).also { psiphon = it }
     }
 
     private fun scheduleZeroTunnelTimeout(reason: String) {
@@ -1434,7 +1434,7 @@ class PowConnectionCoordinator(
             if (stopRequested.get() || retuning.get() || !innerReady || restoreWaiting.get()) return@launch
             if (psiphonTunnelCount.get() <= 0) {
                 AppLogRepository.warning(
-                    LogSource.POW,
+                    LogSource.ATOM,
                     "Psiphon tunnel dropped and failed to recover in 10s ($reason); recovering path",
                 )
                 notifyPathLost("psiphon tunnel dropped ($reason)")
@@ -1447,11 +1447,11 @@ class PowConnectionCoordinator(
         zeroTunnelJob = null
     }
 
-    private inner class PsiphonCallbacks : PowPsiphonClient.Callbacks {
+    private inner class PsiphonCallbacks : AtomPsiphonClient.Callbacks {
         override fun onConnecting() {
             if (psiphonGeneration.get() != sessionGeneration.get()) return
             if (!innerCallbacksArmed.get()) return
-            AppLogRepository.info(LogSource.POW, "Psiphon connecting")
+            AppLogRepository.info(LogSource.ATOM, "Psiphon connecting")
             if (innerReady && !retuning.get() && !stopRequested.get() && !restoreWaiting.get()) {
                 scheduleZeroTunnelTimeout("psiphon reconnecting")
             }
@@ -1468,9 +1468,9 @@ class PowConnectionCoordinator(
                 recordRegionAttempt(success = true)
                 regionPhase = false
                 AppLogRepository.info(
-                    LogSource.POW,
+                    LogSource.ATOM,
                     (if (regionPhaseBias) "Connected in nearby country " else "Connected in preferred country ") +
-                        PowRegions.name(regionPhaseTried),
+                        AtomRegions.name(regionPhaseTried),
                 )
             }
             innerReady = true
@@ -1478,7 +1478,7 @@ class PowConnectionCoordinator(
             retuneSignal?.complete(Unit)
             if (ghostServing) qualityScope.launch { finishGhost() }
             AppLogRepository.success(
-                LogSource.POW,
+                LogSource.ATOM,
                 if (directPsiphon) "Psiphon connected" else "Psiphon connected through WARP",
             )
             maybeStartSidecar()
@@ -1490,10 +1490,10 @@ class PowConnectionCoordinator(
             psiphonTunnelCount.set(0)
             if (stopRequested.get() || retuning.get() || !innerCallbacksArmed.get()) return
             if (!innerReady && ladderActive.get()) {
-                AppLogRepository.warning(LogSource.POW, "Psiphon exited before connect; trying the next strategy")
+                AppLogRepository.warning(LogSource.ATOM, "Psiphon exited before connect; trying the next strategy")
             }
             if (innerReady) {
-                AppLogRepository.warning(LogSource.POW, "Psiphon tunnel stopped; waiting to reconnect")
+                AppLogRepository.warning(LogSource.ATOM, "Psiphon tunnel stopped; waiting to reconnect")
                 notifyPathLost("psiphon exited")
             }
         }
@@ -1502,8 +1502,8 @@ class PowConnectionCoordinator(
             if (psiphonGeneration.get() != sessionGeneration.get()) return
             socksPort = port
             // While the ghost carries traffic, tunnel 1 must not take the relay back before it connects.
-            if (!ghostServing) PowSocksConnectOnly.setUpstreamPort(port)
-            AppLogRepository.info(LogSource.POW, "Psiphon SOCKS listening on $port")
+            if (!ghostServing) AtomSocksConnectOnly.setUpstreamPort(port)
+            AppLogRepository.info(LogSource.ATOM, "Psiphon SOCKS listening on $port")
         }
 
         override fun onDiagnosticMessage(message: String) {
@@ -1523,10 +1523,10 @@ class PowConnectionCoordinator(
                 runCatching {
                     activeTunnelProtocol = JSONObject(text.substringAfter("ActiveTunnel:").trim())
                         .optString("protocol")
-                    PowLiveExit.updatePath { it.copy(psiphonProtocol = activeTunnelProtocol) }
+                    AtomLiveExit.updatePath { it.copy(psiphonProtocol = activeTunnelProtocol) }
                 }
             }
-            AppLogRepository.info(LogSource.POW, text.take(300))
+            AppLogRepository.info(LogSource.ATOM, text.take(300))
             if (!text.contains("updated server")) {
                 runCatching {
                     java.io.File(appContext.filesDir, "pow-diag.log").appendText(text.take(500) + "\n")
@@ -1546,40 +1546,40 @@ class PowConnectionCoordinator(
         }
 
         override fun onClientRegion(region: String) {
-            AppLogRepository.debug(LogSource.POW, "Psiphon client region $region")
+            AppLogRepository.debug(LogSource.ATOM, "Psiphon client region $region")
         }
 
         override fun onConnectedServerRegion(region: String) {
             connectedServerRegion = region.trim().uppercase()
-            PowStatusStore.update(
-                PowStatusStore.status.value.phase,
-                PowStatusStore.status.value.progressPercent,
-                PowStatusStore.status.value.detail,
+            AtomStatusStore.update(
+                AtomStatusStore.status.value.phase,
+                AtomStatusStore.status.value.progressPercent,
+                AtomStatusStore.status.value.detail,
                 exitRegion = region.uppercase(),
             )
-            AppLogRepository.info(LogSource.POW, "Exit country ${PowRegions.name(region)} ($region)")
+            AppLogRepository.info(LogSource.ATOM, "Exit country ${AtomRegions.name(region)} ($region)")
             recordLadderWinner()
             val code = region.trim().uppercase()
             if (!directPsiphon &&
-                PowRegions.egressRegion(currentSettings.exitCountryCode) == null &&
-                code in PowRegions.NEARBY &&
+                AtomRegions.egressRegion(currentSettings.exitCountryCode) == null &&
+                code in AtomRegions.NEARBY &&
                 store.rememberedRegion() != code
             ) {
                 store.saveRegion(code)
                 AppLogRepository.info(
-                    LogSource.POW,
-                    "Remembered exit ${PowRegions.name(code)} ($code) for this network; next Automatic connect tries it first",
+                    LogSource.ATOM,
+                    "Remembered exit ${AtomRegions.name(code)} ($code) for this network; next Automatic connect tries it first",
                 )
             }
         }
 
         override fun onAvailableEgressRegions(regions: List<String>) {
             if (regions.isEmpty()) return
-            PowRegions.remember(appContext, regions)
+            AtomRegions.remember(appContext, regions)
         }
 
         override fun onClientAddress(address: String) {
-            AppLogRepository.info(LogSource.POW, "Psiphon exit IP $address")
+            AppLogRepository.info(LogSource.ATOM, "Psiphon exit IP $address")
         }
 
         override fun onStartFailed(message: String) {
@@ -1591,7 +1591,7 @@ class PowConnectionCoordinator(
     }
 
     init {
-        regionPhase = PowRegions.egressRegion(store.snapshot().exitCountryCode) != null
+        regionPhase = AtomRegions.egressRegion(store.snapshot().exitCountryCode) != null
         regionPhaseTried = store.snapshot().exitCountryCode
         ladderIndex = rememberedLadderStart()
     }
@@ -1614,7 +1614,7 @@ class PowConnectionCoordinator(
 
     private fun processesAlive(): Boolean {
         if (stopRequested.get() || !innerReady) return false
-        if (!proxyMode && !PowTun2Socks.isRunning) return false
+        if (!proxyMode && !AtomTun2Socks.isRunning) return false
         if (directPsiphon) return true
         return AetherNative.isRunning()
     }
@@ -1654,7 +1654,7 @@ class PowConnectionCoordinator(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                AppLogRepository.debug(LogSource.POW, "Watchdog ended: ${error.message}")
+                AppLogRepository.debug(LogSource.ATOM, "Watchdog ended: ${error.message}")
             }
         }
     }
@@ -1669,7 +1669,7 @@ class PowConnectionCoordinator(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                AppLogRepository.debug(LogSource.POW, "Quality watch ended: ${error.message}")
+                AppLogRepository.debug(LogSource.ATOM, "Quality watch ended: ${error.message}")
             }
         }
     }
@@ -1700,13 +1700,13 @@ class PowConnectionCoordinator(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                AppLogRepository.debug(LogSource.POW, "Passive watch ended: ${error.message}")
+                AppLogRepository.debug(LogSource.ATOM, "Passive watch ended: ${error.message}")
             }
         }
     }
 
     private suspend fun watchPassiveQuality() {
-        delay(PowQualityPolicy.SETTLE_MS)
+        delay(AtomQualityPolicy.SETTLE_MS)
         if (stopRequested.get() || !innerReady) return
         var badStreak = 0
         var busyLogged = false
@@ -1715,14 +1715,14 @@ class PowConnectionCoordinator(
         var lastBytesAt = SystemClock.elapsedRealtime()
         while (!stopRequested.get()) {
             val screenOn = isScreenOn()
-            val idle = PowSocksConnectOnly.msSinceLastActivity() > PowQualityPolicy.IDLE_PROBE_AFTER_MS
+            val idle = AtomSocksConnectOnly.msSinceLastActivity() > AtomQualityPolicy.IDLE_PROBE_AFTER_MS
             delay(
-                if (screenOn) PowQualityPolicy.PASSIVE_INTERVAL_MS
-                else PowQualityPolicy.PASSIVE_INTERVAL_IDLE_MS,
+                if (screenOn) AtomQualityPolicy.PASSIVE_INTERVAL_MS
+                else AtomQualityPolicy.PASSIVE_INTERVAL_IDLE_MS,
             )
             val intervalBytes = tunByteTotal()
             val intervalAt = SystemClock.elapsedRealtime()
-            val intervalRate = PowQualityPolicy.bytesPerSecond(intervalBytes - lastBytes, intervalAt - lastBytesAt)
+            val intervalRate = AtomQualityPolicy.bytesPerSecond(intervalBytes - lastBytes, intervalAt - lastBytesAt)
             lastBytes = intervalBytes
             lastBytesAt = intervalAt
             if (stopRequested.get() || retuning.get() || !innerReady) continue
@@ -1730,49 +1730,49 @@ class PowConnectionCoordinator(
             if (!screenOn) continue
 
             // Busy gate: the interval average plus a short look at right now.
-            delay(PowQualityPolicy.BUSY_SPOT_WINDOW_MS)
+            delay(AtomQualityPolicy.BUSY_SPOT_WINDOW_MS)
             val spotBytes = tunByteTotal()
             val spotAt = SystemClock.elapsedRealtime()
-            val spotRate = PowQualityPolicy.bytesPerSecond(spotBytes - lastBytes, spotAt - lastBytesAt)
+            val spotRate = AtomQualityPolicy.bytesPerSecond(spotBytes - lastBytes, spotAt - lastBytesAt)
             lastBytes = spotBytes
             lastBytesAt = spotAt
             if (stopRequested.get() || retuning.get() || !innerReady) continue
             val rate = maxOf(intervalRate, spotRate)
-            val streams = PowSocksConnectOnly.activeStreamCount()
-            if (PowQualityPolicy.isBusy(rate, streams)) {
+            val streams = AtomSocksConnectOnly.activeStreamCount()
+            if (AtomQualityPolicy.isBusy(rate, streams)) {
                 badStreak = 0
                 busySkips += 1
-                PowSocksConnectOnly.discardPassiveSamples()
+                AtomSocksConnectOnly.discardPassiveSamples()
                 val message = "Quality check skipped: busy (${rate / 1024L} KB/s, $streams streams)"
                 if (!busyLogged) {
                     busyLogged = true
-                    AppLogRepository.info(LogSource.POW, message)
+                    AppLogRepository.info(LogSource.ATOM, message)
                 } else {
-                    AppLogRepository.debug(LogSource.POW, message)
+                    AppLogRepository.debug(LogSource.ATOM, message)
                 }
                 continue
             }
             if (busyLogged) {
                 AppLogRepository.info(
-                    LogSource.POW,
+                    LogSource.ATOM,
                     "Quality check resumed after $busySkips busy skip(s) (${rate / 1024L} KB/s, $streams streams)",
                 )
                 busyLogged = false
                 busySkips = 0
             }
 
-            val samples = PowSocksConnectOnly.recentLatencies()
+            val samples = AtomSocksConnectOnly.recentLatencies()
             val sample = if (samples.isEmpty() || idle) {
                 measureQualityProbeLite()
             } else {
-                PowQualityPolicy.p25(samples)
+                AtomQualityPolicy.p25(samples)
             }
-            val jitterHigh = PowQualityPolicy.isJitterHigh(samples + sample)
-            PowAdaptiveObfuscation.onProbe(sample > 0L, jitterHigh)
+            val jitterHigh = AtomQualityPolicy.isJitterHigh(samples + sample)
+            AtomAdaptiveObfuscation.onProbe(sample > 0L, jitterHigh)
             if (jitterHigh && sample > 0L) {
-                PowAdaptiveObfuscation.shouldEnableFragmentation(appContext, true)
+                AtomAdaptiveObfuscation.shouldEnableFragmentation(appContext, true)
             } else {
-                PowAdaptiveObfuscation.shouldDisableFragmentation(
+                AtomAdaptiveObfuscation.shouldDisableFragmentation(
                     appContext,
                     SystemClock.elapsedRealtime() - lastStableAt,
                 )
@@ -1785,7 +1785,7 @@ class PowConnectionCoordinator(
                     badStreak = 0
                     lastStableAt = SystemClock.elapsedRealtime()
                 }
-                PowQualityPolicy.isDegraded(baselineRttMs, sample) -> badStreak += 1
+                AtomQualityPolicy.isDegraded(baselineRttMs, sample) -> badStreak += 1
                 else -> {
                     badStreak = 0
                     lastStableAt = SystemClock.elapsedRealtime()
@@ -1795,23 +1795,23 @@ class PowConnectionCoordinator(
                 }
             }
 
-            if (badStreak < PowQualityPolicy.PASSIVE_BAD_STREAK) continue
+            if (badStreak < AtomQualityPolicy.PASSIVE_BAD_STREAK) continue
             val elapsed = SystemClock.elapsedRealtime() - lastRetuneAt
-            if (lastRetuneAt > 0L && elapsed < PowQualityPolicy.RETUNE_COOLDOWN_MS) continue
-            if (qualityRetunes.get() >= PowQualityPolicy.PASSIVE_MAX_RETUNES) continue
+            if (lastRetuneAt > 0L && elapsed < AtomQualityPolicy.RETUNE_COOLDOWN_MS) continue
+            if (qualityRetunes.get() >= AtomQualityPolicy.PASSIVE_MAX_RETUNES) continue
             badStreak = 0
             requestQualityRetune(
-                "passive rtt p25 ${sample}ms vs ${baselineRttMs}ms, ${PowQualityPolicy.PASSIVE_BAD_STREAK} strikes",
+                "passive rtt p25 ${sample}ms vs ${baselineRttMs}ms, ${AtomQualityPolicy.PASSIVE_BAD_STREAK} strikes",
             )
         }
     }
 
     private suspend fun measureQualityProbeLite(): Long {
-        PowUiProbeGate.beginEngineProbe()
+        AtomUiProbeGate.beginEngineProbe()
         return try {
-            PowPathProbe.measureMsLite(socksPort)
+            AtomPathProbe.measureMsLite(socksPort)
         } finally {
-            PowUiProbeGate.endEngineProbe()
+            AtomUiProbeGate.endEngineProbe()
         }
     }
 
@@ -1827,7 +1827,7 @@ class PowConnectionCoordinator(
         if (!sessionSupposedUp() && !restoreWaiting.get()) return
         simSwitchJob?.cancel()
         simSwitchJob = qualityScope.launch {
-            delay(PowNetworkRestore.SIM_SWITCH_DEBOUNCE_MS)
+            delay(AtomNetworkRestore.SIM_SWITCH_DEBOUNCE_MS)
             if (stopRequested.get() || VpnPauseStore.isPaused()) return@launch
             runSimSwitchReset(reason)
         }
@@ -1845,22 +1845,22 @@ class PowConnectionCoordinator(
             if (stopRequested.get() || VpnPauseStore.isPaused()) return
 
             val previous = lastRadioIdentity
-            val current = PowCarrier.radioIdentity(appContext)
+            val current = AtomCarrier.radioIdentity(appContext)
             if (previous == null) {
                 lastRadioIdentity = current
-                AppLogRepository.info(LogSource.POW, "SIM reset skipped - no radio baseline yet")
+                AppLogRepository.info(LogSource.ATOM, "SIM reset skipped - no radio baseline yet")
                 return
             }
             if (!current.isSimOrOperatorChange(previous)) {
                 AppLogRepository.info(
-                    LogSource.POW,
+                    LogSource.ATOM,
                     "SIM reset skipped - same radio ${current.summary()}",
                 )
                 return
             }
 
             AppLogRepository.warning(
-                LogSource.POW,
+                LogSource.ATOM,
                 "SIM/operator switch - ordered outer→Psiphon reset ($reason) " +
                     "${previous.summary()} → ${current.summary()}",
             )
@@ -1868,8 +1868,8 @@ class PowConnectionCoordinator(
 
             val carrierFlip = current.isConfirmedCarrierFlip(previous)
 
-            PowSocksConnectOnly.setFailFast(true)
-            PowSocksConnectOnly.dropRelays()
+            AtomSocksConnectOnly.setFailFast(true)
+            AtomSocksConnectOnly.dropRelays()
             dropGhost("sim switch")
             innerReady = false
             cancelQualityWork()
@@ -1883,13 +1883,13 @@ class PowConnectionCoordinator(
             // 2) Tear outer MASQUE/WARP.
             stopOuterLeg()
 
-            val forgotten = PowCoreConfig.forgetPathMemory(appContext)
+            val forgotten = AtomCoreConfig.forgetPathMemory(appContext)
             var keyDropped = false
             if (carrierFlip) {
-                keyDropped = PowIdentityStatus.forget(appContext)
+                keyDropped = AtomIdentityStatus.forget(appContext)
             }
             AppLogRepository.info(
-                LogSource.POW,
+                LogSource.ATOM,
                 "SIM switch cleared path cache=$forgotten identityDropped=$keyDropped " +
                     "(carrierFlip=$carrierFlip)",
             )
@@ -1908,27 +1908,27 @@ class PowConnectionCoordinator(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                AppLogRepository.warning(LogSource.POW, "SIM switch rebuild failed: ${error.message}")
+                AppLogRepository.warning(LogSource.ATOM, "SIM switch rebuild failed: ${error.message}")
                 false
             } finally {
-                PowSocksConnectOnly.setFailFast(false)
+                AtomSocksConnectOnly.setFailFast(false)
             }
 
             if (stopRequested.get() || VpnPauseStore.isPaused()) return
             if (recovered && outerProxyAccepts()) {
                 val check = measureQualityProbeLite()
                 if (check > 0L) {
-                    lastRadioIdentity = PowCarrier.radioIdentity(appContext)
+                    lastRadioIdentity = AtomCarrier.radioIdentity(appContext)
                     publishConnected()
-                    AppLogRepository.success(LogSource.POW, "SIM switch reconnect ok (${check}ms)")
+                    AppLogRepository.success(LogSource.ATOM, "SIM switch reconnect ok (${check}ms)")
                     return
                 }
             }
 
             if (!carrierFlip && !stopRequested.get() && !VpnPauseStore.isPaused()) {
-                AppLogRepository.info(LogSource.POW, "SIM switch retry with fresh identity/key")
-                PowIdentityStatus.forget(appContext)
-                PowCoreConfig.forgetPathMemory(appContext)
+                AppLogRepository.info(LogSource.ATOM, "SIM switch retry with fresh identity/key")
+                AtomIdentityStatus.forget(appContext)
+                AtomCoreConfig.forgetPathMemory(appContext)
                 runCatching { AetherNative.attach(service) }
                 val retry = try {
                     retuneMutex.withLock {
@@ -1943,9 +1943,9 @@ class PowConnectionCoordinator(
                 if (retry && outerProxyAccepts()) {
                     val check = measureQualityProbeLite()
                     if (check > 0L) {
-                        lastRadioIdentity = PowCarrier.radioIdentity(appContext)
+                        lastRadioIdentity = AtomCarrier.radioIdentity(appContext)
                         publishConnected()
-                        AppLogRepository.success(LogSource.POW, "SIM switch retry ok (${check}ms)")
+                        AppLogRepository.success(LogSource.ATOM, "SIM switch retry ok (${check}ms)")
                         return
                     }
                 }
@@ -1954,7 +1954,7 @@ class PowConnectionCoordinator(
             beginNetworkRestore("sim switch reconnect failed")
         } finally {
             simSwitchInFlight.set(false)
-            PowSocksConnectOnly.setFailFast(false)
+            AtomSocksConnectOnly.setFailFast(false)
         }
     }
 
@@ -1967,12 +1967,12 @@ class PowConnectionCoordinator(
         if (retuning.get() || simSwitchInFlight.get() || restoreWaiting.get()) return
         if (!sessionSupposedUp() && !innerReady) return
         AppLogRepository.warning(
-            LogSource.POW,
+            LogSource.ATOM,
             "$label died mid-session - stopping Psiphon and rebuilding from outer",
         )
         publishReconnecting("$label ended")
-        PowSocksConnectOnly.setFailFast(true)
-        PowSocksConnectOnly.dropRelays()
+        AtomSocksConnectOnly.setFailFast(true)
+        AtomSocksConnectOnly.dropRelays()
         innerReady = false
         cancelQualityWork()
         innerCallbacksArmed.set(false)
@@ -1991,10 +1991,10 @@ class PowConnectionCoordinator(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "Outer-died rebuild failed: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Outer-died rebuild failed: ${error.message}")
             false
         } finally {
-            PowSocksConnectOnly.setFailFast(false)
+            AtomSocksConnectOnly.setFailFast(false)
         }
         if (stopRequested.get() || VpnPauseStore.isPaused()) return
         if (ok && outerProxyAccepts()) {
@@ -2007,10 +2007,10 @@ class PowConnectionCoordinator(
     private fun publishSimSwitchReconnecting() {
         if (stopRequested.get()) return
         ConnectionStateStore.markConnecting()
-        PowStatusStore.update(
-            PowPhase.STARTING,
+        AtomStatusStore.update(
+            AtomPhase.STARTING,
             20,
-            PowNetworkRestore.simSwitchDetail(),
+            AtomNetworkRestore.simSwitchDetail(),
         )
         notificationSink?.invoke(false)
     }
@@ -2027,7 +2027,7 @@ class PowConnectionCoordinator(
      */
         private suspend fun verifyPathAfterNetworkChange() {
         if (SystemClock.elapsedRealtime() < connectGraceUntilMs) {
-            AppLogRepository.debug(LogSource.POW, "Network change ignored during connect grace")
+            AppLogRepository.debug(LogSource.ATOM, "Network change ignored during connect grace")
             return
         }
         if (!isHealthyPath()) {
@@ -2042,14 +2042,14 @@ class PowConnectionCoordinator(
 
 
     private suspend fun watchLiveness() {
-        delay(PowWatchdog.SETTLE_MS)
+        delay(AtomWatchdog.SETTLE_MS)
         if (stopRequested.get() || !innerReady) return
         while (!stopRequested.get()) {
-            delay(PowWatchdog.intervalMs(isScreenOn(), PowSocksConnectOnly.activeStreamCount()))
+            delay(AtomWatchdog.intervalMs(isScreenOn(), AtomSocksConnectOnly.activeStreamCount()))
             if (stopRequested.get() || retuning.get() || !innerReady) continue
             val stats = tunStats()
             when (
-                val verdict = PowWatchdog.judge(
+                val verdict = AtomWatchdog.judge(
                     processesAlive = processesAlive(),
                     txBytes = stats.txBytes,
                     rxBytes = stats.rxBytes,
@@ -2059,13 +2059,13 @@ class PowConnectionCoordinator(
                     stallStrikes = watchdogStallStrikes,
                 )
             ) {
-                is PowWatchdog.Verdict.Healthy -> {
+                is AtomWatchdog.Verdict.Healthy -> {
                     watchdogProcessMisses = 0
                     watchdogStallStrikes = 0
                     watchdogTx = stats.txBytes
                     watchdogRx = stats.rxBytes
                 }
-                is PowWatchdog.Verdict.Strike -> {
+                is AtomWatchdog.Verdict.Strike -> {
                     if (verdict.reason == "engine process exited") {
                         watchdogProcessMisses = verdict.nextStrikes
                     } else {
@@ -2075,16 +2075,16 @@ class PowConnectionCoordinator(
                     watchdogTx = stats.txBytes
                     watchdogRx = stats.rxBytes
                     AppLogRepository.debug(
-                        LogSource.POW,
+                        LogSource.ATOM,
                         "Watchdog strike ${verdict.nextStrikes}: ${verdict.reason}",
                     )
                 }
-                is PowWatchdog.Verdict.Dead -> {
+                is AtomWatchdog.Verdict.Dead -> {
                     watchdogProcessMisses = 0
                     watchdogStallStrikes = 0
                     watchdogTx = stats.txBytes
                     watchdogRx = stats.rxBytes
-                    AppLogRepository.warning(LogSource.POW, "Watchdog: ${verdict.reason}")
+                    AppLogRepository.warning(LogSource.ATOM, "Watchdog: ${verdict.reason}")
                     notifyPathLost(verdict.reason)
                 }
             }
@@ -2092,58 +2092,58 @@ class PowConnectionCoordinator(
     }
 
     private suspend fun measureQualityProbe(): Long {
-        PowUiProbeGate.beginEngineProbe()
+        AtomUiProbeGate.beginEngineProbe()
         return try {
-            PowPathProbe.measureMs(socksPort)
+            AtomPathProbe.measureMs(socksPort)
         } finally {
-            PowUiProbeGate.endEngineProbe()
+            AtomUiProbeGate.endEngineProbe()
         }
     }
 
     private fun setRetuning(active: Boolean) {
         retuning.set(active)
-        PowUiProbeGate.setRetuning(active)
-        PowLiveExit.updatePath { it.copy(retuning = active) }
+        AtomUiProbeGate.setRetuning(active)
+        AtomLiveExit.updatePath { it.copy(retuning = active) }
     }
 
     private suspend fun watchQuality() {
-        delay(PowQualityPolicy.SETTLE_MS)
+        delay(AtomQualityPolicy.SETTLE_MS)
         if (stopRequested.get() || !innerReady) return
         val opening = mutableListOf<Long>()
-        repeat(PowQualityPolicy.BASELINE_SAMPLES) { index ->
+        repeat(AtomQualityPolicy.BASELINE_SAMPLES) { index ->
             while (retuning.get() && !stopRequested.get()) delay(350)
             if (stopRequested.get() || !innerReady) return
             val sample = measureQualityProbe()
             if (sample > 0L) opening += sample
-            PowAdaptiveObfuscation.onProbe(sample > 0, false)
-            if (index + 1 < PowQualityPolicy.BASELINE_SAMPLES) delay(550)
+            AtomAdaptiveObfuscation.onProbe(sample > 0, false)
+            if (index + 1 < AtomQualityPolicy.BASELINE_SAMPLES) delay(550)
         }
-        baselineRttMs = PowQualityPolicy.median(opening)
+        baselineRttMs = AtomQualityPolicy.median(opening)
         if (baselineRttMs > 0L) {
-            AppLogRepository.info(LogSource.POW, "UAC PoW path baseline ${baselineRttMs}ms")
+            AppLogRepository.info(LogSource.ATOM, "Atom path baseline ${baselineRttMs}ms")
             recordStrategyRtt(baselineRttMs)
         }
         recentSamples = opening.takeLast(3).toMutableList()
         lastStableAt = SystemClock.elapsedRealtime()
         var badStreak = 0
         while (!stopRequested.get()) {
-            val interval = PowQualityPolicy.adaptiveIntervalMs(isScreenOn(), isPowerSave())
+            val interval = AtomQualityPolicy.adaptiveIntervalMs(isScreenOn(), isPowerSave())
             delay(interval)
             if (stopRequested.get() || retuning.get()) continue
             if (!innerReady) continue
             // Adaptive obfuscation check
             val elapsedStable = SystemClock.elapsedRealtime() - lastStableAt
-            PowAdaptiveObfuscation.shouldDisableFragmentation(appContext, elapsedStable)
+            AtomAdaptiveObfuscation.shouldDisableFragmentation(appContext, elapsedStable)
             val sample = measureQualityProbe()
-            val jitterHigh = PowQualityPolicy.isJitterHigh(recentSamples + sample)
-            PowAdaptiveObfuscation.onProbe(sample > 0L, jitterHigh)
+            val jitterHigh = AtomQualityPolicy.isJitterHigh(recentSamples + sample)
+            AtomAdaptiveObfuscation.onProbe(sample > 0L, jitterHigh)
             if (jitterHigh && sample > 0L) {
-                PowAdaptiveObfuscation.shouldEnableFragmentation(appContext, true)
+                AtomAdaptiveObfuscation.shouldEnableFragmentation(appContext, true)
             }
             recentSamples.add(sample)
             if (recentSamples.size > 4) recentSamples.removeAt(0)
             val degraded = if (baselineRttMs > 0L) {
-                PowQualityPolicy.isDegraded(baselineRttMs, sample)
+                AtomQualityPolicy.isDegraded(baselineRttMs, sample)
             } else {
                 sample <= 0L
             }
@@ -2157,17 +2157,17 @@ class PowConnectionCoordinator(
                 }
                 // Re-prime page turbo on recovery
                 if (recentSamples.count { it <= 0L } >= 2) {
-                    PowPageTurbo.kick(qualityScope, socksPort)
+                    AtomPageTurbo.kick(qualityScope, socksPort)
                     kickDnsWarm(force = false)
                 }
                 continue
             }
             badStreak += 1
-            val required = PowQualityPolicy.requiredBadStreak(recentSamples)
+            val required = AtomQualityPolicy.requiredBadStreak(recentSamples)
             if (badStreak < required) continue
             val elapsed = SystemClock.elapsedRealtime() - lastRetuneAt
-            if (lastRetuneAt > 0L && elapsed < PowQualityPolicy.RETUNE_COOLDOWN_MS) continue
-            if (qualityRetunes.get() >= PowQualityPolicy.MAX_QUALITY_RETUNES) continue
+            if (lastRetuneAt > 0L && elapsed < AtomQualityPolicy.RETUNE_COOLDOWN_MS) continue
+            if (qualityRetunes.get() >= AtomQualityPolicy.MAX_QUALITY_RETUNES) continue
             badStreak = 0
             val detail = if (sample <= 0L) "probe failed streak=$required" else "rtt ${sample}ms vs ${baselineRttMs}ms jitter=$jitterHigh"
             requestQualityRetune(detail)
@@ -2177,7 +2177,7 @@ class PowConnectionCoordinator(
     private suspend fun requestQualityRetune(reason: String) {
         if (!retuneMutex.tryLock()) return
         try {
-            if (stopRequested.get() || qualityRetunes.get() >= PowQualityPolicy.MAX_QUALITY_RETUNES) return
+            if (stopRequested.get() || qualityRetunes.get() >= AtomQualityPolicy.MAX_QUALITY_RETUNES) return
             qualityRetunes.incrementAndGet()
             // Make-before-break: a second Psiphon comes up beside the live one. If it
             // fails, the live tunnel is kept as is and the ladder is not restarted.
@@ -2190,7 +2190,7 @@ class PowConnectionCoordinator(
                 }
             }
             // Level C: try ghost handover first for zero-downtime, fallback to hard retune.
-            if (!proxyMode && PowTun2Socks.isRunning && ghostInFlight.compareAndSet(false, true)) {
+            if (!proxyMode && AtomTun2Socks.isRunning && ghostInFlight.compareAndSet(false, true)) {
                 try {
                     val ghostOk = tryGhostHandover(reason)
                     if (ghostOk) return
@@ -2208,30 +2208,30 @@ class PowConnectionCoordinator(
         currentSettings.ghostHandover &&
             !currentSettings.psiphonTunnelPool &&
             !proxyMode && !warpOnly && !stopRequested.get() &&
-            PowTun2Socks.isRunning && innerReady &&
+            AtomTun2Socks.isRunning && innerReady &&
             lastPsiphonConfig.isNotBlank() &&
             isScreenOn()
 
     /** Returns true when traffic moved to a new tunnel; false keeps the old one untouched. */
     private suspend fun ghostInnerHandover(reason: String): Boolean {
-        AppLogRepository.info(LogSource.POW, "Ghost handover ($reason)")
+        AppLogRepository.info(LogSource.ATOM, "Ghost handover ($reason)")
         setRetuning(true)
         try {
-            val port = ghostInner.warm(lastPsiphonConfig, PowQualityPolicy.GHOST_HANDOVER_TIMEOUT_MS)
+            val port = ghostInner.warm(lastPsiphonConfig, AtomQualityPolicy.GHOST_HANDOVER_TIMEOUT_MS)
             if (port <= 0 || stopRequested.get()) {
                 if (port > 0) ghostInner.release("session stopping")
-                AppLogRepository.warning(LogSource.POW, "Ghost handover failed; keeping the current tunnel")
+                AppLogRepository.warning(LogSource.ATOM, "Ghost handover failed; keeping the current tunnel")
                 return false
             }
-            val ghostMs = PowPathProbe.measureMsLite(port)
+            val ghostMs = AtomPathProbe.measureMsLite(port)
             if (ghostMs <= 0L) {
                 ghostInner.release("probe failed")
-                AppLogRepository.warning(LogSource.POW, "Ghost tunnel did not answer a probe; keeping the current tunnel")
+                AppLogRepository.warning(LogSource.ATOM, "Ghost tunnel did not answer a probe; keeping the current tunnel")
                 return false
             }
             ghostServing = true
-            PowSocksConnectOnly.setUpstreamPort(port)
-            AppLogRepository.success(LogSource.POW, "Ghost handover: traffic moved to the new tunnel (${ghostMs}ms)")
+            AtomSocksConnectOnly.setUpstreamPort(port)
+            AppLogRepository.success(LogSource.ATOM, "Ghost handover: traffic moved to the new tunnel (${ghostMs}ms)")
             // Rebuild tunnel 1 while the ghost serves; when it connects, onConnected flips back.
             innerReady = false
             innerCallbacksArmed.set(false)
@@ -2241,25 +2241,25 @@ class PowConnectionCoordinator(
             delay(400)
             ladderActive.set(false)
             ladderJob?.cancel()
-            val keepExit = PowRegions.egressRegion(currentSettings.exitCountryCode) != null
+            val keepExit = AtomRegions.egressRegion(currentSettings.exitCountryCode) != null
             val connected = CompletableDeferred<Unit>()
             retuneSignal = connected
             innerCallbacksArmed.set(true)
             startPsiphonTunnel(keepExit = keepExit)
-            val back = withTimeoutOrNull(PowQualityPolicy.INNER_RETUNE_TIMEOUT_MS) { connected.await(); true } ?: false
+            val back = withTimeoutOrNull(AtomQualityPolicy.INNER_RETUNE_TIMEOUT_MS) { connected.await(); true } ?: false
             if (back) {
                 finishGhost()
             } else {
                 // No ladder restart: the ghost keeps serving and tunnel 1 keeps trying;
                 // its onConnected hands traffic back later.
-                AppLogRepository.warning(LogSource.POW, "Tunnel 1 not back yet; the ghost tunnel keeps serving")
+                AppLogRepository.warning(LogSource.ATOM, "Tunnel 1 not back yet; the ghost tunnel keeps serving")
             }
             lastRetuneAt = SystemClock.elapsedRealtime()
             return true
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "Ghost handover error: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Ghost handover error: ${error.message}")
             return false
         } finally {
             retuneSignal = null
@@ -2271,15 +2271,15 @@ class PowConnectionCoordinator(
     private suspend fun finishGhost() {
         if (!ghostServing || !ghostFinishing.compareAndSet(false, true)) return
         try {
-            PowSocksConnectOnly.setUpstreamPort(socksPort)
+            AtomSocksConnectOnly.setUpstreamPort(socksPort)
             ghostServing = false
-            val sample = PowPathProbe.measureMsLite(socksPort)
+            val sample = AtomPathProbe.measureMsLite(socksPort)
             if (sample > 0L) {
                 baselineRttMs = sample
                 recordStrategyRtt(sample)
             }
             AppLogRepository.success(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Ghost handover done; tunnel 1 serves again" + if (sample > 0L) " ${sample}ms" else "",
             )
             // Give streams opened on the ghost a moment before it goes.
@@ -2294,12 +2294,12 @@ class PowConnectionCoordinator(
     private suspend fun dropGhost(reason: String) {
         if (!ghostServing && !ghostInner.active) return
         ghostServing = false
-        PowSocksConnectOnly.setUpstreamPort(socksPort)
+        AtomSocksConnectOnly.setUpstreamPort(socksPort)
         ghostInner.release(reason)
     }
 
     private suspend fun tryGhostHandover(reason: String): Boolean {
-        AppLogRepository.info(LogSource.POW, "Ghost handover attempt ($reason)")
+        AppLogRepository.info(LogSource.ATOM, "Ghost handover attempt ($reason)")
         setRetuning(true)
         // Warm shadow outer on 1821 — does not disturb live 1820.
         val shadowOuter = runCatching {
@@ -2319,29 +2319,29 @@ class PowConnectionCoordinator(
 
     private suspend fun retuneLocked(reason: String, quality: Boolean): Boolean {
         if (stopRequested.get()) return false
-        if (!proxyMode && !PowTun2Socks.isRunning) return false
+        if (!proxyMode && !AtomTun2Socks.isRunning) return false
         // Psiphon only: there is no WARP hop to refresh; rebuild Psiphon alone.
         if (psiphonOnly) return retuneInnerOnly("psiphon-only:$reason")
         dropGhost("full retune")
         val optimized = currentSettings.optimizedMode
         setRetuning(true)
-        PowSocksConnectOnly.setFailFast(true)
+        AtomSocksConnectOnly.setFailFast(true)
         // A quality retune always lets open relays finish gracefully; only
         // recovery (hard failure) drops them at once.
-        if (quality) PowSocksConnectOnly.drainRelaysGracefully(600)
-        else PowSocksConnectOnly.dropRelays()
+        if (quality) AtomSocksConnectOnly.drainRelaysGracefully(600)
+        else AtomSocksConnectOnly.dropRelays()
         AppLogRepository.info(
-            LogSource.POW,
-            "Refreshing UAC PoW path behind the VPN ($reason, ${if (quality) "quality" else "recovery"})",
+            LogSource.ATOM,
+            "Refreshing Atom path behind the VPN ($reason, ${if (quality) "quality" else "recovery"})",
         )
         innerReady = false
         return try {
             if (!optimized || !quality) {
                 // The cached WARP endpoint may be why the path died — forget it so the
                 // reconnect cannot land back on the same dead hop.
-                val forgotten = PowCoreConfig.forgetPathMemory(appContext)
+                val forgotten = AtomCoreConfig.forgetPathMemory(appContext)
                 if (forgotten > 0) {
-                    AppLogRepository.info(LogSource.POW, "Cleared $forgotten cached WARP endpoint(s) for a fresh hop")
+                    AppLogRepository.info(LogSource.ATOM, "Cleared $forgotten cached WARP endpoint(s) for a fresh hop")
                 }
             }
             innerCallbacksArmed.set(false)
@@ -2358,23 +2358,23 @@ class PowConnectionCoordinator(
             if (stopRequested.get()) return false
             val outer = if (optimized && quality) {
                 raiseOuterLeg(
-                    discovery = PowCoreConfig.DISCOVERY_CACHE,
-                    scanMode = PowCoreConfig.normalizeScanMode(currentSettings.scanMode),
+                    discovery = AtomCoreConfig.DISCOVERY_CACHE,
+                    scanMode = AtomCoreConfig.normalizeScanMode(currentSettings.scanMode),
                     silent = true,
                     retune = true,
                 )
             } else {
                 withRetuneHunt {
                     raiseOuterLeg(
-                        discovery = PowCoreConfig.DISCOVERY_FRESH,
-                        scanMode = PowCoreConfig.SCAN_TURBO,
+                        discovery = AtomCoreConfig.DISCOVERY_FRESH,
+                        scanMode = AtomCoreConfig.SCAN_TURBO,
                         silent = true,
                         retune = true,
                     )
                 }
             }
             if (outer == null) {
-                AppLogRepository.warning(LogSource.POW, "Could not raise a fresh WARP hop")
+                AppLogRepository.warning(LogSource.ATOM, "Could not raise a fresh WARP hop")
                 return false
             }
             if (stopRequested.get()) return false
@@ -2383,44 +2383,44 @@ class PowConnectionCoordinator(
             ladderAttempts = 0
             ladderActive.set(false)
             ladderJob?.cancel()
-            val keepExit = PowRegions.egressRegion(currentSettings.exitCountryCode) != null
+            val keepExit = AtomRegions.egressRegion(currentSettings.exitCountryCode) != null
             val connected = CompletableDeferred<Unit>()
             retuneSignal = connected
             innerCallbacksArmed.set(true)
             startPsiphonTunnel(keepExit = keepExit)
             ladderJob = qualityScope.launch { watchLadder() }
             try {
-                withTimeout(PowQualityPolicy.INNER_RETUNE_TIMEOUT_MS) { connected.await() }
+                withTimeout(AtomQualityPolicy.INNER_RETUNE_TIMEOUT_MS) { connected.await() }
             } catch (_: TimeoutCancellationException) {
-                AppLogRepository.warning(LogSource.POW, "Psiphon did not reconnect through the new hop in time")
+                AppLogRepository.warning(LogSource.ATOM, "Psiphon did not reconnect through the new hop in time")
                 return false
             }
             if (stopRequested.get()) return false
             lastRetuneAt = SystemClock.elapsedRealtime()
             delay(400)
-            val sample = PowPathProbe.measureMsLite(socksPort)
+            val sample = AtomPathProbe.measureMsLite(socksPort)
             if (sample > 0L) {
                 baselineRttMs = sample
                 recordStrategyRtt(sample)
                 recentSamples = mutableListOf(sample)
                 lastStableAt = SystemClock.elapsedRealtime()
             }
-            PowPageTurbo.kick(qualityScope, socksPort, keepWarm = true)
+            AtomPageTurbo.kick(qualityScope, socksPort, keepWarm = true)
             kickDnsWarm(force = false)
             AppLogRepository.success(
-                LogSource.POW,
-                "UAC PoW path refreshed via $outer" + if (sample > 0L) " (${sample}ms)" else "",
+                LogSource.ATOM,
+                "Atom path refreshed via $outer" + if (sample > 0L) " (${sample}ms)" else "",
             )
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "UAC PoW path refresh failed: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Atom path refresh failed: ${error.message}")
             false
         } finally {
             retuneSignal = null
             innerCallbacksArmed.set(true)
-            PowSocksConnectOnly.setFailFast(false)
+            AtomSocksConnectOnly.setFailFast(false)
             setRetuning(false)
         }
     }
