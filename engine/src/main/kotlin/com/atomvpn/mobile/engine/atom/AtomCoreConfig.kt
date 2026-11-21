@@ -31,12 +31,15 @@ object AtomCoreConfig {
         }
     }
 
-    fun identityPath(context: Context): File {
-        val target = File(context.filesDir, "atom-engine.toml")
-        val legacy = File(context.filesDir, "uac-pow.toml")
+    private fun migrateLegacyFile(context: Context, legacyName: String, currentName: String): File {
+        val target = File(context.filesDir, currentName)
+        val legacy = File(context.filesDir, legacyName)
         if (!target.exists() && legacy.isFile) runCatching { legacy.copyTo(target, overwrite = false) }
         return target
     }
+
+    fun identityPath(context: Context): File =
+        migrateLegacyFile(context, "uac-pow.toml", "atom-engine.toml")
 
     fun hevConfigPath(context: Context): File {
         val targetDir = File(context.filesDir, "atom-engine")
@@ -51,11 +54,14 @@ object AtomCoreConfig {
         return target
     }
 
-    fun masqueCachePath(context: Context): File = File(context.filesDir, "atom-engine-masque-cache.json")
+    fun masqueCachePath(context: Context): File =
+        migrateLegacyFile(context, "uac-pow-masque-cache.json", "atom-engine-masque-cache.json")
 
-    fun lastconnPath(context: Context): File = File(context.filesDir, "atom-engine-lastconn.toml")
+    fun lastconnPath(context: Context): File =
+        migrateLegacyFile(context, "uac-pow-lastconn.toml", "atom-engine-lastconn.toml")
 
-    fun goolLastconnPath(context: Context): File = File(context.filesDir, "atom-engine-gool-lastconn.toml")
+    fun goolLastconnPath(context: Context): File =
+        migrateLegacyFile(context, "uac-pow-gool-lastconn.toml", "atom-engine-gool-lastconn.toml")
 
     fun pathMemoryFiles(context: Context): List<File> = listOf(
         masqueCachePath(context),
@@ -73,7 +79,8 @@ object AtomCoreConfig {
     fun forgetPathMemory(context: Context): Int =
         pathMemoryFiles(context).count { file -> file.isFile && file.delete() }
 
-    fun cleanH2File(context: Context): File = File(context.filesDir, "atom-engine-clean-h2.json")
+    fun cleanH2File(context: Context): File =
+        migrateLegacyFile(context, "uac-pow-clean-h2.json", "atom-engine-clean-h2.json")
 
     fun cleanH2Peers(context: Context): List<String> {
         val file = cleanH2File(context)
