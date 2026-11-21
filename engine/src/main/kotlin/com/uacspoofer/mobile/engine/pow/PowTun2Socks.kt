@@ -1,15 +1,15 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import com.uacspoofer.mobile.engine.tor.HevSocks5Tunnel
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
-import com.uacspoofer.mobile.vpn.TunStats
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
+import com.atomvpn.mobile.engine.vpn.TunStats
 import java.io.File
 
-object PowTun2Socks {
+object AtomTun2Socks {
     private const val NATIVE_EXIT_GRACE_MS = 5_000L
 
     data class PrivateAddress(
@@ -30,7 +30,7 @@ object PowTun2Socks {
         val selected = defaultPrivateAddress()
         privateAddress = selected
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             "tun2socks address plan if=${selected.ipAddress}/${selected.prefixLength} router=${selected.router}",
         )
         return selected
@@ -46,7 +46,7 @@ object PowTun2Socks {
     ): Boolean {
         if (socksProxyPort <= 0) return false
         stopLocked()
-        val yaml = PowTunRelayConfig.yaml(
+        val yaml = AtomTunRelayConfig.yaml(
             mtu = mtu,
             socksPort = socksProxyPort,
             tunIpv4 = address.ipAddress,
@@ -58,18 +58,18 @@ object PowTun2Socks {
         val started = runCatching {
             HevSocks5Tunnel.TProxyStartService(configFile.absolutePath, tunFd.fd)
         }.getOrElse { error ->
-            AppLogRepository.warning(LogSource.POW, "tun2socks library failed to load: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "tun2socks library failed to load: ${error.message}")
             stopLocked()
             return false
         }
         if (!started || !isRunning) {
             stopLocked()
-            AppLogRepository.warning(LogSource.POW, "tun2socks did not enter running state")
+            AppLogRepository.warning(LogSource.ATOM, "tun2socks did not enter running state")
             return false
         }
         AppLogRepository.info(
-            LogSource.POW,
-            "tun2socks started mtu=${mtu.coerceIn(PowTunRelayConfig.MIN_MTU, PowTunRelayConfig.MAX_CUSTOM_MTU)} → SOCKS 127.0.0.1:$socksProxyPort",
+            LogSource.ATOM,
+            "tun2socks started mtu=${mtu.coerceIn(AtomTunRelayConfig.MIN_MTU, AtomTunRelayConfig.MAX_CUSTOM_MTU)} → SOCKS 127.0.0.1:$socksProxyPort",
         )
         return true
     }
