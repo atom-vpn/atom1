@@ -1,12 +1,12 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 /**
- * Connected-session liveness for UAC PoW.
+ * Connected-session liveness for Atom.
  * Local process flags plus byte movement. No HTTP.
  * Idle traffic (screen on or off) is not a dead tunnel.
  * A missing process must be seen twice before reconnect.
  */
-internal object PowWatchdog {
+internal object AtomWatchdog {
     const val INTERVAL_MS = 30_000L
     const val INTERVAL_SCREEN_OFF_MS = 120_000L
 
