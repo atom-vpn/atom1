@@ -31,7 +31,25 @@ object AtomCoreConfig {
         }
     }
 
-    fun identityPath(context: Context): File = File(context.filesDir, "uac-pow.toml")
+    fun identityPath(context: Context): File {
+        val target = File(context.filesDir, "atom-engine.toml")
+        val legacy = File(context.filesDir, "uac-pow.toml")
+        if (!target.exists() && legacy.isFile) runCatching { legacy.copyTo(target, overwrite = false) }
+        return target
+    }
+
+    fun hevConfigPath(context: Context): File {
+        val targetDir = File(context.filesDir, "atom-engine")
+        val target = File(targetDir, "hev.yml")
+        val legacy = File(File(context.filesDir, "uac-pow"), "hev.yml")
+        if (!target.exists() && legacy.isFile) {
+            runCatching {
+                targetDir.mkdirs()
+                legacy.copyTo(target, overwrite = false)
+            }
+        }
+        return target
+    }
 
     fun masqueCachePath(context: Context): File = File(context.filesDir, "atom-engine-masque-cache.json")
 
