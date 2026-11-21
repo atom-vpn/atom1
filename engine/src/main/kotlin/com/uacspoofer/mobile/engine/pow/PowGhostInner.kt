@@ -1,8 +1,8 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.net.VpnService
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
@@ -14,19 +14,19 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Make-before-break Psiphon for quality retunes (ghost handover).
  *
- * A second Psiphon starts in :uacpow2 on [PowGhostHandover.SHADOW_SOCKS_PORT]
+ * A second Psiphon starts in :Atom2 on [AtomGhostHandover.SHADOW_SOCKS_PORT]
  * while tunnel 1 keeps carrying traffic. Only when it connects does the relay
  * move to it; if it does not connect within the timeout it is thrown away and
  * the working tunnel is never touched. Lives for seconds, so the battery cost
  * is one extra handshake. Never used together with the tunnel pool (which owns
- * :uacpow2) and never with the screen off.
+ * :Atom2) and never with the screen off.
  */
-internal class PowGhostInner(
+internal class AtomGhostInner(
     private val vpn: VpnService,
     private val onBytes: (Long, Long) -> Unit,
 ) {
     private val generation = AtomicInteger(0)
-    @Volatile private var client: PowPsiphonClient? = null
+    @Volatile private var client: AtomPsiphonClient? = null
     @Volatile private var listenPort = 0
 
     val active: Boolean get() = client != null
@@ -37,43 +37,43 @@ internal class PowGhostInner(
         val gen = generation.incrementAndGet()
         val connected = CompletableDeferred<Boolean>()
         val config = try {
-            PowPsiphonProtocols.sidecarConfig(primaryConfig, dataRoot(), PowGhostHandover.SHADOW_SOCKS_PORT)
+            AtomPsiphonProtocols.sidecarConfig(primaryConfig, dataRoot(), AtomGhostHandover.SHADOW_SOCKS_PORT)
         } catch (error: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "Ghost Psiphon config failed: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Ghost Psiphon config failed: ${error.message}")
             return 0
         }
-        val next = PowPsiphonClient(vpn, Callbacks(gen, connected), PowPsiphonIpc.SIDECAR_SERVICE_CLASS)
+        val next = AtomPsiphonClient(vpn, Callbacks(gen, connected), AtomPsiphonIpc.SIDECAR_SERVICE_CLASS)
         client = next
-        PowLiveExit.updatePath { it.copy(ghost = true) }
+        AtomLiveExit.updatePath { it.copy(ghost = true) }
         listenPort = 0
         AppLogRepository.info(
-            LogSource.POW,
-            "Ghost handover: second Psiphon warming in :uacpow2 (SOCKS ${PowGhostHandover.SHADOW_SOCKS_PORT}); live tunnel untouched",
+            LogSource.ATOM,
+            "Ghost handover: second Psiphon warming in :Atom2 (SOCKS ${AtomGhostHandover.SHADOW_SOCKS_PORT}); live tunnel untouched",
         )
         val ok = try {
             next.start(config)
             withTimeoutOrNull(timeoutMs) { connected.await() } ?: false
         } catch (error: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "Ghost Psiphon did not start: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Ghost Psiphon did not start: ${error.message}")
             false
         }
         if (!ok || generation.get() != gen) {
             release("did not connect in time")
             return 0
         }
-        return listenPort.takeIf { it > 0 } ?: PowGhostHandover.SHADOW_SOCKS_PORT
+        return listenPort.takeIf { it > 0 } ?: AtomGhostHandover.SHADOW_SOCKS_PORT
     }
 
     suspend fun release(reason: String) {
         generation.incrementAndGet()
         val old = client ?: return
         client = null
-        PowLiveExit.updatePath { it.copy(ghost = false) }
+        AtomLiveExit.updatePath { it.copy(ghost = false) }
         withContext(NonCancellable) {
             runCatching { withTimeoutOrNull(STOP_MS) { old.stop() } }
             runCatching { old.close() }
         }
-        AppLogRepository.info(LogSource.POW, "Ghost Psiphon stopped ($reason)")
+        AppLogRepository.info(LogSource.ATOM, "Ghost Psiphon stopped ($reason)")
     }
 
     /** Never suspends; for hard teardown. */
@@ -81,11 +81,11 @@ internal class PowGhostInner(
         generation.incrementAndGet()
         val old = client ?: return
         client = null
-        PowLiveExit.updatePath { it.copy(ghost = false) }
+        AtomLiveExit.updatePath { it.copy(ghost = false) }
         Thread({
             runCatching { runBlocking { withTimeoutOrNull(STOP_MS) { old.stop() } } }
             runCatching { old.close() }
-        }, "uac-pow-ghost-release").apply {
+        }, "atom-engine-ghost-release").apply {
             isDaemon = true
             start()
         }
@@ -100,12 +100,12 @@ internal class PowGhostInner(
     private inner class Callbacks(
         private val gen: Int,
         private val connected: CompletableDeferred<Boolean>,
-    ) : PowPsiphonClient.Callbacks {
+    ) : AtomPsiphonClient.Callbacks {
         private fun current(): Boolean = generation.get() == gen
         override fun onConnecting() = Unit
         override fun onConnected() {
             if (!current()) return
-            AppLogRepository.success(LogSource.POW, "Ghost Psiphon connected")
+            AppLogRepository.success(LogSource.ATOM, "Ghost Psiphon connected")
             connected.complete(true)
         }
         override fun onExiting() {
@@ -120,13 +120,13 @@ internal class PowGhostInner(
         }
         override fun onClientRegion(region: String) = Unit
         override fun onConnectedServerRegion(region: String) {
-            if (current()) AppLogRepository.info(LogSource.POW, "Ghost Psiphon exit ${PowRegions.name(region)} ($region)")
+            if (current()) AppLogRepository.info(LogSource.ATOM, "Ghost Psiphon exit ${AtomRegions.name(region)} ($region)")
         }
         override fun onAvailableEgressRegions(regions: List<String>) = Unit
         override fun onClientAddress(address: String) = Unit
         override fun onStartFailed(message: String) {
             if (!current()) return
-            AppLogRepository.warning(LogSource.POW, "Ghost Psiphon failed to start: $message")
+            AppLogRepository.warning(LogSource.ATOM, "Ghost Psiphon failed to start: $message")
             connected.complete(false)
         }
     }
