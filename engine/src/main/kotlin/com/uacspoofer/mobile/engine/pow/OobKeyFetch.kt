@@ -1,11 +1,11 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.net.VpnService
-import com.uacspoofer.mobile.vpn.SocketProtectGate
+import com.atomvpn.mobile.engine.vpn.SocketProtectGate
 import android.util.Base64
 import android.util.Log
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
@@ -56,7 +56,7 @@ import javax.net.ssl.X509ExtendedTrustManager
  * on POST /reg with 0 response bytes.
  */
 internal object OobKeyFetch {
-    private const val TAG = "UAC-POW"
+    private const val TAG = "UAC-ATOM"
     private const val HOST = "api.cloudflareclient.com"
     private const val API = "/v0a4471/reg"
     private val DEFAULT_IPS = listOf("104.16.24.84", "104.16.192.82")
@@ -629,6 +629,6 @@ internal object OobKeyFetch {
 
     private fun note(msg: String) {
         Log.i(TAG, msg)
-        AppLogRepository.info(LogSource.POW, msg.take(500))
+        AppLogRepository.info(LogSource.ATOM, msg.take(500))
     }
 }
