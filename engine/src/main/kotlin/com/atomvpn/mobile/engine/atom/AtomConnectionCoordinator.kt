@@ -1529,7 +1529,7 @@ class AtomConnectionCoordinator(
             AppLogRepository.info(LogSource.ATOM, text.take(300))
             if (!text.contains("updated server")) {
                 runCatching {
-                    java.io.File(appContext.filesDir, "pow-diag.log").appendText(text.take(500) + "\n")
+                    java.io.File(appContext.filesDir, "atom-diag.log").appendText(text.take(500) + "\n")
                 }
             }
         }
