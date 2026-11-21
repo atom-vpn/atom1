@@ -71,7 +71,7 @@ foreach ($artifact in $artifacts) {
 
 if ($CommitAndPush) {
     Invoke-Git $DestinationRepo @("add", "--", "vendor/aars", "vendor/jniLibs/arm64-v8a/libaether.so", "vendor/jniLibs/armeabi-v7a/libaether.so", "vendor/jniLibs/x86_64/libaether.so", "vendor/assets/server_entries.txt") | Out-Null
-    Invoke-Git $DestinationRepo @("commit", "-m", "Import verified UAC PoW runtime binaries") | Out-Null
+    Invoke-Git $DestinationRepo @("commit", "-m", "Import verified Atom runtime binaries") | Out-Null
     Invoke-Git $DestinationRepo @("push", "origin", "pow-standalone") | Out-Null
     Write-Host "Committed and pushed verified runtime binaries to origin/pow-standalone." -ForegroundColor Green
 }
