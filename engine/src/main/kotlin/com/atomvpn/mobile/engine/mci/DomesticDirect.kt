@@ -9,7 +9,7 @@ import com.atomvpn.mobile.engine.settings.DirectDomainWhitelist
 
 /**
  * Shared Iran-direct matcher for engines that cannot use Xray geosite routing
- * (PoW SOCKS split, Tor SOCKS split). Engine 1/4 still use geosite/geoip tags
+ * (Atom SOCKS split, Tor SOCKS split). Engine 1/4 still use geosite/geoip tags
  * in generated Xray JSON; this object covers hostname decisions at the SOCKS layer.
  */
 object DomesticDirect {
