@@ -68,6 +68,8 @@ jobs:
             "build-tools;35.0.0" \
             "ndk;26.3.11579264" \
             "cmake;3.22.1"
+      - name: Rebuild HEV JNI for Atom package (all four ABIs)
+        run: bash tools/build_hev_android.sh
       - name: Build Universal and ARM64 debug APKs
         run: gradle --no-daemon --stacktrace :app:assembleUniversalDebug :app:assembleArm64Debug
       - name: Validate APK structure, manifest, alignment and signature
