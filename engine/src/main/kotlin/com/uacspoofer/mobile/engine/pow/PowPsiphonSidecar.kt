@@ -1,8 +1,8 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.net.VpnService
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
@@ -25,12 +25,12 @@ import org.json.JSONObject
  * Psiphon's TunnelPoolSize picks a tunnel per port forward round-robin
  * (controller.go getNextActiveTunnel) and never pools two tunnels to the same
  * server (registerTunnel), so it cannot keep one exit IP per service. Instead a
- * second, independent Psiphon (TunnelPoolSize 1) runs in :uacpow2 with its own
- * data root and SOCKS port, and [PowStickyRoute] pins each service to one tunnel.
+ * second, independent Psiphon (TunnelPoolSize 1) runs in :Atom2 with its own
+ * data root and SOCKS port, and [AtomStickyRoute] pins each service to one tunnel.
  * Tunnel 1 stays the session's main tunnel; this one only adds capacity, and if it
  * is down every service simply uses tunnel 1.
  */
-internal class PowPsiphonSidecar(
+internal class AtomPsiphonSidecar(
     private val vpn: VpnService,
     private val onBytes: (Long, Long) -> Unit,
 ) {
@@ -38,7 +38,7 @@ internal class PowPsiphonSidecar(
     private val lock = Mutex()
     private val generation = AtomicInteger(0)
     private val failures = AtomicInteger(0)
-    @Volatile private var client: PowPsiphonClient? = null
+    @Volatile private var client: AtomPsiphonClient? = null
     @Volatile private var routeKey: String? = null
     @Volatile private var baseConfig = ""
     @Volatile private var retryJob: Job? = null
@@ -69,8 +69,8 @@ internal class PowPsiphonSidecar(
         generation.incrementAndGet()
         retryJob?.cancel()
         retryJob = null
-        PowSocksConnectOnly.setSecondaryPort(0)
-        PowStickyRoute.reset()
+        AtomSocksConnectOnly.setSecondaryPort(0)
+        AtomStickyRoute.reset()
         val old = client
         client = null
         routeKey = null
@@ -78,7 +78,7 @@ internal class PowPsiphonSidecar(
             Thread({
                 runCatching { runBlocking { withTimeoutOrNull(FORCE_STOP_MS) { old.stop() } } }
                 runCatching { old.close() }
-            }, "uac-pow-tunnel2-release").apply {
+            }, "atom-engine-tunnel2-release").apply {
                 isDaemon = true
                 start()
             }
@@ -88,30 +88,30 @@ internal class PowPsiphonSidecar(
     private suspend fun startLocked() {
         val gen = generation.incrementAndGet()
         val config = try {
-            PowPsiphonProtocols.sidecarConfig(baseConfig, dataRoot(), PowCoreConfig.SIDECAR_SOCKS_PORT)
+            AtomPsiphonProtocols.sidecarConfig(baseConfig, dataRoot(), AtomCoreConfig.SIDECAR_SOCKS_PORT)
         } catch (error: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "Psiphon tunnel 2 config failed: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Psiphon tunnel 2 config failed: ${error.message}")
             return
         }
-        val next = PowPsiphonClient(vpn, Callbacks(gen), PowPsiphonIpc.SIDECAR_SERVICE_CLASS)
+        val next = AtomPsiphonClient(vpn, Callbacks(gen), AtomPsiphonIpc.SIDECAR_SERVICE_CLASS)
         client = next
         listenPort = 0
         AppLogRepository.info(
-            LogSource.POW,
-            "Psiphon tunnel 2 starting in :uacpow2 (SOCKS ${PowCoreConfig.SIDECAR_SOCKS_PORT})",
+            LogSource.ATOM,
+            "Psiphon tunnel 2 starting in :Atom2 (SOCKS ${AtomCoreConfig.SIDECAR_SOCKS_PORT})",
         )
         try {
             next.start(config)
         } catch (error: Throwable) {
-            AppLogRepository.warning(LogSource.POW, "Psiphon tunnel 2 did not start: ${error.message}")
+            AppLogRepository.warning(LogSource.ATOM, "Psiphon tunnel 2 did not start: ${error.message}")
             scheduleRetry(gen)
         }
     }
 
     private suspend fun stopLocked(reason: String) {
         generation.incrementAndGet()
-        PowSocksConnectOnly.setSecondaryPort(0)
-        PowStickyRoute.reset()
+        AtomSocksConnectOnly.setSecondaryPort(0)
+        AtomStickyRoute.reset()
         val old = client ?: return
         client = null
         routeKey = null
@@ -119,14 +119,14 @@ internal class PowPsiphonSidecar(
             runCatching { old.stop() }
             runCatching { old.close() }
         }
-        AppLogRepository.info(LogSource.POW, "Psiphon tunnel 2 stopped ($reason)")
+        AppLogRepository.info(LogSource.ATOM, "Psiphon tunnel 2 stopped ($reason)")
     }
 
     private fun scheduleRetry(gen: Int) {
         val attempt = failures.incrementAndGet()
         if (attempt > MAX_RETRIES) {
             AppLogRepository.warning(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Psiphon tunnel 2 gave up after $MAX_RETRIES tries; every service uses tunnel 1",
             )
             return
@@ -144,7 +144,7 @@ internal class PowPsiphonSidecar(
                         runCatching { old.close() }
                     }
                 }
-                AppLogRepository.info(LogSource.POW, "Psiphon tunnel 2 retry $attempt/$MAX_RETRIES")
+                AppLogRepository.info(LogSource.ATOM, "Psiphon tunnel 2 retry $attempt/$MAX_RETRIES")
                 startLocked()
             }
         }
@@ -163,30 +163,30 @@ internal class PowPsiphonSidecar(
         return "$direct|$upstream"
     }
 
-    private inner class Callbacks(private val gen: Int) : PowPsiphonClient.Callbacks {
+    private inner class Callbacks(private val gen: Int) : AtomPsiphonClient.Callbacks {
         private fun current(): Boolean = generation.get() == gen
 
         override fun onConnecting() {
             if (!current()) return
             // Lost its server and is reconnecting: its services move to tunnel 1.
-            PowSocksConnectOnly.setSecondaryPort(0)
+            AtomSocksConnectOnly.setSecondaryPort(0)
         }
 
         override fun onConnected() {
             if (!current()) return
             failures.set(0)
-            val port = listenPort.takeIf { it > 0 } ?: PowCoreConfig.SIDECAR_SOCKS_PORT
-            PowSocksConnectOnly.setSecondaryPort(port)
+            val port = listenPort.takeIf { it > 0 } ?: AtomCoreConfig.SIDECAR_SOCKS_PORT
+            AtomSocksConnectOnly.setSecondaryPort(port)
             AppLogRepository.success(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Psiphon tunnel 2 connected; each service now sticks to one tunnel",
             )
         }
 
         override fun onExiting() {
             if (!current()) return
-            PowSocksConnectOnly.setSecondaryPort(0)
-            AppLogRepository.warning(LogSource.POW, "Psiphon tunnel 2 exited; its services use tunnel 1")
+            AtomSocksConnectOnly.setSecondaryPort(0)
+            AppLogRepository.warning(LogSource.ATOM, "Psiphon tunnel 2 exited; its services use tunnel 1")
             scheduleRetry(gen)
         }
 
@@ -197,7 +197,7 @@ internal class PowPsiphonSidecar(
         override fun onDiagnosticMessage(message: String) {
             if (!current()) return
             if (message.startsWith("ActiveTunnel:")) {
-                AppLogRepository.info(LogSource.POW, "[tunnel 2] ${message.take(200)}")
+                AppLogRepository.info(LogSource.ATOM, "[tunnel 2] ${message.take(200)}")
             }
         }
 
@@ -209,7 +209,7 @@ internal class PowPsiphonSidecar(
 
         override fun onConnectedServerRegion(region: String) {
             if (!current()) return
-            AppLogRepository.info(LogSource.POW, "Psiphon tunnel 2 exit country ${PowRegions.name(region)} ($region)")
+            AppLogRepository.info(LogSource.ATOM, "Psiphon tunnel 2 exit country ${AtomRegions.name(region)} ($region)")
         }
 
         override fun onAvailableEgressRegions(regions: List<String>) = Unit
@@ -218,8 +218,8 @@ internal class PowPsiphonSidecar(
 
         override fun onStartFailed(message: String) {
             if (!current()) return
-            PowSocksConnectOnly.setSecondaryPort(0)
-            AppLogRepository.warning(LogSource.POW, "Psiphon tunnel 2 failed to start: $message")
+            AtomSocksConnectOnly.setSecondaryPort(0)
+            AppLogRepository.warning(LogSource.ATOM, "Psiphon tunnel 2 failed to start: $message")
             scheduleRetry(gen)
         }
     }
