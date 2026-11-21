@@ -16,12 +16,12 @@ Engine implementation packages are under `com.atomvpn.mobile.engine`; the connec
 - Aether JNI entry points in `native/aether_jni.cpp` match `com.atomvpn.mobile.engine.atom.AetherNative`.
 - The V2Ray AAR patcher targets the Atom `GoJniLoader` class.
 - Psiphon runs in isolated processes `:atomengine` and `:atomengine2`.
-- The prebuilt HEV library retains its original JNI bridge class. `AtomHevSocks5Tunnel` is the Atom-facing wrapper; the bridge is kept only for binary compatibility.
+- HEV is rebuilt from a pinned upstream revision with JNI symbols bound directly to `com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel`; the UAC-era Java bridge is not part of the runtime binding.
 
 ## Data compatibility
 
-Legacy engine preferences, MTU/DNS cache preferences, identity material and learned route files are copied into Atom-named locations on first use. The legacy values are not deleted during migration.
+Legacy engine preferences, MTU/DNS cache preferences, identity material and learned route files are copied into Atom-named locations on first use. Legacy preference values and identity/cache sources are retained for compatibility. The one-time connect-order reset deliberately clears only obsolete last-connected peer hints, including their UAC-era source files, so lazy migration cannot restore stale hints.
 
 ## Validation boundary
 
-The rename is performed on `atom-engine-rename`; the stable application branch remains unchanged. CI build success validates compilation and APK packaging only. It does not prove that the VPN tunnel connects on a physical device. A real-device connection test is required before merging this branch.
+PR #4 (Atom-owned HEV JNI binding and safe native-library packaging) is merged into `pow-standalone`. The ARM64 APK passed native-library validation and a real-device VPN connection test. Post-merge CI validates the merge commit separately; compilation and APK packaging alone do not replace device-level testing.

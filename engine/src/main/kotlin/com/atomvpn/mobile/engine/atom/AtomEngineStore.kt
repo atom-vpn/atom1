@@ -87,8 +87,9 @@ class AtomEngineStore private constructor(context: Context) {
                 .remove(KEY_OUTER_PROTOCOL)
                 .putBoolean(KEY_CONNECT_FIRST_MIGRATION, true)
                 .apply()
-            runCatching { AtomCoreConfig.lastconnPath(appContext).takeIf { it.isFile }?.delete() }
-            runCatching { AtomCoreConfig.goolLastconnPath(appContext).takeIf { it.isFile }?.delete() }
+            // Clear both current and legacy sources; otherwise the lazy file migration
+            // would copy the stale UAC-era peer hints back on the next read.
+            AtomCoreConfig.clearObsoleteLastConnMemory(appContext)
         }
         // Run after the one-time scoreboard reset above, so migrated values survive.
         AtomNetworkScoreboard.migrateLegacyKeys(prefs)
