@@ -345,7 +345,7 @@ class AtomEngineStore private constructor(context: Context) {
                     is Int -> editor.putInt(key, value)
                     is Long -> editor.putLong(key, value)
                     is Float -> editor.putFloat(key, value)
-                    is Set<*> -> editor.putStringSet(key, value.filterIsInstance<String>().toSet())
+                    is Set<*> -> editor.putStringSet(key, value.filterIsInstance<String>().toMutableSet())
                 }
             }
             editor.commit()
