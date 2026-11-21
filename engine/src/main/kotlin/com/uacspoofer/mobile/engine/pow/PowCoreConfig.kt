@@ -1,10 +1,10 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import org.json.JSONObject
 import java.io.File
 
-object PowCoreConfig {
+object AtomCoreConfig {
     const val SOCKS_PORT = 1819
     const val TUN_SOCKS_PORT = 1818
     const val CHAIN_SOCKS_PORT = 1820
@@ -33,11 +33,11 @@ object PowCoreConfig {
 
     fun identityPath(context: Context): File = File(context.filesDir, "uac-pow.toml")
 
-    fun masqueCachePath(context: Context): File = File(context.filesDir, "uac-pow-masque-cache.json")
+    fun masqueCachePath(context: Context): File = File(context.filesDir, "atom-engine-masque-cache.json")
 
-    fun lastconnPath(context: Context): File = File(context.filesDir, "uac-pow-lastconn.toml")
+    fun lastconnPath(context: Context): File = File(context.filesDir, "atom-engine-lastconn.toml")
 
-    fun goolLastconnPath(context: Context): File = File(context.filesDir, "uac-pow-gool-lastconn.toml")
+    fun goolLastconnPath(context: Context): File = File(context.filesDir, "atom-engine-gool-lastconn.toml")
 
     fun pathMemoryFiles(context: Context): List<File> = listOf(
         masqueCachePath(context),
@@ -50,12 +50,12 @@ object PowCoreConfig {
     )
 
     fun expireStalePathMemory(context: Context, nowMs: Long = System.currentTimeMillis()): Int =
-        pathMemoryFiles(context).count { PowQualityPolicy.expireFileIfStale(it, nowMs) }
+        pathMemoryFiles(context).count { AtomQualityPolicy.expireFileIfStale(it, nowMs) }
 
     fun forgetPathMemory(context: Context): Int =
         pathMemoryFiles(context).count { file -> file.isFile && file.delete() }
 
-    fun cleanH2File(context: Context): File = File(context.filesDir, "uac-pow-clean-h2.json")
+    fun cleanH2File(context: Context): File = File(context.filesDir, "atom-engine-clean-h2.json")
 
     fun cleanH2Peers(context: Context): List<String> {
         val file = cleanH2File(context)
@@ -70,9 +70,9 @@ object PowCoreConfig {
     fun chainOuterJson(
         context: Context,
         protocol: String,
-        settings: PowEngineSettings,
+        settings: AtomEngineSettings,
         discovery: String = DISCOVERY_CACHE,
-        scanMode: String = PowCoreConfig.SCAN_BALANCED,
+        scanMode: String = AtomCoreConfig.SCAN_BALANCED,
         mci: Boolean = false,
     ): String = JSONObject().apply {
         put("config_path", identityPath(context).absolutePath)
@@ -105,25 +105,25 @@ object PowCoreConfig {
     }.toString()
 
     /** MASQUE uses the user's IP setting when it is not "auto"; other protocols keep the recipe's. */
-    fun ipScanFor(settings: PowEngineSettings, plan: PowOuterPlan, protocol: String): String =
+    fun ipScanFor(settings: AtomEngineSettings, plan: AtomOuterPlan, protocol: String): String =
         if (ipScanStrict(settings, protocol)) settings.validated().masqueIpVersion else plan.ipFor(protocol)
 
-    fun ipScanStrict(settings: PowEngineSettings, protocol: String): Boolean =
-        protocol == "masque" && settings.validated().masqueIpVersion != PowEngineSettings.MASQUE_IP_AUTO
+    fun ipScanStrict(settings: AtomEngineSettings, protocol: String): Boolean =
+        protocol == "masque" && settings.validated().masqueIpVersion != AtomEngineSettings.MASQUE_IP_AUTO
 
     /** H2 fragment: On/Off are the user's; Auto = recipe default OR the adaptive DPI flag. MASQUE h2 only. */
-    fun h2FragmentEffective(context: Context, settings: PowEngineSettings, protocol: String, plan: PowOuterPlan): Boolean {
+    fun h2FragmentEffective(context: Context, settings: AtomEngineSettings, protocol: String, plan: AtomOuterPlan): Boolean {
         val h2 = protocol == "masque" && plan.masqueTransport == "h2"
-        val adaptive = PowAdaptiveObfuscation.adaptiveOn(context)
+        val adaptive = AtomAdaptiveObfuscation.adaptiveOn(context)
         val effective = h2 && when (settings.h2FragmentMode) {
-            PowEngineSettings.H2_FRAG_ON -> true
-            PowEngineSettings.H2_FRAG_OFF -> false
+            AtomEngineSettings.H2_FRAG_ON -> true
+            AtomEngineSettings.H2_FRAG_OFF -> false
             else -> plan.fragment || adaptive
         }
-        if (protocol == "masque") PowLiveExit.updatePath { it.copy(h2Fragment = effective) }
+        if (protocol == "masque") AtomLiveExit.updatePath { it.copy(h2Fragment = effective) }
         if (protocol == "masque") {
-            com.uacspoofer.mobile.logging.AppLogRepository.info(
-                com.uacspoofer.mobile.logging.LogSource.POW,
+            com.atomvpn.mobile.engine.logging.AppLogRepository.info(
+                com.atomvpn.mobile.engine.logging.LogSource.ATOM,
                 "H2 fragment: mode=${settings.h2FragmentMode} effective=$effective" +
                     " (recipe=${plan.fragment} adaptive=$adaptive transport=${plan.masqueTransport})",
             )
@@ -132,10 +132,10 @@ object PowCoreConfig {
     }
 
     /** MASQUE over HTTP/2 already hides inside TLS; the user may lighten the extra obfuscation. */
-    fun obfuscationFor(settings: PowEngineSettings, protocol: String, plan: PowOuterPlan): String {
+    fun obfuscationFor(settings: AtomEngineSettings, protocol: String, plan: AtomOuterPlan): String {
         val h2 = protocol == "masque" && plan.masqueTransport == "h2"
         val override = settings.h2Obfuscation.trim().lowercase()
-        return if (h2 && override in PowEngineSettings.H2_OBFS_CHOICES && override != PowEngineSettings.H2_OBFS_UNCHANGED) {
+        return if (h2 && override in AtomEngineSettings.H2_OBFS_CHOICES && override != AtomEngineSettings.H2_OBFS_UNCHANGED) {
             override
         } else {
             settings.obfuscationProfile
@@ -170,7 +170,7 @@ object PowCoreConfig {
         }
     }
 
-    fun candidates(settings: PowEngineSettings, mci: Boolean = false): List<String> {
+    fun candidates(settings: AtomEngineSettings, mci: Boolean = false): List<String> {
         val mode = settings.outerTransport
         val ladder = if (mci) MCI_LADDER else OUTER_LADDER
         return when {
@@ -228,7 +228,7 @@ object PowCoreConfig {
         else -> listOf("wireguard", "gool", "masque")
     }
 
-    fun keyRequestJson(context: Context, settings: PowEngineSettings, protocol: String): String {
+    fun keyRequestJson(context: Context, settings: AtomEngineSettings, protocol: String): String {
         val json = JSONObject(
             chainOuterJson(
                 context,
@@ -242,53 +242,53 @@ object PowCoreConfig {
         return json.toString()
     }
 
-    fun certRenewJson(context: Context, settings: PowEngineSettings): String {
+    fun certRenewJson(context: Context, settings: AtomEngineSettings): String {
         val json = JSONObject(keyRequestJson(context, settings, "masque"))
         json.put("renew_masque", true)
         return json.toString()
     }
 
-    fun usesMciFirewall(context: Context, settings: PowEngineSettings): Boolean = when (settings.carrierMode) {
-        CARRIER_AUTO -> PowCarrier.carrierClass(context) == "mci"
+    fun usesMciFirewall(context: Context, settings: AtomEngineSettings): Boolean = when (settings.carrierMode) {
+        CARRIER_AUTO -> AtomCarrier.carrierClass(context) == "mci"
         CARRIER_OFF -> false
         else -> when (settings.firewallProfile) {
             FIREWALL_MCI -> true
             FIREWALL_IRANCELL -> false
-            else -> PowCarrier.carrierClass(context) == "mci"
+            else -> AtomCarrier.carrierClass(context) == "mci"
         }
     }
 
     fun outerPlan(
-        settings: PowEngineSettings,
+        settings: AtomEngineSettings,
         mci: Boolean,
         carrierClass: String = if (mci) "mci" else "unknown",
-    ): PowOuterPlan {
+    ): AtomOuterPlan {
         val recipe = settings.validated().linkRecipe
         val recipePlan = when {
             settings.carrierMode == CARRIER_AUTO -> when (carrierClass) {
-                "mci" -> PowOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · MASQUE HTTP/2")
-                "irancell" -> PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · automatic ladder")
-                else -> PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic · automatic ladder")
+                "mci" -> AtomOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · MASQUE HTTP/2")
+                "irancell" -> AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · automatic ladder")
+                else -> AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic · automatic ladder")
             }
             settings.carrierMode == CARRIER_OFF ->
-                PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic automatic ladder")
+                AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic automatic ladder")
             settings.carrierMode == CARRIER_MANUAL && settings.firewallProfile == FIREWALL_MCI ->
-                PowOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · manual")
+                AtomOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · manual")
             settings.carrierMode == CARRIER_MANUAL ->
-                PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · manual ladder")
+                AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · manual ladder")
             else -> when (recipe) {
-            RECIPE_WARP_V6 -> PowOuterPlan(listOf("wireguard"), "v6", "h3", false, true, "WARP IPv6")
-            RECIPE_WARP_ANY -> PowOuterPlan(listOf("wireguard"), "both", "h3", false, true, "WARP any IP")
-            RECIPE_WOW_V6 -> PowOuterPlan(listOf("gool"), "v6", "h3", false, true, "WARP-in-WARP IPv6")
-            RECIPE_WOW_ANY -> PowOuterPlan(listOf("gool"), "both", "h3", false, true, "WARP-in-WARP any IP")
-            RECIPE_MASQUE_H2 -> PowOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2")
-            RECIPE_MASQUE_H3 -> PowOuterPlan(listOf("masque"), "v4", "h3", false, true, "MASQUE HTTP/3")
-            RECIPE_MASQUE_H2_SPLIT -> PowOuterPlan(listOf("masque"), "v4", "h2", true, true, "MASQUE HTTP/2 split hello")
-            RECIPE_MASQUE_H2_SAVED -> PowOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2 saved IPs")
+            RECIPE_WARP_V6 -> AtomOuterPlan(listOf("wireguard"), "v6", "h3", false, true, "WARP IPv6")
+            RECIPE_WARP_ANY -> AtomOuterPlan(listOf("wireguard"), "both", "h3", false, true, "WARP any IP")
+            RECIPE_WOW_V6 -> AtomOuterPlan(listOf("gool"), "v6", "h3", false, true, "WARP-in-WARP IPv6")
+            RECIPE_WOW_ANY -> AtomOuterPlan(listOf("gool"), "both", "h3", false, true, "WARP-in-WARP any IP")
+            RECIPE_MASQUE_H2 -> AtomOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2")
+            RECIPE_MASQUE_H3 -> AtomOuterPlan(listOf("masque"), "v4", "h3", false, true, "MASQUE HTTP/3")
+            RECIPE_MASQUE_H2_SPLIT -> AtomOuterPlan(listOf("masque"), "v4", "h2", true, true, "MASQUE HTTP/2 split hello")
+            RECIPE_MASQUE_H2_SAVED -> AtomOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2 saved IPs")
             else -> if (mci) {
-                PowOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2")
+                AtomOuterPlan(listOf("masque"), "both", "h2", false, true, "MASQUE HTTP/2")
             } else {
-                PowOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Automatic ladder")
+                AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Automatic ladder")
             }
         }
         }
@@ -297,7 +297,7 @@ object PowCoreConfig {
         // list. Automatic keeps the recipe/carrier-aware protocol order.
         val selectedTransport = settings.outerTransport.trim().lowercase()
         return if (selectedTransport in OUTER_LADDER) {
-            PowOuterPlan(
+            AtomOuterPlan(
                 protocols = listOf(selectedTransport),
                 ipMode = recipePlan.ipMode,
                 masqueTransport = recipePlan.masqueTransport,
@@ -311,7 +311,7 @@ object PowCoreConfig {
     }
 }
 
-class PowOuterPlan(
+class AtomOuterPlan(
     val protocols: List<String>,
     val ipMode: String,
     val masqueTransport: String,
