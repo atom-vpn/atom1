@@ -1,8 +1,8 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.os.SystemClock
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -15,7 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Isolated to PoW: uses shadow ports that never collide with
  * Xray (10808) or Tor (19050/19051). Hev TUN is NOT restarted.
  */
-internal object PowGhostHandover {
+internal object AtomGhostHandover {
     const val SHADOW_CHAIN_PORT = 1821
     const val SHADOW_SOCKS_PORT = 1822
 
@@ -23,38 +23,38 @@ internal object PowGhostHandover {
 
     suspend fun warmShadowPath(
         appContext: android.content.Context,
-        currentSettings: PowEngineSettings,
+        currentSettings: AtomEngineSettings,
         lastOuter: String,
         establish: suspend (protocol: String, discovery: String, scanMode: String, chainPort: Int) -> String?,
         startPsiphonOnShadow: suspend (socksPort: Int) -> Boolean,
     ): WarmResult? {
-        val ladder = PowCoreConfig.candidates(currentSettings)
-        val ordered = PowQualityPolicy.outerOrder(ladder, lastOuter)
+        val ladder = AtomCoreConfig.candidates(currentSettings)
+        val ordered = AtomQualityPolicy.outerOrder(ladder, lastOuter)
         for (protocol in ordered) {
-            val label = PowCoreConfig.outerLabel(protocol)
-            val outer = withTimeoutOrNull(PowQualityPolicy.GHOST_HANDOVER_TIMEOUT_MS) {
-                AppLogRepository.info(LogSource.POW, "Ghost handover probing $label on :$SHADOW_CHAIN_PORT")
-                val ok = establish(protocol, PowCoreConfig.DISCOVERY_FRESH, "turbo", SHADOW_CHAIN_PORT)
+            val label = AtomCoreConfig.outerLabel(protocol)
+            val outer = withTimeoutOrNull(AtomQualityPolicy.GHOST_HANDOVER_TIMEOUT_MS) {
+                AppLogRepository.info(LogSource.ATOM, "Ghost handover probing $label on :$SHADOW_CHAIN_PORT")
+                val ok = establish(protocol, AtomCoreConfig.DISCOVERY_FRESH, "turbo", SHADOW_CHAIN_PORT)
                 ok
             }
             if (outer == null) {
-                AppLogRepository.debug(LogSource.POW, "Ghost shadow $label no outer in time")
+                AppLogRepository.debug(LogSource.ATOM, "Ghost shadow $label no outer in time")
                 continue
             }
-            val psiphonOk = withTimeoutOrNull(PowQualityPolicy.INNER_RETUNE_TIMEOUT_MS) {
+            val psiphonOk = withTimeoutOrNull(AtomQualityPolicy.INNER_RETUNE_TIMEOUT_MS) {
                 startPsiphonOnShadow(SHADOW_SOCKS_PORT)
             } ?: false
             if (!psiphonOk) {
-                AppLogRepository.warning(LogSource.POW, "Ghost shadow $label psiphon did not connect")
+                AppLogRepository.warning(LogSource.ATOM, "Ghost shadow $label psiphon did not connect")
                 continue
             }
             delay(800)
-            val probe = PowPathProbe.measureMs(SHADOW_SOCKS_PORT)
+            val probe = AtomPathProbe.measureMs(SHADOW_SOCKS_PORT)
             if (probe <= 0L) {
-                AppLogRepository.warning(LogSource.POW, "Ghost shadow $label probe failed")
+                AppLogRepository.warning(LogSource.ATOM, "Ghost shadow $label probe failed")
                 continue
             }
-            AppLogRepository.success(LogSource.POW, "Ghost shadow $label ready ${probe}ms")
+            AppLogRepository.success(LogSource.ATOM, "Ghost shadow $label ready ${probe}ms")
             return WarmResult(label, SHADOW_SOCKS_PORT, probe)
         }
         return null
@@ -65,26 +65,26 @@ internal object PowGhostHandover {
         verifyMs: Long = 900L,
     ): Boolean {
         // Atomically redirect TUN relay to shadow; verify with a quick probe.
-        PowSocksConnectOnly.setUpstreamPort(shadowSocksPort)
+        AtomSocksConnectOnly.setUpstreamPort(shadowSocksPort)
         // Don't drop relays on flip — let existing streams drain.
         delay(verifyMs)
-        val probe = PowPathProbe.measureMs(shadowSocksPort)
+        val probe = AtomPathProbe.measureMs(shadowSocksPort)
         return probe > 0L
     }
 
     fun shadowChainJson(
         appContext: android.content.Context,
         protocol: String,
-        settings: PowEngineSettings,
+        settings: AtomEngineSettings,
         chainPort: Int,
         mci: Boolean = false,
     ): String {
-        val base = PowCoreConfig.chainOuterJson(
+        val base = AtomCoreConfig.chainOuterJson(
             appContext,
             protocol,
             settings,
-            discovery = PowCoreConfig.DISCOVERY_FRESH,
-            scanMode = PowCoreConfig.SCAN_TURBO,
+            discovery = AtomCoreConfig.DISCOVERY_FRESH,
+            scanMode = AtomCoreConfig.SCAN_TURBO,
             mci = mci,
         )
         return runCatching {
