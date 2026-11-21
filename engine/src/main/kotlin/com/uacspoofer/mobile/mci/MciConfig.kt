@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.mci
+package com.atomvpn.mobile.engine.mci
 
 data class MciEdge(
     val address: String,
