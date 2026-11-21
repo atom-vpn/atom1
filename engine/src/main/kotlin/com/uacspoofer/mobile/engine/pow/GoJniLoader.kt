@@ -1,25 +1,25 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.os.Build
 import java.io.File
 
 object GoJniLoader {
     const val XRAY_LIBRARY = "gojni"
-    const val POW_LIBRARY = "gopsi"
-    const val POW_PROCESS_SUFFIX = ":uacpow"
-    const val POW_SIDECAR_PROCESS_SUFFIX = ":uacpow2"
+    const val ATOM_LIBRARY = "gopsi"
+    const val ATOM_PROCESS_SUFFIX = ":Atom"
+    const val ATOM_SIDECAR_PROCESS_SUFFIX = ":Atom2"
 
     @Volatile
     private var forcedLibrary: String? = null
 
     @JvmStatic
     fun forcePowLibrary() {
-        forcedLibrary = POW_LIBRARY
+        forcedLibrary = ATOM_LIBRARY
     }
 
     @JvmStatic
     fun load() {
-        System.loadLibrary(forcedLibrary ?: if (isPowProcess()) POW_LIBRARY else XRAY_LIBRARY)
+        System.loadLibrary(forcedLibrary ?: if (isPowProcess()) ATOM_LIBRARY else XRAY_LIBRARY)
     }
 
     @JvmStatic
@@ -27,7 +27,7 @@ object GoJniLoader {
 
     @JvmStatic
     fun isPowProcessName(name: String): Boolean =
-        name.endsWith(POW_PROCESS_SUFFIX) || name.endsWith(POW_SIDECAR_PROCESS_SUFFIX)
+        name.endsWith(ATOM_PROCESS_SUFFIX) || name.endsWith(ATOM_SIDECAR_PROCESS_SUFFIX)
 
     private fun processName(): String {
         if (Build.VERSION.SDK_INT >= 28) {
