@@ -5,7 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 
 /**
- * Permission-free network snapshot used by the migrated PoW engine.
+ * Permission-free network snapshot used by the migrated Atom engine.
  * Android does not expose SIM operator identity to ordinary apps without
  * phone-state permissions. Unknown carrier is therefore intentional; users
  * can select MCI or Irancell manually in Atom settings.
