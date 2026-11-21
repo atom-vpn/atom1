@@ -11,13 +11,47 @@ import android.net.NetworkCapabilities
  * physical network so reconnect on the same WiFi/cell is instant.
  */
 internal object AtomNetworkScoreboard {
-    private const val KEY_PREFIX_OUTER = "pow_net_outer_"
-    private const val KEY_PREFIX_STRATEGY = "pow_net_strat_"
-    private const val KEY_PREFIX_STRAT_SHAPE = "pow_net_strat_shape_"
-    private const val KEY_PREFIX_RTT = "pow_net_rtt_"
-    private const val KEY_PREFIX_REGION = "pow_net_region_"
-    private const val KEY_PREFIX_STRAT_RTT = "pow_net_srtt_"
-    private const val KEY_PREFIX_REGION_STATS = "pow_net_region_stats_"
+    private const val KEY_PREFIX_OUTER = "atom_net_outer_"
+    private const val KEY_PREFIX_STRATEGY = "atom_net_strat_"
+    private const val KEY_PREFIX_STRAT_SHAPE = "atom_net_strat_shape_"
+    private const val KEY_PREFIX_RTT = "atom_net_rtt_"
+    private const val KEY_PREFIX_REGION = "atom_net_region_"
+    private const val KEY_PREFIX_STRAT_RTT = "atom_net_srtt_"
+    private const val KEY_PREFIX_REGION_STATS = "atom_net_region_stats_"
+
+    /**
+     * Copies the previous scoreboard namespace once. Legacy keys are retained
+     * so a rollback to an older build does not lose the learned network profile.
+     */
+    fun migrateLegacyKeys(prefs: android.content.SharedPreferences) {
+        val migrationKey = "atom_net_key_migration_v1"
+        if (prefs.getBoolean(migrationKey, false)) return
+        val prefixes = listOf(
+            "pow_net_strat_shape_" to KEY_PREFIX_STRAT_SHAPE,
+            "pow_net_region_stats_" to KEY_PREFIX_REGION_STATS,
+            "pow_net_outer_" to KEY_PREFIX_OUTER,
+            "pow_net_strat_" to KEY_PREFIX_STRATEGY,
+            "pow_net_rtt_" to KEY_PREFIX_RTT,
+            "pow_net_region_" to KEY_PREFIX_REGION,
+            "pow_net_srtt_" to KEY_PREFIX_STRAT_RTT,
+        )
+        val values = prefs.all
+        val editor = prefs.edit()
+        for ((oldKey, value) in values) {
+            val mapping = prefixes.firstOrNull { (oldPrefix, _) -> oldKey.startsWith(oldPrefix) } ?: continue
+            val newKey = mapping.second + oldKey.removePrefix(mapping.first)
+            if (prefs.contains(newKey)) continue
+            when (value) {
+                is String -> editor.putString(newKey, value)
+                is Boolean -> editor.putBoolean(newKey, value)
+                is Int -> editor.putInt(newKey, value)
+                is Long -> editor.putLong(newKey, value)
+                is Float -> editor.putFloat(newKey, value)
+                is Set<*> -> editor.putStringSet(newKey, value.filterIsInstance<String>().toMutableSet())
+            }
+        }
+        editor.putBoolean(migrationKey, true).commit()
+    }
 
     fun networkKey(context: Context): String {
         return runCatching {
