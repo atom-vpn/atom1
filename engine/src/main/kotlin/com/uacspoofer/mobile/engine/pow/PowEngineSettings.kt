@@ -1,19 +1,19 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
-data class PowEngineSettings(
+data class AtomEngineSettings(
     val exitCountryCode: String = "",
-    val outerTransport: String = PowCoreConfig.OUTER_AUTO,
+    val outerTransport: String = AtomCoreConfig.OUTER_AUTO,
     val obfuscationProfile: String = "balanced",
     val h2Fragmentation: Boolean = true,
-    val scanMode: String = PowCoreConfig.SCAN_BALANCED,
+    val scanMode: String = AtomCoreConfig.SCAN_BALANCED,
     val optimizedMode: Boolean = true,
-    val firewallProfile: String = PowCoreConfig.FIREWALL_AUTO,
-    val carrierMode: String = PowCoreConfig.CARRIER_AUTO,
-    val linkRecipe: String = PowCoreConfig.RECIPE_MASQUE_H2,
+    val firewallProfile: String = AtomCoreConfig.FIREWALL_AUTO,
+    val carrierMode: String = AtomCoreConfig.CARRIER_AUTO,
+    val linkRecipe: String = AtomCoreConfig.RECIPE_MASQUE_H2,
     val chainPsiphon: Boolean = true,
     /** chain = Psiphon over WARP, warp = WARP only, psiphon = Psiphon direct (no WARP leg). */
     val exitMode: String = EXIT_CHAIN,
-    val keyFetch: String = PowCoreConfig.KEY_AUTO,
+    val keyFetch: String = AtomCoreConfig.KEY_AUTO,
     val psiphonTunnelPool: Boolean = false,
     val quicTuned: Boolean = false,
     // Advanced settings (تنظیمات پیشرفته)
@@ -32,28 +32,28 @@ data class PowEngineSettings(
     /** MASQUE IP family: "auto" = the recipe decides (old behaviour), else v4 / v6 / both. */
     val masqueIpVersion: String = MASQUE_IP_AUTO,
 ) {
-    fun validated(): PowEngineSettings = validatedRaw().let { it.copy(chainPsiphon = it.exitMode != EXIT_WARP) }
+    fun validated(): AtomEngineSettings = validatedRaw().let { it.copy(chainPsiphon = it.exitMode != EXIT_WARP) }
 
-    private fun validatedRaw(): PowEngineSettings {
-        val country = PowRegions.normalize(exitCountryCode)
-        val transport = outerTransport.trim().lowercase().ifBlank { PowCoreConfig.OUTER_AUTO }
+    private fun validatedRaw(): AtomEngineSettings {
+        val country = AtomRegions.normalize(exitCountryCode)
+        val transport = outerTransport.trim().lowercase().ifBlank { AtomCoreConfig.OUTER_AUTO }
         val obfuscation = obfuscationProfile.trim().lowercase().ifBlank { "balanced" }
         val firewall = firewallProfile.trim().lowercase()
         val recipe = linkRecipe.trim().lowercase()
         val fetch = keyFetch.trim().lowercase()
         return copy(
             exitCountryCode = country,
-            outerTransport = if (transport == PowCoreConfig.OUTER_AUTO || transport in PowCoreConfig.OUTER_LADDER) {
+            outerTransport = if (transport == AtomCoreConfig.OUTER_AUTO || transport in AtomCoreConfig.OUTER_LADDER) {
                 transport
             } else {
-                PowCoreConfig.OUTER_AUTO
+                AtomCoreConfig.OUTER_AUTO
             },
             obfuscationProfile = if (obfuscation in OBFUSCATION_PROFILES) obfuscation else "balanced",
-            scanMode = PowCoreConfig.normalizeScanMode(scanMode),
-            firewallProfile = if (firewall in PowCoreConfig.FIREWALLS) firewall else PowCoreConfig.FIREWALL_AUTO,
-            carrierMode = carrierMode.trim().lowercase().let { if (it in PowCoreConfig.CARRIER_MODES) it else PowCoreConfig.CARRIER_AUTO },
-            linkRecipe = if (recipe in PowCoreConfig.RECIPES) recipe else PowCoreConfig.RECIPE_AUTO,
-            keyFetch = if (fetch in PowCoreConfig.KEY_FETCHES) fetch else PowCoreConfig.KEY_AUTO,
+            scanMode = AtomCoreConfig.normalizeScanMode(scanMode),
+            firewallProfile = if (firewall in AtomCoreConfig.FIREWALLS) firewall else AtomCoreConfig.FIREWALL_AUTO,
+            carrierMode = carrierMode.trim().lowercase().let { if (it in AtomCoreConfig.CARRIER_MODES) it else AtomCoreConfig.CARRIER_AUTO },
+            linkRecipe = if (recipe in AtomCoreConfig.RECIPES) recipe else AtomCoreConfig.RECIPE_AUTO,
+            keyFetch = if (fetch in AtomCoreConfig.KEY_FETCHES) fetch else AtomCoreConfig.KEY_AUTO,
             h2Obfuscation = h2Obfuscation.trim().lowercase().let { if (it in H2_OBFS_CHOICES) it else H2_OBFS_UNCHANGED },
             exitMode = exitMode.trim().lowercase().let { if (it in EXIT_MODES) it else EXIT_CHAIN },
             tunMtu = when {
@@ -74,7 +74,7 @@ data class PowEngineSettings(
 
     companion object {
         val OBFUSCATION_PROFILES = setOf("off", "light", "balanced", "aggressive")
-        val DEFAULT = PowEngineSettings()
+        val DEFAULT = AtomEngineSettings()
         const val H2_OBFS_UNCHANGED = "unchanged"
         val H2_OBFS_CHOICES = setOf(H2_OBFS_UNCHANGED, "light", "off")
         /** 0 = the app's own MTU (clamped to 1280 as before). */
