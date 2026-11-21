@@ -1,9 +1,9 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 import java.util.Locale
 
-object PowRegions {
+object AtomRegions {
     const val AUTOMATIC = ""
 
     private val BUNDLED = mapOf(
@@ -70,7 +70,7 @@ object PowRegions {
     )
 
     /** Country performance measured independently for each physical network. */
-    data class PowRegionStats(
+    data class AtomRegionStats(
         val attempts: Int,
         val successes: Int,
         val totalConnectMs: Long,
@@ -90,7 +90,7 @@ object PowRegions {
         remembered: String?,
         available: Collection<String>,
         rememberedOnly: Boolean = false,
-        performance: Map<String, PowRegionStats> = emptyMap(),
+        performance: Map<String, AtomRegionStats> = emptyMap(),
     ): List<String> {
         val live = available.map { it.trim().uppercase(Locale.US) }.filter(::isCode).toSet()
         val usable = { code: String -> live.isEmpty() || code in live }
@@ -166,6 +166,6 @@ object PowRegions {
     }
 
     fun remember(context: Context, codes: List<String>) {
-        PowEngineStore.get(context).rememberAvailableRegions(codes)
+        AtomEngineStore.get(context).rememberAvailableRegions(codes)
     }
 }
