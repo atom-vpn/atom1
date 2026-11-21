@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * A pin only moves when its tunnel stops answering, and then it stays on the
  * survivor so the exit IP of that service changes at most once.
  */
-internal object PowStickyRoute {
+internal object AtomStickyRoute {
     const val TUNNEL_1 = 0
     const val TUNNEL_2 = 1
     private const val MAX_PINS = 4096
