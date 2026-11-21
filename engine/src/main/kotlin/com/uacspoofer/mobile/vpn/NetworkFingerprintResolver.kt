@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.vpn
+package com.atomvpn.mobile.engine.vpn
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -10,7 +10,7 @@ import android.net.NetworkCapabilities
  * phone-state permissions. Unknown carrier is therefore intentional; users
  * can select MCI or Irancell manually in Atom settings.
  */
-data class PowNetworkFingerprint(
+data class AtomNetworkFingerprint(
     val transport: String,
     val dataSubscriptionId: Int,
     val carrierClass: String,
@@ -19,9 +19,9 @@ data class PowNetworkFingerprint(
 class NetworkFingerprintResolver(context: Context) {
     private val appContext = context.applicationContext
 
-    fun capture(): PowNetworkFingerprint {
+    fun capture(): AtomNetworkFingerprint {
         val connectivity = appContext.getSystemService(ConnectivityManager::class.java)
-        return PowNetworkFingerprint(
+        return AtomNetworkFingerprint(
             transport = resolveTransport(connectivity),
             dataSubscriptionId = -1,
             carrierClass = "unknown",
