@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.vpn
+package com.atomvpn.mobile.engine.vpn
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
