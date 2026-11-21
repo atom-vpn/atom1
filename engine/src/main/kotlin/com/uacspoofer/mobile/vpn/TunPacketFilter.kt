@@ -1,13 +1,13 @@
-package com.uacspoofer.mobile.vpn
+package com.atomvpn.mobile.engine.vpn
 
 import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
-import com.uacspoofer.mobile.settings.NetworkGuardSettings
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
+import com.atomvpn.mobile.engine.settings.NetworkGuardSettings
 import java.io.FileDescriptor
 
 /**
