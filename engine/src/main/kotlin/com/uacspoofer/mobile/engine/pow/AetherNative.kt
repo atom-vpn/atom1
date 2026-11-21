@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.net.VpnService
 import android.os.SystemClock
@@ -22,7 +22,7 @@ object AetherNative {
     val available: Boolean get() = loadError == null
 
     val unavailableReason: String
-        get() = loadError ?: "UAC PoW native libraries are not packaged for this ABI"
+        get() = loadError ?: "Atom native libraries are not packaged for this ABI"
 
     data class TunnelAddresses(
         val ipv4: String,
@@ -44,12 +44,12 @@ object AetherNative {
                     val file = java.io.File(path)
                     if (!file.exists()) {
                         val ok = OobKeyFetch.tryFetch(file)
-                        android.util.Log.i("UAC-POW", "Key: java-oob tryFetch returned $ok")
+                        android.util.Log.i("UAC-ATOM", "Key: java-oob tryFetch returned $ok")
                     }
                 }
             }
         }.onFailure { err ->
-            android.util.Log.e("UAC-POW", "Key: java-oob lane crashed: ${err.javaClass.simpleName}: ${err.message}", err)
+            android.util.Log.e("UAC-ATOM", "Key: java-oob lane crashed: ${err.javaClass.simpleName}: ${err.message}", err)
         }
         // Defensive: rewrite identity PEMs if an older build left blank lines in cert_pem.
         runCatching {
@@ -57,7 +57,7 @@ object AetherNative {
             if (path.isNotBlank()) {
                 val file = java.io.File(path)
                 if (PemUtil.sanitizeIdentityFile(file)) {
-                    android.util.Log.i("UAC-POW", "Key: sanitized blank lines out of identity PEM")
+                    android.util.Log.i("UAC-ATOM", "Key: sanitized blank lines out of identity PEM")
                 }
             }
         }
@@ -86,7 +86,7 @@ object AetherNative {
         val outcome = CompletableDeferred<Result<TunnelAddresses>>()
         val worker = Thread({
             outcome.complete(runCatching { prepare(config) })
-        }, "uac-pow-prepare-$generation")
+        }, "atom-engine-prepare-$generation")
         worker.isDaemon = true
         prepareThread = worker
         worker.start()
@@ -115,7 +115,7 @@ object AetherNative {
                 nativeCancelPrepare()
                 runCatching { Thread.sleep(100L) }
             }
-        }, "uac-pow-prepare-abort")
+        }, "atom-engine-prepare-abort")
         reaper.isDaemon = true
         reaper.start()
     }
