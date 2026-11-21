@@ -26,7 +26,7 @@ data class ExitIpInfoState(
 )
 
 /**
- * Resolves the public egress IP through the active PoW SOCKS listener.
+ * Resolves the public egress IP through the active Atom SOCKS listener.
  * The request must never fall back to the phone's direct network.
  */
 object ExitIpInfoRepository {
