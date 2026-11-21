@@ -1,7 +1,7 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
  * Page Turbo — warms mapdns after connect. Optional keepalive probes
  * keep the first real navigation primed. Isolated to PoW SOCKS.
  */
-internal object PowPageTurbo {
+internal object AtomPageTurbo {
     @Volatile private var job: Job? = null
 
     fun kick(scope: CoroutineScope, socksPort: Int, keepWarm: Boolean = true) {
@@ -20,16 +20,16 @@ internal object PowPageTurbo {
         job = scope.launch(Dispatchers.IO) {
             delay(900)
             runCatching {
-                val ok = PowPathProbe.warmMapDns(socksPort)
-                if (ok) AppLogRepository.info(LogSource.POW, "Page Turbo mapdns warm")
-                else AppLogRepository.debug(LogSource.POW, "Page Turbo warm miss")
+                val ok = AtomPathProbe.warmMapDns(socksPort)
+                if (ok) AppLogRepository.info(LogSource.ATOM, "Page Turbo mapdns warm")
+                else AppLogRepository.debug(LogSource.ATOM, "Page Turbo warm miss")
             }
             if (keepWarm) {
                 repeat(2) {
                     delay(1500)
-                    runCatching { PowPathProbe.measureMs(socksPort, timeoutMs = 1_500) }
+                    runCatching { AtomPathProbe.measureMs(socksPort, timeoutMs = 1_500) }
                 }
-                AppLogRepository.debug(LogSource.POW, "Page Turbo primed")
+                AppLogRepository.debug(LogSource.ATOM, "Page Turbo primed")
             }
         }
     }
