@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.logging
+package com.atomvpn.mobile.engine.logging
 
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -17,9 +17,9 @@ object AppLogRepository {
 
     val entries: StateFlow<List<AppLogEntry>> = mutableEntries.asStateFlow()
 
-    /** Mirror POW lines to logcat (tag UAC-POW) so release builds can be read over adb. */
-    @Volatile var powLogcatMirror: Boolean = true
-    private const val LOGCAT_TAG = "UAC-POW"
+    /** Mirror ATOM lines to logcat (tag UAC-ATOM) so release builds can be read over adb. */
+    @Volatile var atomLogcatMirror: Boolean = true
+    private const val LOGCAT_TAG = "UAC-ATOM"
 
     /** Mirror TOR lines to logcat (tag UAC-TOR). */
     @Volatile var torLogcatMirror: Boolean = true
@@ -64,7 +64,7 @@ object AppLogRepository {
             .trim()
             .take(2_000)
         if (message.isEmpty()) return
-        if (source == LogSource.POW && powLogcatMirror) mirrorToLogcat(level, message)
+        if (source == LogSource.ATOM && atomLogcatMirror) mirrorToLogcat(level, message)
         if (source == LogSource.TOR && torLogcatMirror) mirrorToLogcat(level, message, TOR_LOGCAT_TAG)
         if (source == LogSource.ADAPTIVE && adaptLogcatMirror) mirrorToLogcat(level, message, ADAPT_LOGCAT_TAG)
 
@@ -127,5 +127,5 @@ enum class LogSource(val label: String) {
     PROXY("PROXY"),
     TUN("TUN"),
     TOR("TOR"),
-    POW("POW"),
+    ATOM("ATOM"),
 }
