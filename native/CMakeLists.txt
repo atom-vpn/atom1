@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(uac_pow_native)
+project(atom_engine_native)
 
 # The extracted repository stores imported native dependencies under vendor/.
 set(AETHER_SO "${CMAKE_CURRENT_LIST_DIR}/../vendor/jniLibs/${ANDROID_ABI}/libaether.so")
