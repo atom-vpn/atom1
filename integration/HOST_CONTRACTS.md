@@ -1,86 +1,87 @@
-# Host integration contracts required by the extracted PoW engine
+# Atom engine integration contracts
 
-The PoW engine and its source-backed support classes are present in the engine source tree. These are source copies, not placeholder implementations. The network-fingerprint resolver is a new, narrow Android implementation because the source repository imported the API but did not contain its implementation.
+This document records the Android host contracts required by the standalone Atom VPN application.
 
-## 1. VPN host boundary
+## 1. VPN service boundary
 
-The consumer must provide:
+The application owns the Android `VpnService`, permission flow, foreground-service notification, allowed/disallowed applications, kill-switch enforcement and TUN descriptor lifecycle.
+
+The engine coordinator is constructed with the active service:
 
 ```kotlin
-PowConnectionCoordinator(service: VpnService)
-
-suspend fun connect(
-    settings: AdvancedSettingsData,
-    establishTun: (PowTun2Socks.PrivateAddress, Int) -> ParcelFileDescriptor?,
-)
+AtomConnectionCoordinator(service: VpnService)
 ```
 
-The callback must establish/configure the Android TUN interface and return its live `ParcelFileDescriptor` (or null only where the selected proxy mode does not require a device TUN). The host owns VPN permission flow, foreground-service lifecycle/notification, allowed/disallowed applications, kill-switch enforcement, and TUN descriptor ownership/closure. Do not substitute a fake service or descriptor.
+The coordinator establishes the selected route and reports state through `ConnectionStateStore` and `AtomStatusStore`. A real VPN service and live TUN descriptor must be used; a fake descriptor or placeholder service is not a valid connection test.
 
-## 2. Psiphon service declarations
+## 2. Psiphon services and process isolation
 
-The engine binds to two concrete Android Service classes. The host app Manifest must merge declarations equivalent to:
+The engine manifest registers two non-exported services:
 
 ```xml
 <service
-    android:name="com.uacspoofer.mobile.engine.pow.PowPsiphonService"
+    android:name="com.atomvpn.mobile.engine.atom.AtomPsiphonService"
     android:exported="false"
-    android:process=":uacpow"
+    android:process=":atomengine"
     android:stopWithTask="false" />
 
 <service
-    android:name="com.uacspoofer.mobile.engine.pow.PowPsiphonSidecarService"
+    android:name="com.atomvpn.mobile.engine.atom.AtomPsiphonSidecarService"
     android:exported="false"
-    android:process=":uacpow2"
+    android:process=":atomengine2"
     android:stopWithTask="false" />
 ```
 
-The separate processes are required because the Psiphon Go tunnel uses a process-local singleton. `GoJniLoader` detects these process suffixes and selects the isolated `gopsi` library. The Psiphon AAR must first be processed by `tools/isolate_psiphon_aar.py`, which removes the embedded `go/` classes and renames `libgojni.so` to `libgopsi.so`. Do not merge the two services into the same process.
+The separate processes are required because the Psiphon Go tunnel uses a process-local singleton. `GoJniLoader` detects these process suffixes and selects the isolated `gopsi` library. The Psiphon AAR is processed by `tools/isolate_psiphon_aar.py`, which removes embedded Go classes and renames `libgojni.so` to `libgopsi.so`. Do not merge both services into one process.
 
-## 3. Psiphon server entries asset
+## 3. Psiphon asset
 
-`PowPsiphonService` opens the exact asset name `server_entries.txt` through Android `assets.open()`. The host package must therefore include `vendor/assets/server_entries.txt` as an application asset named `server_entries.txt`. Merely keeping it in the repository's vendor directory does not make it available at runtime.
+`AtomPsiphonService` opens the exact asset name `server_entries.txt`. The packaged application must include `vendor/assets/server_entries.txt` as an application asset under that name.
 
 ## 4. Socket protection
 
-Observed source API:
-- `SocketProtectGate.isEnabled(context: Context): Boolean`
-- Actual behavior in the source: always returns `true`.
-- Call sites: `OobKeyFetch` calls `vpn.protect(remoteSocket)`; `PowPsiphonClient` protects the Psiphon tunnel descriptor.
+Socket protection is performed through the owning `VpnService`. Native and Psiphon sockets must be protected from routing back into the VPN tunnel. A false or failed protect result must remain observable; silently returning success can create routing loops.
 
-Standalone host integration should expose socket protection as an operation on the owning `VpnService` (or equivalent injected protector), not as a preference toggle. A false/failed protect result must remain observable; silently returning success risks VPN routing loops.
+## 5. Network fingerprint and carrier policy
 
-## 5. Network fingerprint / carrier identity
+`AtomCarrier` consumes a network snapshot containing:
 
-`PowCarrier` consumes:
-- `transport: String` (known values include `cellular` and `unknown`)
-- `dataSubscriptionId: Int`
-- `carrierClass: String` (including `mci` and `unknown`)
+- `transport`: values include `cellular` and `unknown`
+- `dataSubscriptionId`
+- `carrierClass`: values include `mci` and `unknown`
 
-It also reads `TelephonyManager.networkOperator` for the selected data subscription. The new resolver reports unavailable or permission-restricted telephony data as unknown. It is not source-identical and requires device validation on Wi-Fi, cellular, dual-SIM and permission-restricted states. Carrier classification may require the host to declare and obtain runtime `READ_PHONE_STATE` permission.
+The Android resolver reports unavailable or permission-restricted telephony data as unknown. Device validation is required on Wi-Fi, cellular, dual-SIM and permission-restricted states. Carrier classification may require the host to declare and obtain runtime `READ_PHONE_STATE` permission.
 
 ## 6. Domestic-direct routing
 
-Actual source API:
-- `DomesticDirect.ensure(context: Context)`
-- `DomesticDirect.applyEnabled(value: Boolean)`
-- `DomesticDirect.isDomesticHost(host: String): Boolean`
+`DomesticDirect` provides:
 
-It checks a manual domain whitelist, fallback host set and loaded GeoSite CATEGORY-IR domains. It depends on GeoAssets and DirectDomainWhitelist. The coordinator reads `NetworkGuardStore.get(context).snapshot().iranDirect` and passes that policy into routing. Do not replace it with a boolean-only implementation.
+- `ensure(context)`
+- `applyEnabled(value)`
+- `isDomesticHost(host)`
 
-## 7. Settings, logging and state
+It checks a manual domain whitelist, fallback host set and loaded GeoSite CATEGORY-IR domains. It depends on `GeoAssets` and `DirectDomainWhitelist`. The coordinator reads `NetworkGuardStore` and applies the selected direct-routing policy.
 
-- `AdvancedSettingsData` and `CONNECTION_MODE_PROXY` are declared in `AdvancedSettingsStore.kt`. The coordinator directly reads `connectionMode`, `socksPort` and `tunMtu`, while configuration helpers consume additional WARP, transport, TLS, SOCKS, DNS and TUN fields.
-- `AppLogRepository` and `LogSource` are declared together in `AppLogRepository.kt`. Preserve severity, source and throwable context when adapting logging.
-- `NetworkGuardStore` is SharedPreferences-backed; the coordinator reads its `iranDirect` policy. Kill-switch enforcement remains a host VPN responsibility.
-- `TunStats`, `VpnPauseStore` and `ConnectionStateStore` retain source behavior and state transitions.
+## 7. Settings, logging and connection state
+
+- `AdvancedSettingsData` and `CONNECTION_MODE_PROXY` are declared in `AdvancedSettingsStore.kt`.
+- `AtomEngineStore` persists engine settings and learned route state.
+- `AppLogRepository` and `LogSource` provide structured logs; the engine source is `LogSource.ATOM`.
+- `NetworkGuardStore` is SharedPreferences-backed. Kill-switch enforcement remains an application VPN-service responsibility.
+- `TunStats`, `VpnPauseStore` and `ConnectionStateStore` retain their connection-state and traffic-statistics responsibilities.
 
 ## 8. Native libraries and packaging
 
-The consumer must package the ABI-matching files from `vendor/jniLibs/`. Aether is available for arm64-v8a, armeabi-v7a and x86_64; HEV is available for arm64-v8a, armeabi-v7a, x86 and x86_64. The Aether JNI bridge is built from `native/CMakeLists.txt`; its imported Aether path is relative to `vendor/jniLibs/`.
+The application must package ABI-matching files from `vendor/jniLibs/`. The Aether JNI bridge is compiled from `native/CMakeLists.txt`; its imported Aether library path is relative to `vendor/jniLibs/`.
 
-The V2Ray AAR must be processed by `tools/patch_v2ray_seq.py` so its Go sequence loader calls `GoJniLoader.load()`. The original AARs are inputs, not yet patched runtime outputs.
+The HEV native binary exports JNI symbols for its original Java bridge class. `AtomHevSocks5Tunnel` is the Atom-facing wrapper around that bridge. Keep the bridge and its consumer ProGuard rule unless the native binary is rebuilt with matching new JNI symbols.
 
-## Build status
+The V2Ray AAR must be processed by `tools/patch_v2ray_seq.py` so its Go sequence loader calls the current Atom `GoJniLoader.load()` entry point. Original AARs are inputs; the Gradle tasks generate the patched runtime outputs.
 
-No Gradle module/build configuration or Android compile has been run. The engine source, vendor inputs and host contracts are present, but the module still needs Gradle wiring and a real consuming VPN host. The new network-fingerprint resolver is not device-tested.
+## 9. Data migration
+
+The engine copies existing preferences and learned files into Atom-named locations on first use. Legacy data is retained after copying. This migration is intentional and must not be removed without a backward-compatibility plan.
+
+## 10. Validation boundary
+
+A successful CI build validates source compilation, native build integration, APK structure, manifest, alignment and signing. It does not establish that the tunnel connects successfully on a physical device. Before merging the rename branch, test VPN permission, connection, traffic flow, disconnect, process restart, network handover and each supported exit mode on a real device.
