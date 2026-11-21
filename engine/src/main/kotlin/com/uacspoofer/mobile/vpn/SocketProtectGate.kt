@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.vpn
+package com.atomvpn.mobile.engine.vpn
 
 import android.content.Context
 
