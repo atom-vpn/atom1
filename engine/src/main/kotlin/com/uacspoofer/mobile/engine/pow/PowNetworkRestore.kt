@@ -1,11 +1,11 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 /**
- * After UAC PoW is up, a lost carrier or dropped internet is not a live retune.
+ * After Atom is up, a lost carrier or dropped internet is not a live retune.
  * The path is treated as dead only by the watchdog; reconnect waits on backoff
  * until ConnectivityManager says a network is available again.
  */
-internal object PowNetworkRestore {
+internal object AtomNetworkRestore {
     val BACKOFF_MS = longArrayOf(5_000L, 15_000L, 30_000L, 60_000L, 120_000L)
 
     /** SIM / default-data subscription changes need a longer settle. */
