@@ -1,11 +1,11 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.VpnService
-import com.uacspoofer.mobile.vpn.SocketProtectGate
+import com.atomvpn.mobile.engine.vpn.SocketProtectGate
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,10 +23,10 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
-internal class PowPsiphonClient(
+internal class AtomPsiphonClient(
     private val vpn: VpnService,
     private val callbacks: Callbacks,
-    private val serviceClass: String = PowPsiphonIpc.SERVICE_CLASS,
+    private val serviceClass: String = AtomPsiphonIpc.SERVICE_CLASS,
 ) {
     interface Callbacks {
         fun onConnecting()
@@ -42,7 +42,7 @@ internal class PowPsiphonClient(
         fun onStartFailed(message: String)
     }
 
-    private val incomingThread = HandlerThread("uac-pow-psiphon-ipc", Process.THREAD_PRIORITY_BACKGROUND).apply { start() }
+    private val incomingThread = HandlerThread("atom-engine-psiphon-ipc", Process.THREAD_PRIORITY_BACKGROUND).apply { start() }
     private val incoming = Messenger(Handler(incomingThread.looper, ::onIncoming))
     private val started = AtomicBoolean(false)
     private val bound = AtomicBoolean(false)
@@ -72,15 +72,15 @@ internal class PowPsiphonClient(
         dead.set(false)
         ensureBound()
         val payload = Bundle().apply {
-            putString(PowPsiphonIpc.KEY_CONFIG, configJson)
+            putString(AtomPsiphonIpc.KEY_CONFIG, configJson)
         }
-        send(PowPsiphonIpc.MSG_START, payload)
+        send(AtomPsiphonIpc.MSG_START, payload)
     }
 
     suspend fun stop() {
         val waiter = CompletableDeferred<Unit>()
         stopWaiter = waiter
-        runCatching { send(PowPsiphonIpc.MSG_STOP) }
+        runCatching { send(AtomPsiphonIpc.MSG_STOP) }
         runCatching {
             withTimeout(STOP_TIMEOUT_MS) { waiter.await() }
         }
@@ -105,14 +105,14 @@ internal class PowPsiphonClient(
                 Context.BIND_AUTO_CREATE or Context.BIND_IMPORTANT,
             )
             if (!ok) {
-                waiter.completeExceptionally(IllegalStateException("Could not bind UAC PoW inner hop"))
+                waiter.completeExceptionally(IllegalStateException("Could not bind Atom inner hop"))
             }
         }
         try {
             withTimeout(BIND_TIMEOUT_MS) { waiter.await() }
         } catch (timeout: TimeoutCancellationException) {
             unbindOnMain()
-            throw IllegalStateException("UAC PoW inner hop did not start")
+            throw IllegalStateException("Atom inner hop did not start")
         } finally {
             bindWaiter = null
         }
@@ -140,7 +140,7 @@ internal class PowPsiphonClient(
     }
 
     private fun send(what: Int, extras: Bundle? = null) {
-        val target = outgoing ?: throw IllegalStateException("UAC PoW inner hop is not bound")
+        val target = outgoing ?: throw IllegalStateException("Atom inner hop is not bound")
         val message = Message.obtain(null, what).apply {
             replyTo = incoming
             if (extras != null) data = extras
@@ -148,48 +148,48 @@ internal class PowPsiphonClient(
         try {
             target.send(message)
         } catch (error: android.os.TransactionTooLargeException) {
-            throw IllegalStateException("UAC PoW inner hop IPC payload is too large", error)
+            throw IllegalStateException("Atom inner hop IPC payload is too large", error)
         } catch (error: RemoteException) {
-            throw IllegalStateException("UAC PoW inner hop died", error)
+            throw IllegalStateException("Atom inner hop died", error)
         }
     }
 
     private fun onIncoming(message: Message): Boolean {
         when (message.what) {
-            PowPsiphonIpc.MSG_PROTECT -> protectFd(message)
-            PowPsiphonIpc.MSG_CONNECTED -> callbacks.onConnected()
-            PowPsiphonIpc.MSG_EXITING -> callbacks.onExiting()
-            PowPsiphonIpc.MSG_CONNECTING -> callbacks.onConnecting()
-            PowPsiphonIpc.MSG_SOCKS_PORT -> callbacks.onListeningSocksProxyPort(message.arg1)
-            PowPsiphonIpc.MSG_DIAGNOSTIC -> {
-                val text = message.data.getString(PowPsiphonIpc.KEY_MESSAGE).orEmpty()
+            AtomPsiphonIpc.MSG_PROTECT -> protectFd(message)
+            AtomPsiphonIpc.MSG_CONNECTED -> callbacks.onConnected()
+            AtomPsiphonIpc.MSG_EXITING -> callbacks.onExiting()
+            AtomPsiphonIpc.MSG_CONNECTING -> callbacks.onConnecting()
+            AtomPsiphonIpc.MSG_SOCKS_PORT -> callbacks.onListeningSocksProxyPort(message.arg1)
+            AtomPsiphonIpc.MSG_DIAGNOSTIC -> {
+                val text = message.data.getString(AtomPsiphonIpc.KEY_MESSAGE).orEmpty()
                 if (text.isNotBlank()) callbacks.onDiagnosticMessage(text)
             }
-            PowPsiphonIpc.MSG_BYTES -> callbacks.onBytesTransferred(
-                message.data.getLong(PowPsiphonIpc.KEY_SENT),
-                message.data.getLong(PowPsiphonIpc.KEY_RECEIVED),
+            AtomPsiphonIpc.MSG_BYTES -> callbacks.onBytesTransferred(
+                message.data.getLong(AtomPsiphonIpc.KEY_SENT),
+                message.data.getLong(AtomPsiphonIpc.KEY_RECEIVED),
             )
-            PowPsiphonIpc.MSG_CLIENT_REGION -> {
-                val region = message.data.getString(PowPsiphonIpc.KEY_REGION).orEmpty()
+            AtomPsiphonIpc.MSG_CLIENT_REGION -> {
+                val region = message.data.getString(AtomPsiphonIpc.KEY_REGION).orEmpty()
                 if (region.isNotBlank()) callbacks.onClientRegion(region)
             }
-            PowPsiphonIpc.MSG_SERVER_REGION -> {
-                val region = message.data.getString(PowPsiphonIpc.KEY_REGION).orEmpty()
+            AtomPsiphonIpc.MSG_SERVER_REGION -> {
+                val region = message.data.getString(AtomPsiphonIpc.KEY_REGION).orEmpty()
                 if (region.isNotBlank()) callbacks.onConnectedServerRegion(region)
             }
-            PowPsiphonIpc.MSG_EGRESS_REGIONS -> {
-                val regions = message.data.getStringArrayList(PowPsiphonIpc.KEY_REGIONS).orEmpty()
+            AtomPsiphonIpc.MSG_EGRESS_REGIONS -> {
+                val regions = message.data.getStringArrayList(AtomPsiphonIpc.KEY_REGIONS).orEmpty()
                 if (regions.isNotEmpty()) callbacks.onAvailableEgressRegions(regions)
             }
-            PowPsiphonIpc.MSG_CLIENT_ADDRESS -> {
-                val address = message.data.getString(PowPsiphonIpc.KEY_ADDRESS).orEmpty()
+            AtomPsiphonIpc.MSG_CLIENT_ADDRESS -> {
+                val address = message.data.getString(AtomPsiphonIpc.KEY_ADDRESS).orEmpty()
                 if (address.isNotBlank()) callbacks.onClientAddress(address)
             }
-            PowPsiphonIpc.MSG_START_FAILED -> {
-                val error = message.data.getString(PowPsiphonIpc.KEY_ERROR).orEmpty()
+            AtomPsiphonIpc.MSG_START_FAILED -> {
+                val error = message.data.getString(AtomPsiphonIpc.KEY_ERROR).orEmpty()
                 callbacks.onStartFailed(error.ifBlank { "Psiphon failed to start" })
             }
-            PowPsiphonIpc.MSG_STOPPED -> stopWaiter?.complete(Unit)
+            AtomPsiphonIpc.MSG_STOPPED -> stopWaiter?.complete(Unit)
         }
         return true
     }
@@ -210,17 +210,17 @@ internal class PowPsiphonClient(
         }
         if (replyTo == null) return
         runCatching {
-            replyTo.send(Message.obtain(null, PowPsiphonIpc.MSG_PROTECT_RESULT).apply { arg1 = if (ok) 1 else 0 })
+            replyTo.send(Message.obtain(null, AtomPsiphonIpc.MSG_PROTECT_RESULT).apply { arg1 = if (ok) 1 else 0 })
         }
     }
 
     private fun parcelFd(data: Bundle): ParcelFileDescriptor? {
         data.classLoader = ParcelFileDescriptor::class.java.classLoader
         return if (Build.VERSION.SDK_INT >= 33) {
-            data.getParcelable(PowPsiphonIpc.KEY_FD, ParcelFileDescriptor::class.java)
+            data.getParcelable(AtomPsiphonIpc.KEY_FD, ParcelFileDescriptor::class.java)
         } else {
             @Suppress("DEPRECATION")
-            data.getParcelable(PowPsiphonIpc.KEY_FD)
+            data.getParcelable(AtomPsiphonIpc.KEY_FD)
         }
     }
 
