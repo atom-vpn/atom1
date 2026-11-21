@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.core
+package com.atomvpn.mobile.engine.core
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
