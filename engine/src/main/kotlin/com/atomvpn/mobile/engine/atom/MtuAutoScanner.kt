@@ -21,7 +21,17 @@ object MtuAutoScanner {
     private const val VPN_OVERHEAD = 80
     private const val TRY_DELAY_MS = 45L
 
-    private const val PREFS = "pow_mtu_scanner"
+    private const val PREFS = "atom_mtu_scanner"
+    private const val LEGACY_PREFS = "pow_mtu_scanner"
+
+    private fun preferences(context: Context) = context.applicationContext.let { app ->
+        val legacy = app.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
+        val current = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!current.contains(KEY_LAST_SCANNED) && legacy.contains(KEY_LAST_SCANNED)) {
+            current.edit().putInt(KEY_LAST_SCANNED, legacy.getInt(KEY_LAST_SCANNED, 0)).commit()
+        }
+        current
+    }
     private const val KEY_LAST_SCANNED = "last_scanned_mtu"
 
     data class Result(
@@ -68,16 +78,14 @@ object MtuAutoScanner {
     }
 
     fun lastScannedMtu(context: Context): Int =
-        context.applicationContext
-            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        preferences(context)
             .getInt(KEY_LAST_SCANNED, 0)
             .takeIf { it in MIN_SAVED..MAX_SAVED }
             ?: 0
 
     fun saveLastScannedMtu(context: Context, mtu: Int) {
         if (mtu !in MIN_SAVED..MAX_SAVED) return
-        context.applicationContext
-            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        preferences(context)
             .edit()
             .putInt(KEY_LAST_SCANNED, mtu)
             .apply()
