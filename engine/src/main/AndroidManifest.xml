@@ -9,13 +9,13 @@
         <service
             android:name="com.atomvpn.mobile.engine.atom.AtomPsiphonService"
             android:exported="false"
-            android:process=":Atom"
+            android:process=":atomengine"
             android:stopWithTask="false" />
 
         <service
             android:name="com.atomvpn.mobile.engine.atom.AtomPsiphonSidecarService"
             android:exported="false"
-            android:process=":Atom2"
+            android:process=":atomengine2"
             android:stopWithTask="false" />
     </application>
 </manifest>
