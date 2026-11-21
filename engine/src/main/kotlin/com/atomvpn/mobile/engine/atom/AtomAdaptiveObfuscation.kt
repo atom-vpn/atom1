@@ -18,7 +18,10 @@ internal object AtomAdaptiveObfuscation {
 
     /** Read at the next outer (re)connect; changing it never forces a reconnect by itself. */
     fun adaptiveOn(context: Context): Boolean =
-        context.getSharedPreferences("uac_pow_engine_v1", Context.MODE_PRIVATE).getBoolean(KEY_ADAPTIVE, false)
+        run {
+            AtomEngineStore.migrateLegacyPreferences(context)
+            context.getSharedPreferences("atom_engine_v1", Context.MODE_PRIVATE).getBoolean(KEY_ADAPTIVE, false)
+        }
 
     private const val JITTER_DPI_MS = 180L
     private const val FAILS_TO_ENABLE = 2
