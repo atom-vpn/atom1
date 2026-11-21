@@ -1,20 +1,20 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 
 /**
  * Level C: Adaptive Obfuscation — enables H2 fragmentation only when DPI is likely.
  * Uses RTT variance + failure streak as cheap DPI signal. Default off for speed.
  * Isolated to PoW prefs key; never touches Xray/Tor.
  */
-internal object PowAdaptiveObfuscation {
+internal object AtomAdaptiveObfuscation {
     /** Adaptive state lives in its own key so it never overwrites the user's H2 fragment choice. */
     const val KEY_ADAPTIVE = "h2_fragment_adaptive"
 
     private fun autoMode(context: Context): Boolean =
-        PowEngineStore.get(context).snapshot().h2FragmentMode == PowEngineSettings.H2_FRAG_AUTO
+        AtomEngineStore.get(context).snapshot().h2FragmentMode == AtomEngineSettings.H2_FRAG_AUTO
 
     /** Read at the next outer (re)connect; changing it never forces a reconnect by itself. */
     fun adaptiveOn(context: Context): Boolean =
@@ -33,7 +33,7 @@ internal object PowAdaptiveObfuscation {
         val prefs = context.getSharedPreferences("uac_pow_engine_v1", Context.MODE_PRIVATE)
         if (prefs.getBoolean(KEY_ADAPTIVE, false)) return true
         if (rttVarianceHigh && dpiFails >= FAILS_TO_ENABLE) {
-            AppLogRepository.info(LogSource.POW, "Adaptive H2 fragmentation ON (DPI suspected jitter+fails=$dpiFails)")
+            AppLogRepository.info(LogSource.ATOM, "Adaptive H2 fragmentation ON (DPI suspected jitter+fails=$dpiFails)")
             prefs.edit().putBoolean(KEY_ADAPTIVE, true).apply()
             return true
         }
@@ -47,7 +47,7 @@ internal object PowAdaptiveObfuscation {
         if (!prefs.getBoolean(KEY_ADAPTIVE, false)) return false
         // If path has been stable for >3 minutes, turn off for speed.
         if (stableMs > 3 * 60_000L && dpiFails == 0) {
-            AppLogRepository.info(LogSource.POW, "Adaptive H2 fragmentation OFF (stable)")
+            AppLogRepository.info(LogSource.ATOM, "Adaptive H2 fragmentation OFF (stable)")
             prefs.edit().putBoolean(KEY_ADAPTIVE, false).apply()
             return true
         }
