@@ -1,11 +1,11 @@
-package com.uacspoofer.mobile.mci
+package com.atomvpn.mobile.engine.mci
 
 import android.content.Context
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
-import com.uacspoofer.mobile.settings.DirectDomainWhitelist
+import com.atomvpn.mobile.engine.settings.DirectDomainWhitelist
 
 /**
  * Shared Iran-direct matcher for engines that cannot use Xray geosite routing
