@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.uacspoofer.mobile"
+    namespace = "com.atomvpn.mobile.engine"
     compileSdk = 35
     ndkVersion = "26.3.11579264"
 
