@@ -1,7 +1,7 @@
-package com.uacspoofer.mobile.settings
+package com.atomvpn.mobile.engine.settings
 import android.content.Context
-import com.uacspoofer.mobile.mci.MciConfig
-import com.uacspoofer.mobile.mci.MciEdge
+import com.atomvpn.mobile.engine.mci.MciConfig
+import com.atomvpn.mobile.engine.mci.MciEdge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
