@@ -1,7 +1,7 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
-import com.uacspoofer.mobile.logging.AppLogRepository
-import com.uacspoofer.mobile.logging.LogSource
+import com.atomvpn.mobile.engine.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.LogSource
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
@@ -12,9 +12,9 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import android.os.SystemClock
-import com.uacspoofer.mobile.mci.DomesticDirect
+import com.atomvpn.mobile.engine.mci.DomesticDirect
 
-internal object PowSocksConnectOnly {
+internal object AtomSocksConnectOnly {
     private const val CMD_CONNECT = 0x01
     private const val UPSTREAM_TIMEOUT_MS = 6_000
     // Level C: QoS — small streams (HTML) are prioritized over bulk.
@@ -43,7 +43,7 @@ internal object PowSocksConnectOnly {
     private var acceptThread: Thread? = null
 
     @Volatile
-    private var upstreamPort: Int = PowCoreConfig.SOCKS_PORT
+    private var upstreamPort: Int = AtomCoreConfig.SOCKS_PORT
 
     // "Two tunnels at once": SOCKS port of Psiphon tunnel 2, or 0 when it is not up.
     @Volatile
@@ -74,26 +74,26 @@ internal object PowSocksConnectOnly {
     /**
      * Which local Psiphon SOCKS port(s) to use. With one tunnel (toggle off, or
      * tunnel 2 never came up) this is just tunnel 1 and nothing else runs.
-     * With two, every service is pinned to one tunnel (PowStickyRoute) and the
+     * With two, every service is pinned to one tunnel (AtomStickyRoute) and the
      * other is only a fallback when the pinned one does not answer locally.
      */
     private fun upstreamPlan(request: ByteArray): Plan? {
         val second = secondaryPort
-        if (second <= 0 && !PowStickyRoute.active) return null
+        if (second <= 0 && !AtomStickyRoute.active) return null
         val target = requestTarget(request) ?: return null
-        val choice = PowStickyRoute.choose(target, second > 0)
-        if ((choice.fresh || choice.moved) && PowStickyRoute.shouldLog()) {
+        val choice = AtomStickyRoute.choose(target, second > 0)
+        if ((choice.fresh || choice.moved) && AtomStickyRoute.shouldLog()) {
             AppLogRepository.info(
-                LogSource.POW,
+                LogSource.ATOM,
                 "Sticky: $target -> ${choice.group} on tunnel ${choice.tunnel + 1}" +
                     if (choice.moved) " (tunnel 2 down, moved)" else "",
             )
         }
         if (second <= 0) return null
-        return if (choice.tunnel == PowStickyRoute.TUNNEL_2) {
-            Plan(intArrayOf(second, upstreamPort), intArrayOf(PowStickyRoute.TUNNEL_2, PowStickyRoute.TUNNEL_1), choice.group)
+        return if (choice.tunnel == AtomStickyRoute.TUNNEL_2) {
+            Plan(intArrayOf(second, upstreamPort), intArrayOf(AtomStickyRoute.TUNNEL_2, AtomStickyRoute.TUNNEL_1), choice.group)
         } else {
-            Plan(intArrayOf(upstreamPort, second), intArrayOf(PowStickyRoute.TUNNEL_1, PowStickyRoute.TUNNEL_2), choice.group)
+            Plan(intArrayOf(upstreamPort, second), intArrayOf(AtomStickyRoute.TUNNEL_1, AtomStickyRoute.TUNNEL_2), choice.group)
         }
     }
 
@@ -114,10 +114,10 @@ internal object PowSocksConnectOnly {
                 val auth = readExact(attempt.getInputStream(), 2)
                 if (auth[0] != 0x05.toByte() || auth[1] != 0x00.toByte()) error("upstream socks auth")
                 if (index > 0) {
-                    PowStickyRoute.moveTo(plan.group, plan.tunnels[index])
-                    if (PowStickyRoute.shouldLog()) {
+                    AtomStickyRoute.moveTo(plan.group, plan.tunnels[index])
+                    if (AtomStickyRoute.shouldLog()) {
                         AppLogRepository.warning(
-                            LogSource.POW,
+                            LogSource.ATOM,
                             "Sticky: ${plan.group} moved to tunnel ${plan.tunnels[index] + 1} " +
                                 "(tunnel ${plan.tunnels[0] + 1} did not answer)",
                         )
@@ -158,7 +158,7 @@ internal object PowSocksConnectOnly {
             liveSockets.forEach { runCatching { it.close() } }
             liveSockets.clear()
             if (n > 0) {
-                AppLogRepository.info(LogSource.POW, "Pause: dropped $n live sockets (direct-only)")
+                AppLogRepository.info(LogSource.ATOM, "Pause: dropped $n live sockets (direct-only)")
             }
         }
     }
@@ -250,7 +250,7 @@ internal object PowSocksConnectOnly {
                 }
             }
             if (domesticLogged.compareAndSet(false, true)) {
-                AppLogRepository.info(LogSource.POW, "Pause: traffic going direct (not through tunnel)")
+                AppLogRepository.info(LogSource.ATOM, "Pause: traffic going direct (not through tunnel)")
             }
             return direct
         } catch (_: Throwable) {
@@ -282,7 +282,7 @@ internal object PowSocksConnectOnly {
                 throw error
             }
             if (domesticLogged.compareAndSet(false, true)) {
-                AppLogRepository.info(LogSource.POW, "Split: $host went direct over the phone network (.ir)")
+                AppLogRepository.info(LogSource.ATOM, "Split: $host went direct over the phone network (.ir)")
             }
             direct
         } catch (_: Throwable) {
@@ -303,7 +303,7 @@ internal object PowSocksConnectOnly {
             }
         } catch (error: Throwable) {
             AppLogRepository.warning(
-                LogSource.POW,
+                LogSource.ATOM,
                 "TCP-only SOCKS listen failed on 127.0.0.1:$listenPort: ${error.message}",
             )
             return false
@@ -320,18 +320,18 @@ internal object PowSocksConnectOnly {
                 }
                 // Level C: prioritize accept burst with higher priority thread for first bytes
                 val prio = if (activeStreams.get() < 24) Thread.NORM_PRIORITY else Thread.MIN_PRIORITY
-                Thread({ handle(client) }, "uac-pow-socks-relay").apply {
+                Thread({ handle(client) }, "atom-engine-socks-relay").apply {
                     isDaemon = true
                     priority = prio
                     start()
                 }
             }
-        }, "uac-pow-socks-accept")
+        }, "atom-engine-socks-accept")
         thread.isDaemon = true
         acceptThread = thread
         thread.start()
         AppLogRepository.info(
-            LogSource.POW,
+            LogSource.ATOM,
             "Device TUN SOCKS 127.0.0.1:$listenPort forwards TCP CONNECT to 127.0.0.1:$targetPort",
         )
         return true
@@ -342,7 +342,7 @@ internal object PowSocksConnectOnly {
 
     fun setFailFast(enabled: Boolean) {
         connectTimeoutMs.set(
-            if (enabled) PowQualityPolicy.FAIL_FAST_MS else UPSTREAM_TIMEOUT_MS,
+            if (enabled) AtomQualityPolicy.FAIL_FAST_MS else UPSTREAM_TIMEOUT_MS,
         )
     }
 
@@ -438,7 +438,7 @@ internal object PowSocksConnectOnly {
             output.write(byteArrayOf(0x05, 0x00))
             output.flush()
             val request = readRequest(input)
-            requestDomain(request)?.let { PowDnsWarm.note(it.first) }
+            requestDomain(request)?.let { AtomDnsWarm.note(it.first) }
             if ((request[1].toInt() and 0xff) != CMD_CONNECT) {
                 output.write(COMMAND_NOT_SUPPORTED)
                 output.flush()
@@ -461,7 +461,7 @@ internal object PowSocksConnectOnly {
                 }
                 // Hard stop: never fall through to Psiphon while paused.
                 val target = requestTarget(request) ?: "?"
-                AppLogRepository.warning(LogSource.POW, "Pause: direct failed for $target; refusing tunnel")
+                AppLogRepository.warning(LogSource.ATOM, "Pause: direct failed for $target; refusing tunnel")
                 output.write(byteArrayOf(0x05, 0x04, 0x00, 0x01, 0, 0, 0, 0, 0, 0))
                 output.flush()
                 return
@@ -578,7 +578,7 @@ internal object PowSocksConnectOnly {
                 }
             }
             runCatching { upstream.shutdownOutput() }
-        }, "uac-pow-socks-up")
+        }, "atom-engine-socks-up")
         upload.isDaemon = true
         upload.start()
         runCatching {
