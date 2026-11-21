@@ -7,12 +7,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * User-triggered MTU scan for the PoW tunnel settings sheet.
+ * User-triggered MTU scan for the Atom tunnel settings sheet.
  * Walks 1500 → 1000 (step 10), also hits the exact path budget and 1280,
  * and picks the largest value that fits. Unknown path → recommended 1280.
  */
 object MtuAutoScanner {
-    /** Allowed manual / scanned values persisted in PoW settings. */
+    /** Allowed manual / scanned values persisted in Atom settings. */
     const val MIN_SAVED = 1_000
     const val MAX_SAVED = 1_500
     const val SCAN_STEP = 10
