@@ -1,10 +1,10 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-enum class PowPhase {
+enum class AtomPhase {
     IDLE,
     STARTING,
     OUTER,
@@ -14,43 +14,43 @@ enum class PowPhase {
     FAILED,
 }
 
-enum class PowStepState {
+enum class AtomStepState {
     RUNNING,
     DONE,
     FAILED,
 }
 
-data class PowStep(
+data class AtomStep(
     val text: String,
-    val state: PowStepState,
+    val state: AtomStepState,
 )
 
-data class PowUiStatus(
-    val phase: PowPhase = PowPhase.IDLE,
+data class AtomUiStatus(
+    val phase: AtomPhase = AtomPhase.IDLE,
     val progressPercent: Int = 0,
     val detail: String = "",
     val outerLabel: String = "",
     val exitRegion: String = "",
-    val steps: List<PowStep> = emptyList(),
+    val steps: List<AtomStep> = emptyList(),
 ) {
     companion object {
-        val Idle = PowUiStatus()
+        val Idle = AtomUiStatus()
     }
 }
 
-object PowStatusStore {
-    private val mutableStatus = MutableStateFlow(PowUiStatus.Idle)
-    val status: StateFlow<PowUiStatus> = mutableStatus.asStateFlow()
+object AtomStatusStore {
+    private val mutableStatus = MutableStateFlow(AtomUiStatus.Idle)
+    val status: StateFlow<AtomUiStatus> = mutableStatus.asStateFlow()
 
     fun update(
-        phase: PowPhase,
+        phase: AtomPhase,
         progressPercent: Int = 0,
         detail: String = "",
         outerLabel: String = mutableStatus.value.outerLabel,
         exitRegion: String = mutableStatus.value.exitRegion,
     ) {
         val current = mutableStatus.value
-        mutableStatus.value = PowUiStatus(
+        mutableStatus.value = AtomUiStatus(
             phase = phase,
             progressPercent = progressPercent.coerceIn(0, 100),
             detail = detail,
@@ -59,8 +59,8 @@ object PowStatusStore {
             steps = current.steps,
         )
         if (detail.isNotBlank()) note(detail)
-        if (phase == PowPhase.CONNECTED) finish(PowStepState.DONE)
-        if (phase == PowPhase.FAILED) finish(PowStepState.FAILED)
+        if (phase == AtomPhase.CONNECTED) finish(AtomStepState.DONE)
+        if (phase == AtomPhase.FAILED) finish(AtomStepState.FAILED)
     }
 
     fun pulse(text: String) {
@@ -69,7 +69,7 @@ object PowStatusStore {
         val current = mutableStatus.value
         val steps = current.steps.toMutableList()
         val last = steps.lastOrNull()
-        if (last != null && last.state == PowStepState.RUNNING && last.text.startsWith("Scan ")) {
+        if (last != null && last.state == AtomStepState.RUNNING && last.text.startsWith("Scan ")) {
             if (last.text == clean) return
             steps[steps.lastIndex] = last.copy(text = clean)
             mutableStatus.value = current.copy(steps = steps)
@@ -82,22 +82,22 @@ object PowStatusStore {
         val clean = text.trim().take(180)
         if (clean.isEmpty()) return
         val state = when (outcome) {
-            "trying" -> PowStepState.RUNNING
-            "accepted" -> PowStepState.DONE
-            else -> PowStepState.FAILED
+            "trying" -> AtomStepState.RUNNING
+            "accepted" -> AtomStepState.DONE
+            else -> AtomStepState.FAILED
         }
         val current = mutableStatus.value
         val steps = current.steps.toMutableList()
         val last = steps.lastOrNull()
-        if (last != null && last.state == PowStepState.RUNNING && last.text.startsWith("Scan ")) {
-            steps[steps.lastIndex] = PowStep(clean, state)
+        if (last != null && last.state == AtomStepState.RUNNING && last.text.startsWith("Scan ")) {
+            steps[steps.lastIndex] = AtomStep(clean, state)
             mutableStatus.value = current.copy(steps = steps)
             return
         }
-        if (last != null && last.state == PowStepState.RUNNING) {
-            steps[steps.lastIndex] = last.copy(state = PowStepState.DONE)
+        if (last != null && last.state == AtomStepState.RUNNING) {
+            steps[steps.lastIndex] = last.copy(state = AtomStepState.DONE)
         }
-        steps += PowStep(clean, state)
+        steps += AtomStep(clean, state)
         mutableStatus.value = current.copy(steps = steps.takeLast(24))
     }
 
@@ -108,23 +108,23 @@ object PowStatusStore {
         val steps = current.steps.toMutableList()
         val last = steps.lastOrNull()
         if (last != null && last.text == clean) return
-        if (last != null && last.state == PowStepState.RUNNING) {
-            steps[steps.lastIndex] = last.copy(state = PowStepState.DONE)
+        if (last != null && last.state == AtomStepState.RUNNING) {
+            steps[steps.lastIndex] = last.copy(state = AtomStepState.DONE)
         }
-        steps += PowStep(clean, if (failed) PowStepState.FAILED else PowStepState.RUNNING)
+        steps += AtomStep(clean, if (failed) AtomStepState.FAILED else AtomStepState.RUNNING)
         mutableStatus.value = current.copy(steps = steps.takeLast(24))
     }
 
-    private fun finish(state: PowStepState) {
+    private fun finish(state: AtomStepState) {
         val current = mutableStatus.value
         val last = current.steps.lastOrNull() ?: return
-        if (last.state != PowStepState.RUNNING) return
+        if (last.state != AtomStepState.RUNNING) return
         val steps = current.steps.toMutableList()
         steps[steps.lastIndex] = last.copy(state = state)
         mutableStatus.value = current.copy(steps = steps)
     }
 
     fun reset() {
-        mutableStatus.value = PowUiStatus.Idle
+        mutableStatus.value = AtomUiStatus.Idle
     }
 }
