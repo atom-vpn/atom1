@@ -17,9 +17,9 @@ object AppLogRepository {
 
     val entries: StateFlow<List<AppLogEntry>> = mutableEntries.asStateFlow()
 
-    /** Mirror ATOM lines to logcat (tag UAC-ATOM) so release builds can be read over adb. */
+    /** Mirror ATOM lines to logcat (tag ATOM-ENGINE) so release builds can be read over adb. */
     @Volatile var atomLogcatMirror: Boolean = true
-    private const val LOGCAT_TAG = "UAC-ATOM"
+    private const val LOGCAT_TAG = "ATOM-ENGINE"
 
     /** Mirror TOR lines to logcat (tag UAC-TOR). */
     @Volatile var torLogcatMirror: Boolean = true
