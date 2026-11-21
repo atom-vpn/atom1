@@ -54,7 +54,8 @@ internal object AtomDnsWarm {
 
     const val TOP_LEARNED = 20
     private const val SESSION_CAP = 512
-    private const val PREFS = "uac_pow_dns_warm"
+    private const val PREFS = "atom_dns_warm"
+    private const val LEGACY_PREFS = "uac_pow_dns_warm"
     private const val KEY_TOP = "top_hosts"
     private const val CONNECT_TIMEOUT_MS = 3_000
     private const val PARALLEL = 6
@@ -200,8 +201,15 @@ internal object AtomDnsWarm {
         lastPassAt = 0L
     }
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) {
+        val app = context.applicationContext
+        val legacy = app.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
+        val current = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!current.contains(KEY_TOP) && legacy.contains(KEY_TOP)) {
+            current.edit().putString(KEY_TOP, legacy.getString(KEY_TOP, null)).commit()
+        }
+        return current
+    }
 
     /** SOCKS5 CONNECT host:443 and close once the server replies. */
     private fun connectOnly(socksPort: Int, host: String): Boolean = runCatching {
