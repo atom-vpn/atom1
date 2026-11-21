@@ -1,4 +1,4 @@
-package com.uacspoofer.mobile.vpn
+package com.atomvpn.mobile.engine.vpn
 
 /** Packet decisions used by the optional QUIC blocker. */
 internal enum class TunPacketAction { FORWARD, REJECT }
