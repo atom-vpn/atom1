@@ -1,44 +1,37 @@
-# UAC PoW Engine extraction
+# Atom VPN for Android
 
-This repository contains the isolated source and runtime artifacts for the UAC PoW engine extracted from `atom-vpn/POW-Source`.
+Standalone Android VPN application integrating the Atom connection engine.
 
-## Scope
+## Modules
 
-This is an Android **library module**, not an Android application. No launcher Activity, product UI, app-level shell, or APK target is included.
-
-The extraction keeps PoW separate from Tor and Xray. The original PoW implementation and source-backed support classes are retained under `engine/src/`. A narrow Android network-fingerprint resolver was added because the source tree imported that API but did not contain its implementation.
-
-## Layout
-
-- `engine/`: Android library module and PoW Kotlin/Java sources.
-- `native/`: Aether JNI bridge and CMake integration.
+- `app/`: Atom VPN application, Compose interface, VPN service and launcher resources.
+- `engine/`: connection lifecycle, routing, Psiphon/Aether integration, settings and network helpers.
+- `native/`: Aether JNI bridge and CMake configuration.
 - `vendor/aars/`: original Psiphon and V2Ray AAR inputs.
 - `vendor/jniLibs/`: Aether and HEV native libraries.
 - `vendor/assets/`: Psiphon server entries asset.
-- `integration/`: host contracts and adapter API specification.
-- `docs/`: extraction and dependency status.
-- `tools/`: local artifact import and AAR patching helpers.
+- `tools/`: AAR preparation and packaging scripts.
+- `integration/`: native and Android integration contracts.
 
-## Build configuration
+## Android identity
 
-The standalone Gradle project now includes only `:engine` as an Android library. It uses AGP 8.7.3, Kotlin 2.0.21, Gradle 8.9, compileSdk 35, minSdk 24, Java 17, NDK 26.3.11579264 and CMake 3.22.1.
+- Application ID: `com.atomvpn.mobile`
+- Engine namespace: `com.atomvpn.mobile.engine`
+- Engine implementation package: `com.atomvpn.mobile.engine.atom`
+- Isolated Psiphon processes: `:atomengine` and `:atomengine2`
 
-The module wires the AAR patch scripts as pre-build tasks, packages the vendor assets and JNI libraries, and declares the Psiphon services in its library manifest. The wrapper scripts and wrapper JAR are not yet included; the wrapper properties file is present.
+The engine class names, source paths, manifest components, JNI entry points and build tooling use Atom terminology. The connection algorithms and tunnel orchestration are intended to remain unchanged by this naming refactor.
 
-## Current state
+## Compatibility safeguards
 
-All six outstanding PoW runtime artifacts (two AARs, three Aether libraries, and Psiphon server entries) have been transferred to the vendor tree and their byte sizes and Git blob SHA-1 values were verified against the source repository. The four HEV libraries were also transferred and source-verified.
+Existing engine preferences and files are migrated to Atom-named storage locations on first use. Legacy values are copied rather than deleted, so user settings, identity material and learned route data remain available.
 
-The AARs are original inputs; the Gradle pre-build tasks are configured to generate the isolated/Seq-patched outputs. These tasks and the Android library build have not yet been run.
+The bundled HEV native library exports JNI symbols for its original Java bridge class. An Atom-facing wrapper delegates to that bridge; this compatibility layer is internal and does not change the tunnel API or packet path.
 
-## Host integration
+The V2Ray AAR patcher redirects its Go sequence loader to the current Atom `GoJniLoader` class. Psiphon and V2Ray runtime libraries continue to be packaged from the verified vendor inputs.
 
-The consuming app must provide a real Android `VpnService`, establish the TUN interface, own the returned `ParcelFileDescriptor`, handle VPN permission and foreground-service lifecycle, and enforce package routing/kill-switch policy.
+## Validation
 
-The library manifest registers `PowPsiphonService` in process `:uacpow` and `PowPsiphonSidecarService` in process `:uacpow2`. Both services are non-exported. The module packages `server_entries.txt` as an app asset. See `integration/HOST_CONTRACTS.md`.
+GitHub Actions workflow: [Atom VPN Android Build](https://github.com/atom-vpn/atom1/actions/workflows/atom-engine-build.yml)
 
-## Build status
-
-Gradle module configuration is now present, but no Gradle task, Android compile, or device test has been run. This is not yet a certified standalone build. No APK or app shell is claimed.
-
-Source: https://github.com/atom-vpn/POW-Source
+A successful Android build validates compilation, APK structure, manifest, alignment and signing. It does not by itself prove that a VPN tunnel connects on a physical device. Device-level connection tests are still required before merging the rename branch into the stable application branch.
