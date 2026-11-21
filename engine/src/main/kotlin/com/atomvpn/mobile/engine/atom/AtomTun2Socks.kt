@@ -52,7 +52,7 @@ object AtomTun2Socks {
             tunIpv4 = address.ipAddress,
             mapDns = address.router,
         )
-        val configFile = File(context.applicationContext.filesDir, "uac-pow/hev.yml")
+        val configFile = AtomCoreConfig.hevConfigPath(context.applicationContext)
         configFile.parentFile?.mkdirs()
         configFile.writeText(yaml)
         val started = runCatching {
