@@ -1,11 +1,11 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
 
-internal data class PowLearnedPathSnapshot(
+internal data class AtomLearnedPathSnapshot(
     val currentNetworkKey: String,
     val globalOuter: String?,
-    val networks: List<PowScoreboardRow>,
+    val networks: List<AtomScoreboardRow>,
     val masqueLastPeer: String?,
     val wowLastPeer: String?,
     val masqueCachedGateways: List<String>,
@@ -18,19 +18,19 @@ internal data class PowLearnedPathSnapshot(
             masqueCachedGateways.isEmpty()
 
     fun summary(): String {
-        val outer = globalOuter?.let(PowCoreConfig::outerLabel)
+        val outer = globalOuter?.let(AtomCoreConfig::outerLabel)
         val peer = masqueLastPeer ?: wowLastPeer
         return when {
             outer != null && peer != null -> "$outer · $peer"
             outer != null -> outer
             peer != null -> peer
-            networks.isNotEmpty() -> networks.first().outer?.let(PowCoreConfig::outerLabel) ?: "—"
+            networks.isNotEmpty() -> networks.first().outer?.let(AtomCoreConfig::outerLabel) ?: "—"
             else -> ""
         }
     }
 
     companion object {
-        val EMPTY = PowLearnedPathSnapshot(
+        val EMPTY = AtomLearnedPathSnapshot(
             currentNetworkKey = "other:unknown",
             globalOuter = null,
             networks = emptyList(),
@@ -41,32 +41,32 @@ internal data class PowLearnedPathSnapshot(
     }
 }
 
-internal object PowPathMemory {
-    fun snapshot(context: Context, prefs: android.content.SharedPreferences): PowLearnedPathSnapshot {
+internal object AtomPathMemory {
+    fun snapshot(context: Context, prefs: android.content.SharedPreferences): AtomLearnedPathSnapshot {
         return runCatching {
             val app = context.applicationContext
-            PowLearnedPathSnapshot(
-                currentNetworkKey = PowNetworkScoreboard.networkKind(app),
+            AtomLearnedPathSnapshot(
+                currentNetworkKey = AtomNetworkScoreboard.networkKind(app),
                 globalOuter = prefs.getString("outer_protocol", null)
                     ?.trim()
                     ?.lowercase()
-                    ?.takeIf { it in PowCoreConfig.OUTER_LADDER },
-                networks = PowNetworkScoreboard.rows(prefs),
-                masqueLastPeer = parseTomlPeer(readText(PowCoreConfig.lastconnPath(app))),
-                wowLastPeer = parseTomlPeer(readText(PowCoreConfig.goolLastconnPath(app))),
-                masqueCachedGateways = parseMasqueGateways(readText(PowCoreConfig.masqueCachePath(app))),
+                    ?.takeIf { it in AtomCoreConfig.OUTER_LADDER },
+                networks = AtomNetworkScoreboard.rows(prefs),
+                masqueLastPeer = parseTomlPeer(readText(AtomCoreConfig.lastconnPath(app))),
+                wowLastPeer = parseTomlPeer(readText(AtomCoreConfig.goolLastconnPath(app))),
+                masqueCachedGateways = parseMasqueGateways(readText(AtomCoreConfig.masqueCachePath(app))),
             )
-        }.getOrElse { PowLearnedPathSnapshot.EMPTY }
+        }.getOrElse { AtomLearnedPathSnapshot.EMPTY }
     }
 
     fun forget(context: Context, prefs: android.content.SharedPreferences): Int {
-        val scoreboard = PowNetworkScoreboard.clearAll(prefs)
+        val scoreboard = AtomNetworkScoreboard.clearAll(prefs)
         val editor = prefs.edit()
             .remove("outer_protocol")
             .remove("psiphon_winning_strategy_chained")
             .remove("psiphon_winning_strategy_chained_shape")
         editor.apply()
-        val files = PowCoreConfig.forgetPathMemory(context)
+        val files = AtomCoreConfig.forgetPathMemory(context)
         return scoreboard + files
     }
 
