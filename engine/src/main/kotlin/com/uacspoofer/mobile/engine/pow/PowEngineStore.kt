@@ -1,13 +1,13 @@
-package com.uacspoofer.mobile.engine.pow
+package com.atomvpn.mobile.engine.atom
 
 import android.content.Context
-import com.uacspoofer.mobile.logging.AppLogRepository
+import com.atomvpn.mobile.engine.logging.AppLogRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 
-internal data class PowLastConnect(
+internal data class AtomLastConnect(
     val protocol: String = "",
     val transport: String = "",
     val ip: String = "",
@@ -39,7 +39,7 @@ internal data class PowLastConnect(
     }
 }
 
-class PowEngineStore private constructor(context: Context) {
+class AtomEngineStore private constructor(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val appContext = context.applicationContext
 
@@ -61,49 +61,49 @@ class PowEngineStore private constructor(context: Context) {
                 .apply()
         }
         if (!prefs.contains(KEY_LINK_RECIPE)) {
-            val recipe = when (prefs.getString(KEY_OUTER, PowCoreConfig.OUTER_AUTO)) {
-                "wireguard" -> PowCoreConfig.RECIPE_WARP_ANY
-                "gool" -> PowCoreConfig.RECIPE_WOW_ANY
-                "masque" -> PowCoreConfig.RECIPE_MASQUE_H3
-                else -> PowCoreConfig.RECIPE_MASQUE_H2
+            val recipe = when (prefs.getString(KEY_OUTER, AtomCoreConfig.OUTER_AUTO)) {
+                "wireguard" -> AtomCoreConfig.RECIPE_WARP_ANY
+                "gool" -> AtomCoreConfig.RECIPE_WOW_ANY
+                "masque" -> AtomCoreConfig.RECIPE_MASQUE_H3
+                else -> AtomCoreConfig.RECIPE_MASQUE_H2
             }
             prefs.edit().putString(KEY_LINK_RECIPE, recipe).apply()
         }
         if (!prefs.getBoolean(KEY_MASQUE_H2_DEFAULT_MIGRATION, false)) {
             // One-time: everyone still on Automatic moves to MASQUE HTTP/2.
             // A recipe the user picked by hand is left alone.
-            val current = prefs.getString(KEY_LINK_RECIPE, PowCoreConfig.RECIPE_AUTO)
+            val current = prefs.getString(KEY_LINK_RECIPE, AtomCoreConfig.RECIPE_AUTO)
             val edit = prefs.edit().putBoolean(KEY_MASQUE_H2_DEFAULT_MIGRATION, true)
-            if (current.isNullOrBlank() || current == PowCoreConfig.RECIPE_AUTO) {
-                edit.putString(KEY_LINK_RECIPE, PowCoreConfig.RECIPE_MASQUE_H2)
+            if (current.isNullOrBlank() || current == AtomCoreConfig.RECIPE_AUTO) {
+                edit.putString(KEY_LINK_RECIPE, AtomCoreConfig.RECIPE_MASQUE_H2)
             }
             edit.apply()
         }
         if (!prefs.getBoolean(KEY_CONNECT_FIRST_MIGRATION, false)) {
             // Previous connects recorded last-good WARP/WoW after MASQUE and
             // WireGuard were killed mid-scan. Auto then always started there.
-            PowNetworkScoreboard.clearAll(prefs)
+            AtomNetworkScoreboard.clearAll(prefs)
             prefs.edit()
                 .remove(KEY_OUTER_PROTOCOL)
                 .putBoolean(KEY_CONNECT_FIRST_MIGRATION, true)
                 .apply()
-            runCatching { PowCoreConfig.lastconnPath(appContext).takeIf { it.isFile }?.delete() }
-            runCatching { PowCoreConfig.goolLastconnPath(appContext).takeIf { it.isFile }?.delete() }
+            runCatching { AtomCoreConfig.lastconnPath(appContext).takeIf { it.isFile }?.delete() }
+            runCatching { AtomCoreConfig.goolLastconnPath(appContext).takeIf { it.isFile }?.delete() }
         }
     }
 
     private val mutableSettings = MutableStateFlow(read())
-    val settings: StateFlow<PowEngineSettings> = mutableSettings.asStateFlow()
+    val settings: StateFlow<AtomEngineSettings> = mutableSettings.asStateFlow()
 
     init {
-        AppLogRepository.powLogcatMirror = mutableSettings.value.logcatMirror
+        AppLogRepository.atomLogcatMirror = mutableSettings.value.logcatMirror
     }
     private val mutableLastConnect = MutableStateFlow(readLastConnect())
-    internal val lastConnect: StateFlow<PowLastConnect> = mutableLastConnect.asStateFlow()
+    internal val lastConnect: StateFlow<AtomLastConnect> = mutableLastConnect.asStateFlow()
 
-    fun snapshot(): PowEngineSettings = mutableSettings.value
+    fun snapshot(): AtomEngineSettings = mutableSettings.value
 
-    fun save(settings: PowEngineSettings): PowEngineSettings {
+    fun save(settings: AtomEngineSettings): AtomEngineSettings {
         val validated = settings.validated()
         prefs.edit()
             .putString(KEY_EXIT_COUNTRY, validated.exitCountryCode)
@@ -133,28 +133,28 @@ class PowEngineStore private constructor(context: Context) {
             .putString(KEY_H2_FINGERPRINT, validated.h2Fingerprint)
             .putString(KEY_MASQUE_IP_VERSION, validated.masqueIpVersion)
             .apply()
-        AppLogRepository.powLogcatMirror = validated.logcatMirror
+        AppLogRepository.atomLogcatMirror = validated.logcatMirror
         mutableSettings.value = validated
         return validated
     }
 
     // Level B: per-network scoreboard — try netKey first, fallback to global.
     fun rememberedOuterProtocol(): String? {
-        val netKey = PowNetworkScoreboard.networkKey(appContext)
-        PowNetworkScoreboard.loadOuter(prefs, netKey)?.let { return it }
-        return prefs.getString(KEY_OUTER_PROTOCOL, null)?.trim()?.lowercase()?.takeIf { it in PowCoreConfig.OUTER_LADDER }
+        val netKey = AtomNetworkScoreboard.networkKey(appContext)
+        AtomNetworkScoreboard.loadOuter(prefs, netKey)?.let { return it }
+        return prefs.getString(KEY_OUTER_PROTOCOL, null)?.trim()?.lowercase()?.takeIf { it in AtomCoreConfig.OUTER_LADDER }
     }
 
     fun saveOuterProtocol(protocol: String) {
         val clean = protocol.trim().lowercase()
-        if (clean !in PowCoreConfig.OUTER_LADDER) return
+        if (clean !in AtomCoreConfig.OUTER_LADDER) return
         prefs.edit().putString(KEY_OUTER_PROTOCOL, clean).apply()
-        PowNetworkScoreboard.saveOuter(prefs, PowNetworkScoreboard.networkKey(appContext), clean)
+        AtomNetworkScoreboard.saveOuter(prefs, AtomNetworkScoreboard.networkKey(appContext), clean)
     }
 
     fun rememberedStrategyIndex(shape: String, ladderSize: Int): Int {
-        val netKey = PowNetworkScoreboard.networkKey(appContext)
-        PowNetworkScoreboard.loadStrategy(prefs, netKey, shape, ladderSize)?.let { return it }
+        val netKey = AtomNetworkScoreboard.networkKey(appContext)
+        AtomNetworkScoreboard.loadStrategy(prefs, netKey, shape, ladderSize)?.let { return it }
         val storedShape = prefs.getString(KEY_STRATEGY_SHAPE, null)
         if (storedShape != shape) {
             prefs.edit().remove(KEY_STRATEGY_INDEX).putString(KEY_STRATEGY_SHAPE, shape).apply()
@@ -165,35 +165,35 @@ class PowEngineStore private constructor(context: Context) {
 
     fun saveStrategyWinner(index: Int, shape: String) {
         prefs.edit().putInt(KEY_STRATEGY_INDEX, index).putString(KEY_STRATEGY_SHAPE, shape).apply()
-        PowNetworkScoreboard.saveStrategy(prefs, PowNetworkScoreboard.networkKey(appContext), index, shape)
+        AtomNetworkScoreboard.saveStrategy(prefs, AtomNetworkScoreboard.networkKey(appContext), index, shape)
     }
 
     fun saveStrategyWinnerWithRtt(index: Int, shape: String, rttMs: Long) {
         saveStrategyWinner(index, shape)
-        if (rttMs > 0) PowNetworkScoreboard.saveStrategy(prefs, PowNetworkScoreboard.networkKey(appContext), index, shape, rttMs)
+        if (rttMs > 0) AtomNetworkScoreboard.saveStrategy(prefs, AtomNetworkScoreboard.networkKey(appContext), index, shape, rttMs)
     }
 
     fun saveStrategyRtt(strategy: String, rttMs: Long) {
-        PowNetworkScoreboard.saveStrategyRtt(prefs, PowNetworkScoreboard.networkKey(appContext), strategy, rttMs)
+        AtomNetworkScoreboard.saveStrategyRtt(prefs, AtomNetworkScoreboard.networkKey(appContext), strategy, rttMs)
     }
 
     fun strategyRtts(strategies: List<String>): Map<String, Long> =
-        PowNetworkScoreboard.loadStrategyRtts(prefs, PowNetworkScoreboard.networkKey(appContext), strategies)
+        AtomNetworkScoreboard.loadStrategyRtts(prefs, AtomNetworkScoreboard.networkKey(appContext), strategies)
 
     fun rememberedRegion(): String? =
-        PowNetworkScoreboard.loadRegion(prefs, PowNetworkScoreboard.networkKey(appContext))
+        AtomNetworkScoreboard.loadRegion(prefs, AtomNetworkScoreboard.networkKey(appContext))
 
     fun saveRegion(region: String) {
-        PowNetworkScoreboard.saveRegion(prefs, PowNetworkScoreboard.networkKey(appContext), region)
+        AtomNetworkScoreboard.saveRegion(prefs, AtomNetworkScoreboard.networkKey(appContext), region)
     }
 
-    fun regionStats(): Map<String, PowRegions.PowRegionStats> =
-        PowNetworkScoreboard.regionStats(prefs, PowNetworkScoreboard.networkKey(appContext))
+    fun regionStats(): Map<String, AtomRegions.AtomRegionStats> =
+        AtomNetworkScoreboard.regionStats(prefs, AtomNetworkScoreboard.networkKey(appContext))
 
     fun recordRegionResult(region: String, success: Boolean, connectMs: Long) {
-        PowNetworkScoreboard.recordRegionResult(
+        AtomNetworkScoreboard.recordRegionResult(
             prefs,
-            PowNetworkScoreboard.networkKey(appContext),
+            AtomNetworkScoreboard.networkKey(appContext),
             region,
             success,
             connectMs,
@@ -205,10 +205,10 @@ class PowEngineStore private constructor(context: Context) {
             .orEmpty()
             .split(',')
             .map { it.trim().uppercase(Locale.US) }
-            .filter(PowRegions::isCode)
+            .filter(AtomRegions::isCode)
 
     fun rememberAvailableRegions(codes: List<String>) {
-        val clean = codes.map { it.trim().uppercase(Locale.US) }.filter(PowRegions::isCode).distinct().sorted()
+        val clean = codes.map { it.trim().uppercase(Locale.US) }.filter(AtomRegions::isCode).distinct().sorted()
         if (clean.isEmpty()) return
         prefs.edit().putString(KEY_AVAILABLE_REGIONS, clean.joinToString(",")).apply()
     }
@@ -229,28 +229,28 @@ class PowEngineStore private constructor(context: Context) {
             .putBoolean(KEY_LAST_PSIPHON, throughPsiphon)
             .putString(KEY_LAST_PEER, peer)
             .apply()
-        mutableLastConnect.value = PowLastConnect(clean, transport.trim().lowercase(), ip.trim().lowercase(), peer, throughPsiphon)
+        mutableLastConnect.value = AtomLastConnect(clean, transport.trim().lowercase(), ip.trim().lowercase(), peer, throughPsiphon)
     }
 
-    internal fun learnedPaths(): PowLearnedPathSnapshot = PowPathMemory.snapshot(appContext, prefs)
+    internal fun learnedPaths(): AtomLearnedPathSnapshot = AtomPathMemory.snapshot(appContext, prefs)
 
-    internal fun forgetLearnedPaths(): Int = PowPathMemory.forget(appContext, prefs)
+    internal fun forgetLearnedPaths(): Int = AtomPathMemory.forget(appContext, prefs)
 
-    private fun read(): PowEngineSettings = PowEngineSettings(
+    private fun read(): AtomEngineSettings = AtomEngineSettings(
         exitCountryCode = prefs.getString(KEY_EXIT_COUNTRY, "").orEmpty(),
-        outerTransport = prefs.getString(KEY_OUTER, PowCoreConfig.OUTER_AUTO).orEmpty(),
+        outerTransport = prefs.getString(KEY_OUTER, AtomCoreConfig.OUTER_AUTO).orEmpty(),
         obfuscationProfile = prefs.getString(KEY_OBFUSCATION, "balanced").orEmpty(),
         h2Fragmentation = prefs.getBoolean(KEY_H2_FRAGMENT, false),
-        scanMode = prefs.getString(KEY_SCAN_MODE, PowCoreConfig.SCAN_BALANCED).orEmpty(),
+        scanMode = prefs.getString(KEY_SCAN_MODE, AtomCoreConfig.SCAN_BALANCED).orEmpty(),
         optimizedMode = prefs.getBoolean(KEY_OPTIMIZED_MODE, true),
-        firewallProfile = prefs.getString(KEY_FIREWALL, PowCoreConfig.FIREWALL_AUTO).orEmpty(),
-        carrierMode = prefs.getString(KEY_CARRIER_MODE, PowCoreConfig.CARRIER_AUTO).orEmpty(),
-        linkRecipe = prefs.getString(KEY_LINK_RECIPE, PowCoreConfig.RECIPE_MASQUE_H2).orEmpty(),
+        firewallProfile = prefs.getString(KEY_FIREWALL, AtomCoreConfig.FIREWALL_AUTO).orEmpty(),
+        carrierMode = prefs.getString(KEY_CARRIER_MODE, AtomCoreConfig.CARRIER_AUTO).orEmpty(),
+        linkRecipe = prefs.getString(KEY_LINK_RECIPE, AtomCoreConfig.RECIPE_MASQUE_H2).orEmpty(),
         chainPsiphon = prefs.getBoolean(KEY_CHAIN_PSIPHON, true),
         // Migration: no exit_mode yet -> derive from the old chain/WARP boolean.
         exitMode = prefs.getString(KEY_EXIT_MODE, null)
-            ?: if (prefs.getBoolean(KEY_CHAIN_PSIPHON, true)) PowEngineSettings.EXIT_CHAIN else PowEngineSettings.EXIT_WARP,
-        keyFetch = prefs.getString(KEY_FETCH, PowCoreConfig.KEY_AUTO).orEmpty(),
+            ?: if (prefs.getBoolean(KEY_CHAIN_PSIPHON, true)) AtomEngineSettings.EXIT_CHAIN else AtomEngineSettings.EXIT_WARP,
+        keyFetch = prefs.getString(KEY_FETCH, AtomCoreConfig.KEY_AUTO).orEmpty(),
         psiphonTunnelPool = prefs.getBoolean(KEY_PSIPHON_POOL, false),
         quicTuned = prefs.getBoolean(KEY_QUIC_TUNED, false),
         ghostHandover = true, // always on (UI toggle removed)
@@ -258,18 +258,18 @@ class PowEngineStore private constructor(context: Context) {
         h2LargeWindows = true, // always on (UI toggle removed)
         h2SocketTuning = true, // always on (UI toggle removed)
         h2SpeedPick = true, // always on (UI toggle removed)
-        h2Obfuscation = prefs.getString(KEY_H2_OBFUSCATION, PowEngineSettings.H2_OBFS_UNCHANGED).orEmpty(),
-        tunMtu = prefs.getInt(KEY_TUN_MTU, PowEngineSettings.TUN_MTU_DEFAULT),
-        h2FragmentMode = prefs.getString(KEY_H2_FRAGMENT_MODE, PowEngineSettings.H2_FRAG_AUTO).orEmpty(),
+        h2Obfuscation = prefs.getString(KEY_H2_OBFUSCATION, AtomEngineSettings.H2_OBFS_UNCHANGED).orEmpty(),
+        tunMtu = prefs.getInt(KEY_TUN_MTU, AtomEngineSettings.TUN_MTU_DEFAULT),
+        h2FragmentMode = prefs.getString(KEY_H2_FRAGMENT_MODE, AtomEngineSettings.H2_FRAG_AUTO).orEmpty(),
         socketProtectEnabled = prefs.getBoolean(KEY_SOCKET_PROTECT, true),
-        h2Fingerprint = prefs.getString(KEY_H2_FINGERPRINT, PowEngineSettings.H2_FP_DEFAULT).orEmpty(),
-        masqueIpVersion = prefs.getString(KEY_MASQUE_IP_VERSION, PowEngineSettings.MASQUE_IP_AUTO).orEmpty(),
+        h2Fingerprint = prefs.getString(KEY_H2_FINGERPRINT, AtomEngineSettings.H2_FP_DEFAULT).orEmpty(),
+        masqueIpVersion = prefs.getString(KEY_MASQUE_IP_VERSION, AtomEngineSettings.MASQUE_IP_AUTO).orEmpty(),
     ).validated()
 
-    private fun readLastConnect(): PowLastConnect {
+    private fun readLastConnect(): AtomLastConnect {
         val protocol = prefs.getString(KEY_LAST_PROTOCOL, null)?.trim()?.lowercase().orEmpty()
         if (protocol.isNotEmpty()) {
-            return PowLastConnect(
+            return AtomLastConnect(
                 protocol = protocol,
                 transport = prefs.getString(KEY_LAST_TRANSPORT, "").orEmpty(),
                 ip = prefs.getString(KEY_LAST_IP, "").orEmpty(),
@@ -278,10 +278,10 @@ class PowEngineStore private constructor(context: Context) {
             )
         }
         val outer = prefs.getString(KEY_OUTER_PROTOCOL, null)?.trim()?.lowercase().orEmpty()
-        if (outer !in PowCoreConfig.OUTER_LADDER) return PowLastConnect()
+        if (outer !in AtomCoreConfig.OUTER_LADDER) return AtomLastConnect()
         val paths = learnedPaths()
         val peer = if (outer == "gool") paths.wowLastPeer.orEmpty() else paths.masqueLastPeer.orEmpty()
-        return PowLastConnect(protocol = outer, peer = peer, throughPsiphon = true)
+        return AtomLastConnect(protocol = outer, peer = peer, throughPsiphon = true)
     }
 
     companion object {
@@ -327,10 +327,10 @@ class PowEngineStore private constructor(context: Context) {
         private const val KEY_STRATEGY_SHAPE = "psiphon_winning_strategy_chained_shape"
         private const val KEY_AVAILABLE_REGIONS = "psiphon_available_regions"
 
-        @Volatile private var instance: PowEngineStore? = null
+        @Volatile private var instance: AtomEngineStore? = null
 
-        fun get(context: Context): PowEngineStore = instance ?: synchronized(this) {
-            instance ?: PowEngineStore(context.applicationContext).also { instance = it }
+        fun get(context: Context): AtomEngineStore = instance ?: synchronized(this) {
+            instance ?: AtomEngineStore(context.applicationContext).also { instance = it }
         }
     }
 }
