@@ -129,6 +129,7 @@ Paste this into a new conversation:
 - Applied the UI/settings source files from `ui-integration` (PR #10): `MainActivity.kt`, `AtomVpnService.kt`, `AndroidManifest.xml`, `AtomAppearanceStore.kt`, `AtomLanguageStore.kt`, and `AtomRemoteConfig.kt`.
 - This branch is the combined candidate for CI validation; it does not merge either source PR into `pow-standalone`.
 - PR #10 and PR #11 remain open and unmerged. No public release is intended.
-- Validation pending: run Universal and ARM64 CI builds, inspect APK artifacts, then perform device regression tests. No device validation is claimed.
+- Combined test PR: [#14](https://github.com/atom-vpn/atom1/pull/14), targeting `pow-standalone` for CI only; PR #10 and #11 remain open/unmerged.
+- GitHub Actions run [#45043481083](https://github.com/atom-vpn/atom1/actions/runs/45043481083) was queued for the combined Universal/ARM64 build at 2026-11-22 16:22 UTC. Await its result and inspect APK artifacts, then perform device regression tests. No device validation is claimed.
 - Engine migration compatibility remains from PR #11. UI settings/theme/language/logs/About/notification changes are from PR #10. No intentional changes to transport, routing, JNI/native binaries, coordinator, or VPN lifecycle.
 
