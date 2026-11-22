@@ -170,3 +170,9 @@ Paste this into a new conversation:
 - The live remote configuration is served by the separate `atom-vpn/atom-vpn-config` repository and currently still contains the old `app_name`, `about`, and `developer_role` values. It must be updated separately so online refresh does not restore the old About title.
 - No application ID, package/namespace, VPN engine, transport, routing, JNI, or connection lifecycle changes.
 - CI/build validation for this naming change: pending. No device validation claimed. PR #10 remains open and unmerged.
+
+
+## 15. About page title wording
+- Updated the Persian About page heading to `درباره‌ Atom Access` (dynamic app name retained).
+- Updated the English translation matcher for the revised Persian prefix.
+- No VPN engine, transport, routing, JNI, package ID, or lifecycle behavior changed.
