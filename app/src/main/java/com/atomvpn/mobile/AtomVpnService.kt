@@ -27,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 
 class AtomVpnService : VpnService() {
     /**
@@ -51,6 +52,7 @@ class AtomVpnService : VpnService() {
     private var exitIpJob: kotlinx.coroutines.Job? = null
     private var trafficSpeedJob: kotlinx.coroutines.Job? = null
     @Volatile private var shutdownCompleted = false
+    @Volatile private var foregroundStarted = false
 
     override fun onCreate() {
         super.onCreate()
@@ -59,6 +61,16 @@ class AtomVpnService : VpnService() {
         val networkGuard = NetworkGuardStore.get(this)
         TunPacketFilter.applyFlags(networkGuard.snapshot())
         scope.launch { networkGuard.settings.collect { TunPacketFilter.applyFlags(it) } }
+        scope.launch {
+            ConnectionStateStore.state.collect {
+                if (foregroundStarted) updateNotification(currentNotificationText())
+            }
+        }
+        scope.launch {
+            AtomStatusStore.status.collect {
+                if (foregroundStarted) updateNotification(currentNotificationText())
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -76,13 +88,14 @@ class AtomVpnService : VpnService() {
         trafficSpeedJob?.cancel()
         ExitIpInfoRepository.clear()
         TrafficSpeedRepository.clear()
-        startForeground(NOTIFICATION_ID, notification("در حال آماده‌سازی اتصال"))
+        foregroundStarted = true
+        startForeground(NOTIFICATION_ID, notification(currentNotificationText()))
         connectJob = scope.launch {
             try {
                 val settings = AdvancedSettingsStore(this@AtomVpnService).snapshot()
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
                 if (ConnectionStateStore.state.value == com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
-                    updateNotification("اتصال امن برقرار شد")
+                    updateNotification(currentNotificationText())
                     startTrafficSpeedMonitor()
                     // Resolve the public IP through the engine's own SOCKS listener,
                     // never through the phone's direct network.
@@ -114,6 +127,7 @@ class AtomVpnService : VpnService() {
                     trafficSpeedJob?.cancel()
                     ExitIpInfoRepository.clear()
                     TrafficSpeedRepository.clear()
+                    foregroundStarted = false
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -181,8 +195,34 @@ class AtomVpnService : VpnService() {
                 coordinator.forceRelease()
             }
             ConnectionStateStore.markDisconnected()
+            foregroundStarted = false
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+        }
+    }
+
+    private fun currentNotificationText(): String {
+        val english = AtomLanguageStore.get(this).language.value == AtomLanguageStore.EN
+        val state = ConnectionStateStore.state.value.name
+        val phase = AtomStatusStore.status.value.phase
+        return if (english) {
+            when {
+                state == "CONNECTED" -> "Connected · secure tunnel active"
+                state == "DISCONNECTING" -> "Disconnecting VPN…"
+                phase == com.atomvpn.mobile.engine.atom.AtomPhase.OUTER -> "Starting outer tunnel…"
+                phase == com.atomvpn.mobile.engine.atom.AtomPhase.INNER -> "Establishing secure tunnel…"
+                phase == com.atomvpn.mobile.engine.atom.AtomPhase.BRIDGING -> "Finalizing connection…"
+                else -> "Connecting to VPN…"
+            }
+        } else {
+            when {
+                state == "CONNECTED" -> "اتصال امن برقرار است"
+                state == "DISCONNECTING" -> "در حال قطع اتصال…"
+                phase == com.atomvpn.mobile.engine.atom.AtomPhase.OUTER -> "در حال راه‌اندازی تونل بیرونی…"
+                phase == com.atomvpn.mobile.engine.atom.AtomPhase.INNER -> "در حال برقراری تونل امن…"
+                phase == com.atomvpn.mobile.engine.atom.AtomPhase.BRIDGING -> "در حال نهایی‌سازی اتصال…"
+                else -> "در حال اتصال به VPN…"
+            }
         }
     }
 
@@ -200,10 +240,13 @@ class AtomVpnService : VpnService() {
             .setContentTitle("Atom VPN")
             .setContentText(text)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
 
     private fun updateNotification(text: String) {
+        if (!foregroundStarted) return
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(text))
     }
 
