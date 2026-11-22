@@ -148,7 +148,7 @@ private val EnglishUiText = mapOf(
     "ثبت لاگ در logcat" to "Mirror logs to logcat",
     "برای خواندن لاگ از طریق adb" to "Read logs via ADB",
     "درباره" to "About",
-    "درباره‌ی سازنده" to "About us",
+    "درباره ما" to "About us",
     "نسخه" to "Version",
     "تیره" to "Dark",
     "روشن" to "Light",
@@ -1168,7 +1168,7 @@ private fun AtomSettingsPage(
             }
             Reveal(5) {
                 SettingsGroup(tr("درباره")) {
-                    SettingsRow(Icons.Outlined.Person, tr("درباره‌ی سازنده"), onClick = onOpenAbout) { ValueChevron("") }
+                    SettingsRow(Icons.Outlined.Person, tr("درباره ما"), onClick = onOpenAbout) { ValueChevron("") }
                     SettingsRow(Icons.Outlined.Info, tr("نسخه"), last = true) {
                         Text(BuildConfig.VERSION_NAME, color = Muted, fontSize = 12.sp)
                     }
