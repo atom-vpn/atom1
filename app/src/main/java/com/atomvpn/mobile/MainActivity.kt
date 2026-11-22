@@ -182,6 +182,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val context = LocalContext.current
+    // دریافت تنظیمات آنلاین در پس‌زمینه؛ هیچ‌وقت مسیر شروع اتصال VPN را متوقف نمی‌کند.
+    LaunchedEffect(Unit) { AtomRemoteConfigStore.get(context).refresh() }
     val connection by ConnectionStateStore.state.collectAsStateWithLifecycle()
     val status by AtomStatusStore.status.collectAsStateWithLifecycle()
     val exitIpState by ExitIpInfoRepository.state.collectAsStateWithLifecycle()
