@@ -20,10 +20,10 @@ import java.net.URL
  * مقدارهای پیش‌فرض همان مقدارهای داخل فایل هستند، پس بدون اینترنت هم صفحه خالی نمی‌ماند.
  */
 data class AtomRemoteConfig(
-    val appName: String = "Atom VPN",
-    val about: String = "Atom VPN - Secure Connection",
+    val appName: String = "Atom Access",
+    val about: String = "Atom Access - Secure Connection",
     val developerName: String = "Team ATom",
-    val developerRole: String = "Atom VPN Development Team",
+    val developerRole: String = "Atom Access Development Team",
     val githubUrl: String = "https://github.com/atom-vpn/atom1",
     val telegramUrl: String = "https://t.me/AtomCNT",
     val supportEmail: String = "",
@@ -57,7 +57,7 @@ data class AtomRemoteConfig(
         private fun JSONObject.text(key: String, fallback: String, max: Int): String {
             if (!has(key) || isNull(key)) return fallback
             return optString(key, fallback)
-                .filter { !it.isISOControl() || it == '\n' }
+                .filter { !it.isISOControl() || it == '\\n' }
                 .trim()
                 .take(max)
         }
