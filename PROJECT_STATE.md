@@ -176,3 +176,12 @@ Paste this into a new conversation:
 - Updated the Persian About page heading to `درباره‌ Atom Access` (dynamic app name retained).
 - Updated the English translation matcher for the revised Persian prefix.
 - No VPN engine, transport, routing, JNI, package ID, or lifecycle behavior changed.
+
+
+## 15. About page title wording (2026-11-22)
+
+- Applied the user's preferred Persian About page title format: `درباره‌ Atom Access` (ZWNJ after «درباره» followed by a space).
+- Updated the English translation prefix matcher to recognize the same Persian title format and render it as `About Atom Access`.
+- Source change: `app/src/main/java/com/atomvpn/mobile/MainActivity.kt`.
+- Commit: `5747cf36b6eee3580bee279498e5187838f3b004`.
+- No engine, transport, routing, native, package, or connection lifecycle changes. CI/build validation remains pending.
