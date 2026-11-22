@@ -184,7 +184,7 @@ private fun translatedUiText(value: String, language: String): String {
         value.startsWith("نسخه‌ی ") && value.endsWith(" منتشر شده است") -> "Version " + value.removePrefix("نسخه‌ی ").removeSuffix(" منتشر شده است") + " is available"
         value.contains(" خط · حدود ") && value.endsWith(" KB") -> value.replace(" خط · حدود ", " lines · about ")
         value.endsWith(" خط ثبت‌شده") -> value.removeSuffix(" خط ثبت‌شده") + " log entries"
-        value.startsWith("درباره‌ ") -> "About " + value.removePrefix("درباره‌ی ")
+        value.startsWith("درباره‌ ") -> "About " + value.removePrefix("درباره‌ ")
         value.startsWith("نسخه ") -> value.replaceFirst("نسخه ", "Version ")
         else -> EnglishUiText[value] ?: value
     }
