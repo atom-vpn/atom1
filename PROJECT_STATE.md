@@ -1,7 +1,7 @@
 # Atom VPN — Project State
 
 > Living handoff document. Update this file whenever repository work changes the project state, decisions, validation status, or next action.
-> Last reviewed: 2026-11-21
+> Last reviewed: 2026-11-22
 > Repository: https://github.com/atom-vpn/atom1
 
 ## 1. Product goal
@@ -34,7 +34,19 @@ Repository PR list: https://github.com/atom-vpn/atom1/pulls
 | [#4](https://github.com/atom-vpn/atom1/pull/4) | Atom-owned HEV JNI binding | Merged | Rebuilt HEV native library for Android ABIs and removed obsolete Java forwarding bridge. Device-level verification was requested in PR validation notes. |
 | [#5](https://github.com/atom-vpn/atom1/pull/5) | Legacy peer-cache migration correction | Merged | Prevents stale peer hints from being restored after reset; preserves other migration data. |
 | [#6](https://github.com/atom-vpn/atom1/pull/6) | VPN service destruction cleanup | Merged | Adds bounded emergency resource-release fallback when Android destroys/revokes the service or normal stop fails. |
-| [#7](https://github.com/atom-vpn/atom1/pull/7) | Aether reference release on emergency teardown | Open | Base: `pow-standalone`; head: `fix-emergency-aether-detach`; head SHA: `4664958c02fcc3b48534e4bd1a8c1808f32f1d7b`. |
+| [#7](https://github.com/atom-vpn/atom1/pull/7) | Aether reference release on emergency teardown | Open | Base: `pow-standalone`; head: `fix-emergency-aether-detach`; head SHA: `4664958c02fcc3b48534e4bd1a8c1808f32f1d7b`. |\n| [#8](https://github.com/atom-vpn/atom1/pull/8) | Unknown-carrier automatic fallback to MASQUE HTTP/2 | Open | Base: `pow-standalone`; head: `fix-auto-unknown-masque-h2`. Physical Wi-Fi verification reported successful by user; CI and device status should be refreshed before merge. |\n| [#9](https://github.com/atom-vpn/atom1/pull/9) | Exit IP lookup startup recovery | Open | Base: `pow-standalone`; head: `fix-exit-ip-startup-retry`; head SHA: `570e22aaaf84c4e09756e0b9774a3d880cfc6f17`. Progressive retry and transient-error suppression; CI/device verification pending. |
+
+
+
+### PR #9 validation snapshot
+
+- PR: [#9](https://github.com/atom-vpn/atom1/pull/9)
+- Branch: `fix-exit-ip-startup-retry`; base: `pow-standalone`.
+- Changes are limited to `ExitIpInfoRepository.kt` and `AtomVpnService.kt`.
+- Exit-IP lookup remains strictly routed through the engine SOCKS listener; no direct-network fallback was added.
+- Retry delays are bounded at 2, 3, 5, 8, 10, 10, 10, and 10 seconds.
+- Transient failures retain the loading state; only the final failed attempt publishes an error.
+- GitHub Actions and physical-device verification are pending. Do not merge until checks are refreshed and the user tests the resulting APK.
 
 ### PR #7 validation snapshot
 
