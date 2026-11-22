@@ -1,14 +1,18 @@
 package com.atomvpn.mobile
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.net.VpnService
 import android.os.Bundle
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -46,8 +50,10 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -202,6 +208,8 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val exitIpState by ExitIpInfoRepository.state.collectAsStateWithLifecycle()
     val trafficSpeedState by TrafficSpeedRepository.state.collectAsStateWithLifecycle()
     val engine = remember(context) { AtomEngineStore.get(context) }
+    val languageStore = remember(context) { AtomLanguageStore.get(context) }
+    val language by languageStore.language.collectAsStateWithLifecycle()
     val settings by engine.settings.collectAsStateWithLifecycle()
     var page by remember { mutableStateOf("home") }
     var countryQuery by remember { mutableStateOf("") }
@@ -209,8 +217,8 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
     val connected = connection == ConnectionState.CONNECTED
     val exitCountryLabel = when {
         !connected -> "—"
-        status.exitRegion.isNotBlank() -> AtomRegions.name(status.exitRegion, Locale("fa")).ifBlank { status.exitRegion }
-        !exitIpState.info?.countryCode.isNullOrBlank() -> AtomRegions.name(exitIpState.info!!.countryCode, Locale("fa")).ifBlank { exitIpState.info!!.countryCode }
+        status.exitRegion.isNotBlank() -> AtomRegions.name(status.exitRegion, Locale(language)).ifBlank { status.exitRegion }
+        !exitIpState.info?.countryCode.isNullOrBlank() -> AtomRegions.name(exitIpState.info!!.countryCode, Locale(language)).ifBlank { exitIpState.info!!.countryCode }
         exitIpState.isLoading -> "در حال شناسایی…"
         else -> "نامشخص"
     }
@@ -269,6 +277,10 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
         )
     }
 
+    CompositionLocalProvider(
+        LocalAtomLanguage provides language,
+        LocalLayoutDirection provides if (language == AtomLanguageStore.EN) LayoutDirection.Ltr else LayoutDirection.Rtl
+    ) {
     MaterialTheme(colorScheme = scheme) {
         // رنگ متن پیش‌فرض بیرون از Card هم از تم گوشی می‌آید
         CompositionLocalProvider(LocalAtom provides atom, LocalContentColor provides atom.text) {
@@ -289,6 +301,8 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                         "settings" -> AtomSettingsPage(
                             settings = settings,
                             themeMode = themeMode,
+                            language = language,
+                            onLanguageChange = { languageStore.setLanguage(it) },
                             onThemeChange = { appearance.setMode(it) },
                             onBack = { page = "home" },
                             onOpenCountries = { page = "countries" },
@@ -300,9 +314,9 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                         "logs" -> AtomLogsPage(onBack = { page = "settings" })
                         "countries" -> {
                             val countries = remember { AtomRegions.options(engine.availableRegions()) }
-                            val faLocale = remember { Locale("fa") }
+                            val countryLocale = remember(language) { Locale(language) }
                             // نام‌ها یک بار محاسبه می‌شوند، نه در هر فریم اسکرول
-                            val names = remember(countries) { countries.associateWith { AtomRegions.name(it, faLocale) } }
+                            val names = remember(countries, language) { countries.associateWith { AtomRegions.name(it, countryLocale) } }
                             val filtered = remember(countries, countryQuery) {
                                 countries.filter { AtomRegions.matches(it, countryQuery) }
                             }
@@ -380,6 +394,7 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                 }
             }
         }
+    }
     }
 }
 
@@ -924,6 +939,8 @@ private fun ConnectionRings(accent: Color, connecting: Boolean, buttonRadius: Dp
 private fun AtomSettingsPage(
     settings: AtomEngineSettings,
     themeMode: String,
+    language: String,
+    onLanguageChange: (String) -> Unit,
     onThemeChange: (String) -> Unit,
     onBack: () -> Unit,
     onOpenCountries: () -> Unit,
