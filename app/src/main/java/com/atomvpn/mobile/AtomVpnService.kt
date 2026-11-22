@@ -71,6 +71,11 @@ class AtomVpnService : VpnService() {
                 if (foregroundStarted) updateNotification(currentNotificationText())
             }
         }
+        scope.launch {
+            AtomLanguageStore.get(this@AtomVpnService).language.collect {
+                if (foregroundStarted) updateNotification(currentNotificationText())
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
