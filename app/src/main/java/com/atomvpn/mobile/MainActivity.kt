@@ -152,9 +152,26 @@ private fun atomDisplayText(value: String): String = value
 
 class MainActivity : ComponentActivity() {
     private val vpnPermission = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK || VpnService.prepare(this) == null) {
-            startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_CONNECT))
-        }
+        if (result.resultCode == Activity.RESULT_OK || VpnService.prepare(this) == null) startVpnService()
+    }
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        requestVpnConsent()
+    }
+
+    private fun startVpnService() {
+        startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_CONNECT))
+    }
+
+    private fun requestVpnConsent() {
+        val intent = VpnService.prepare(this)
+        if (intent == null) startVpnService() else vpnPermission.launch(intent)
+    }
+
+    private fun connectWithNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        else requestVpnConsent()
     }
 
     override fun onResume() {
@@ -165,11 +182,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AtomApp(
-            onConnect = {
-                val intent = VpnService.prepare(this)
-                if (intent == null) startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_CONNECT))
-                else vpnPermission.launch(intent)
-            },
+            onConnect = { connectWithNotificationPermission() },
             onDisconnect = {
                 startService(Intent(this, AtomVpnService::class.java).setAction(AtomVpnService.ACTION_DISCONNECT))
             }
