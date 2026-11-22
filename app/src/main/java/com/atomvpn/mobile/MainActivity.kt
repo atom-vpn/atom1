@@ -322,8 +322,8 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
         !connected -> "—"
         status.exitRegion.isNotBlank() -> AtomRegions.name(status.exitRegion, Locale(language)).ifBlank { status.exitRegion }
         !exitIpState.info?.countryCode.isNullOrBlank() -> AtomRegions.name(exitIpState.info!!.countryCode, Locale(language)).ifBlank { exitIpState.info!!.countryCode }
-        exitIpState.isLoading -> tr("در حال شناسایی…")
-        else -> tr("نامشخص")
+        exitIpState.isLoading -> translatedUiText("در حال شناسایی…", language)
+        else -> translatedUiText("نامشخص", language)
     }
     val connecting = connection == ConnectionState.CONNECTING ||
         status.phase in setOf(AtomPhase.STARTING, AtomPhase.OUTER, AtomPhase.INNER, AtomPhase.BRIDGING)
