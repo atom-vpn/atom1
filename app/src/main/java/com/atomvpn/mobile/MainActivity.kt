@@ -184,7 +184,7 @@ private fun translatedUiText(value: String, language: String): String {
         value.startsWith("نسخه‌ی ") && value.endsWith(" منتشر شده است") -> "Version " + value.removePrefix("نسخه‌ی ").removeSuffix(" منتشر شده است") + " is available"
         value.contains(" خط · حدود ") && value.endsWith(" KB") -> value.replace(" خط · حدود ", " lines · about ")
         value.endsWith(" خط ثبت‌شده") -> value.removeSuffix(" خط ثبت‌شده") + " log entries"
-        value.startsWith("درباره‌ی ") -> "About " + value.removePrefix("درباره‌ی ")
+        value.startsWith("درباره‌ ") -> "About " + value.removePrefix("درباره‌ی ")
         value.startsWith("نسخه ") -> value.replaceFirst("نسخه ", "Version ")
         else -> EnglishUiText[value] ?: value
     }
@@ -1330,7 +1330,7 @@ private fun AtomAboutPage(onBack: () -> Unit) {
         Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
             .verticalScroll(rememberScrollState()).padding(18.dp)
     ) {
-        ScreenHeader(tr("درباره‌ی ${cfg.appName}"), tr("سازنده و اطلاعات برنامه"), onBack)
+        ScreenHeader(tr("درباره‌ ${cfg.appName}"), tr("سازنده و اطلاعات برنامه"), onBack)
         Reveal(0) {
             Column(Modifier.fillMaxWidth().padding(top = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 AtomLogoTile(76.dp)
