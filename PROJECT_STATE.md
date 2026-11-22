@@ -133,3 +133,16 @@ Paste this into a new conversation:
 - GitHub Actions run [#45043481083](https://github.com/atom-vpn/atom1/actions/runs/45043481083) was queued for the combined Universal/ARM64 build at 2026-11-22 16:22 UTC. Await its result and inspect APK artifacts, then perform device regression tests. No device validation is claimed.
 - Engine migration compatibility remains from PR #11. UI settings/theme/language/logs/About/notification changes are from PR #10. No intentional changes to transport, routing, JNI/native binaries, coordinator, or VPN lifecycle.
 
+
+## 19. Atom Access combined candidate — initial device smoke test (2026-11-22)
+
+- Development/reference branch for the combined UI + migration candidate: `atom-access-integrated`.
+- Tested commit: `c60b27dc925bf75b851a206ce616f5b8eb8c8950`.
+- Combined GitHub Actions build: [run #45043506104](https://github.com/atom-vpn/atom1/actions/runs/45043506104) — completed successfully; Universal and ARM64 debug APK artifacts were produced and validated by the workflow.
+- User-confirmed physical-device smoke test on the combined ARM64 APK:
+  - APK installation: successful.
+  - New Atom Access settings UI: displayed correctly.
+  - VPN connection: successful; user reported the connection test was OK on 2026-11-22.
+- Validation scope is limited to installation, UI display, and a successful connection. Repeated connect/disconnect, traffic-routing/exit behavior, reconnect, service destruction/revocation, and emergency teardown have not been confirmed on this combined build.
+- This is an internal/test candidate, not a public release. PR #14 remains open and unmerged; PR #10 and #11 remain open and unmerged. No PR was merged and no release was published.
+- Next step: retain this commit as the initial device-smoke-tested baseline; before further changes, refresh the live branch/PR state and continue from `atom-access-integrated`. For any new build, record its exact branch, SHA, architecture, CI run, and device-test scope.
