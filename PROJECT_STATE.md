@@ -1,7 +1,7 @@
 # Atom VPN — Project State
 
 > Living handoff document. Update this file whenever repository work changes the project state, decisions, validation status, or next action.
-> Last reviewed: 2026-11-21
+> Last reviewed: 2026-11-22
 > Repository: https://github.com/atom-vpn/atom1
 
 ## 1. Product goal
@@ -35,6 +35,20 @@ Repository PR list: https://github.com/atom-vpn/atom1/pulls
 | [#5](https://github.com/atom-vpn/atom1/pull/5) | Legacy peer-cache migration correction | Merged | Prevents stale peer hints from being restored after reset; preserves other migration data. |
 | [#6](https://github.com/atom-vpn/atom1/pull/6) | VPN service destruction cleanup | Merged | Adds bounded emergency resource-release fallback when Android destroys/revokes the service or normal stop fails. |
 | [#7](https://github.com/atom-vpn/atom1/pull/7) | Aether reference release on emergency teardown | Open | Base: `pow-standalone`; head: `fix-emergency-aether-detach`; head SHA: `4664958c02fcc3b48534e4bd1a8c1808f32f1d7b`. |
+| [#8](https://github.com/atom-vpn/atom1/pull/8) | Unknown-carrier automatic fallback to MASQUE HTTP/2 | Open | Head: `fix-auto-unknown-masque-h2`; current head SHA is recorded in the PR. Changes only the unknown-carrier auto plan to dual-stack H2; known carrier policies remain unchanged. |
+
+### PR #8 validation snapshot
+
+- PR: [#8](https://github.com/atom-vpn/atom1/pull/8)
+- Branch: `fix-auto-unknown-masque-h2`; base: `pow-standalone`.
+- Change: when `carrierMode=AUTO` and carrier class is unknown (notably Wi-Fi), retain the automatic protocol ladder but use MASQUE HTTP/2 and dual-stack IP selection instead of H3/IPv4.
+- Known Irancell and MCI policy branches are unchanged.
+- Added `AtomCoreConfigTest` cases for unknown, Irancell, and MCI carrier selection.
+- Android workflow now runs `:engine:testDebugUnitTest` before building Universal and ARM64 APKs.
+- Latest code/workflow commit under CI: `b5cb2b43446b61ad041500338a68dd496d92dc50`.
+- GitHub Actions run: [#45002287502](https://github.com/atom-vpn/atom1/actions/runs/45002287502); status at this update: in progress. An earlier superseded run was cancelled after subsequent pushes.
+- Refresh GitHub Actions before claiming success.
+- Physical-device verification on the same Wi-Fi is still required. Do not merge based only on CI.
 
 ### PR #7 validation snapshot
 
