@@ -37,10 +37,17 @@ object ExitIpInfoRepository {
         mutableState.value = ExitIpInfoState()
     }
 
-    suspend fun refresh(socksPort: Int) {
+    /**
+     * Returns true when the egress IP was resolved.
+     *
+     * During a retry sequence, keepLoadingOnFailure suppresses transient errors
+     * from the UI while preserving the loading state. The final attempt should
+     * pass false so a persistent failure becomes visible to the user.
+     */
+    suspend fun refresh(socksPort: Int, keepLoadingOnFailure: Boolean = false): Boolean {
         if (socksPort !in 1..65535) {
             mutableState.value = ExitIpInfoState(errorMessage = "Invalid SOCKS port")
-            return
+            return false
         }
         mutableState.value = ExitIpInfoState(isLoading = true)
         try {
@@ -48,13 +55,19 @@ object ExitIpInfoRepository {
                 lookupThroughSocks(socksPort)
             }
             mutableState.value = ExitIpInfoState(info = info)
+            return true
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
             val message = error.message?.replace(Regex("\\s+"), " ")?.trim()?.take(100)
                 .orEmpty().ifBlank { error.javaClass.simpleName }
             android.util.Log.e("AtomVPN-IP", "Public exit IP lookup failed on SOCKS port $socksPort: $message", error)
-            mutableState.value = ExitIpInfoState(errorMessage = message)
+            mutableState.value = if (keepLoadingOnFailure) {
+                ExitIpInfoState(isLoading = true)
+            } else {
+                ExitIpInfoState(errorMessage = message)
+            }
+            return false
         }
     }
 
