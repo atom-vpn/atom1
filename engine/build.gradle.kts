@@ -92,6 +92,7 @@ val flattenEngineAars = tasks.register<Exec>("flattenEngineAars") {
 }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
     implementation(files(flattenedEngineAars.map { it.file("libs/psiphon-classes.jar") }))
