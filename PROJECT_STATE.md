@@ -110,3 +110,19 @@ Branch naming and workflow updates must be coordinated with PR #7 and any other 
 Paste this into a new conversation:
 
 > Continue the Atom VPN project in repository https://github.com/atom-vpn/atom1. First read `PROJECT_STATE.md`, then independently refresh the live GitHub state (branches, recent commits, all PRs, checks, and workflow runs). Treat GitHub as the source of truth if this file is stale. Continue from the recorded next action, preserve existing engine behavior and migration compatibility, and do not merge/delete/rename branches or make destructive changes without asking me. Update `PROJECT_STATE.md` after every meaningful repository change.
+
+
+## 10. Cloud UI integration review (2026-11-22)
+
+- Review source branch: `cloud-ui-review` (uploaded Cloud delivery; preserved unchanged).
+- Integration branch: `ui-integration` (created from `cloud-ui-review`; no merge to `pow-standalone` or `main`).
+- Integrated Cloud UI source into the actual Android source tree:
+  - `app/src/main/java/com/atomvpn/mobile/MainActivity.kt`
+  - `app/src/main/java/com/atomvpn/mobile/AtomAppearanceStore.kt`
+  - `app/src/main/java/com/atomvpn/mobile/AtomRemoteConfig.kt`
+- Corrected remote config bootstrap URL to `https://raw.githubusercontent.com/atom-vpn/atom-vpn-config/main/remote-config.json`.
+- The misplaced root-level upload copies were removed from `ui-integration`; the original review branch remains intact.
+- Initial source review confirms the Logs screen uses the existing `AppLogRepository` API (entries, snapshot, clear, count, estimated size); no parallel logger was introduced.
+- Theme persistence uses a separate SharedPreferences store, not `AtomEngineStore`.
+- Remote config refresh is initiated when the About screen is opened, not in the VPN connection path; cached/default content is retained on fetch failure.
+- Validation pending: run GitHub Actions Universal and ARM64 builds and inspect compile/test results. No device validation claimed. No merge performed.
