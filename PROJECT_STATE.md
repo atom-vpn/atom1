@@ -122,3 +122,13 @@ Paste this into a new conversation:
 - No transport, routing, JNI, native binary, connection coordinator, or VPN lifecycle behavior was intentionally changed.
 - Validation status: source refactor committed; PR #11 is ready for review to trigger CI; Android build and device regression tests are pending. Do not claim runtime validation until CI and device testing complete.
 - PR #7 remains open against `pow-standalone`; PR #10 remains open and separate. Neither PR was merged or modified by this work.
+
+## 18. Atom Access combined integration (2026-11-22)
+
+- Created test integration branch `atom-access-integrated` from `atom-access-clean-identifiers` (PR #11 head), preserving the legacy install migration and its Kotlin compile fix.
+- Applied the UI/settings source files from `ui-integration` (PR #10): `MainActivity.kt`, `AtomVpnService.kt`, `AndroidManifest.xml`, `AtomAppearanceStore.kt`, `AtomLanguageStore.kt`, and `AtomRemoteConfig.kt`.
+- This branch is the combined candidate for CI validation; it does not merge either source PR into `pow-standalone`.
+- PR #10 and PR #11 remain open and unmerged. No public release is intended.
+- Validation pending: run Universal and ARM64 CI builds, inspect APK artifacts, then perform device regression tests. No device validation is claimed.
+- Engine migration compatibility remains from PR #11. UI settings/theme/language/logs/About/notification changes are from PR #10. No intentional changes to transport, routing, JNI/native binaries, coordinator, or VPN lifecycle.
+
