@@ -124,5 +124,5 @@ Paste this into a new conversation:
 - The misplaced root-level upload copies were removed from `ui-integration`; the original review branch remains intact.
 - Initial source review confirms the Logs screen uses the existing `AppLogRepository` API (entries, snapshot, clear, count, estimated size); no parallel logger was introduced.
 - Theme persistence uses a separate SharedPreferences store, not `AtomEngineStore`.
-- Remote config refresh is initiated when the About screen is opened, not in the VPN connection path; cached/default content is retained on fetch failure.
+- Remote config refresh starts asynchronously at app launch and is also checked when About is opened; it does not block the VPN connection path, and cached/default content is retained on fetch failure.
 - Validation pending: run GitHub Actions Universal and ARM64 builds and inspect compile/test results. No device validation claimed. No merge performed.
