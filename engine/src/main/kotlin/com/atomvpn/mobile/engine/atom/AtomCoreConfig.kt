@@ -311,7 +311,10 @@ object AtomCoreConfig {
             settings.carrierMode == CARRIER_AUTO -> when (carrierClass) {
                 "mci" -> AtomOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · MASQUE HTTP/2")
                 "irancell" -> AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · automatic ladder")
-                else -> AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic · automatic ladder")
+                // If Android cannot identify the carrier (for example, on Wi-Fi),
+                // prefer the proven TCP/443 path rather than assuming UDP/1701 is viable.
+                // Keep the automatic protocol ladder, but use dual-stack MASQUE HTTP/2.
+                else -> AtomOuterPlan(OUTER_LADDER, "both", "h2", false, false, "Generic · automatic ladder · MASQUE HTTP/2")
             }
             settings.carrierMode == CARRIER_OFF ->
                 AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic automatic ladder")
