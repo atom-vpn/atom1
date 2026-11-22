@@ -89,6 +89,109 @@ import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
 
+private val LocalAtomLanguage = staticCompositionLocalOf { AtomLanguageStore.FA }
+
+private val EnglishUiText = mapOf(
+    "در حال شناسایی…" to "Identifying…",
+    "نامشخص" to "Unknown",
+    "کشور خروجی" to "Exit country",
+    "انتخاب مسیر خروجی" to "Choose exit route",
+    "جستجوی کشور" to "Search countries",
+    "پاک کردن" to "Clear",
+    "خودکار" to "Automatic",
+    "کشوری پیدا نشد" to "No countries found",
+    "اتصال لغو شد" to "Connection cancelled",
+    "WARP مستقیم" to "Direct WARP",
+    "Psiphon مستقیم" to "Direct Psiphon",
+    "Psiphon روی WARP" to "Psiphon over WARP",
+    "تنظیمات" to "Settings",
+    "متصل" to "Connected",
+    "در حال برقراری اتصال" to "Connecting",
+    "اتصال ناموفق بود" to "Connection failed",
+    "آماده برای اتصال" to "Ready to connect",
+    "برای قطع اتصال لمس کنید" to "Tap to disconnect",
+    "برای تلاش دوباره لمس کنید" to "Tap to retry",
+    "برای اتصال لمس کنید" to "Tap to connect",
+    "موتور اتصال آماده است" to "Connection engine is ready",
+    "اتصال برقرار نشد" to "Connection failed",
+    "پاسخی از مسیر انتخابی دریافت نشد. دوباره تلاش کن یا روش اتصال را عوض کن." to "No response from the selected route. Try again or change the connection method.",
+    "پروتکل اتصال" to "Connection protocol",
+    "در حال دریافت…" to "Loading…",
+    "IP در دسترس نیست" to "IP unavailable",
+    "نمایش یا مخفی کردن IP" to "Show or hide IP",
+    "کپی IP" to "Copy IP",
+    "دانلود" to "Download",
+    "آپلود" to "Upload",
+    "خاموش" to "Off",
+    "همراه اول" to "MCI",
+    "ایرانسل" to "Irancell",
+    "فعال" to "Enabled",
+    "غیرفعال" to "Disabled",
+    "مدیریت اتصال" to "Connection management",
+    "مسیر و اتصال" to "Routing & connection",
+    "مسیر خروجی" to "Exit route",
+    "انتخاب" to "Select",
+    "حالت خروجی" to "Exit mode",
+    "روش اتصال" to "Connection method",
+    "حمل‌ونقل بیرونی" to "Outer transport",
+    "شبکه و امنیت" to "Network & security",
+    "اپراتور شبکه" to "Mobile carrier",
+    "مسدودسازی QUIC" to "QUIC blocking",
+    "مسدودسازی UDP پورت ۴۴۳ · بدون قطع VPN" to "Block UDP port 443 · keep VPN connected",
+    "عبور عادی ترافیک QUIC" to "Allow QUIC traffic normally",
+    "تکه‌تکه‌سازی H2" to "H2 fragmentation",
+    "بهینه‌سازی اتصال" to "Connection optimization",
+    "ظاهر" to "Appearance",
+    "تم برنامه" to "App theme",
+    "عیب‌یابی" to "Diagnostics",
+    "گزارش‌های برنامه" to "App logs",
+    "ثبت لاگ در logcat" to "Mirror logs to logcat",
+    "برای خواندن لاگ از طریق adb" to "Read logs via ADB",
+    "درباره" to "About",
+    "درباره‌ی سازنده" to "About us",
+    "نسخه" to "Version",
+    "تیره" to "Dark",
+    "روشن" to "Light",
+    "تلگرام" to "Telegram",
+    "ایمیل پشتیبانی" to "Support email",
+    "سازنده و اطلاعات برنامه" to "Team and app information",
+    "سازنده" to "Team",
+    "همه" to "All",
+    "اطلاعات" to "Info",
+    "هشدار" to "Warning",
+    "خطا" to "Error",
+    "بازگشت" to "Back",
+    "کپی همه" to "Copy all",
+    "اشتراک‌گذاری گزارش" to "Share log report",
+    "اشتراک‌گذاری" to "Share",
+    "همه منابع" to "All sources",
+    "لاگی برای نمایش نیست" to "No logs to display",
+    "لاگ‌ها ممکن است شامل آدرس IP یا جزئیات شبکه باشند؛ قبل از اشتراک‌گذاری بررسی کن." to "Logs may contain IP addresses or network details. Review them before sharing.",
+    "پاک کردن گزارش‌ها؟" to "Clear logs?",
+    "همه‌ی لاگ‌های فعلی حذف می‌شوند." to "All current logs will be deleted.",
+    "پاک کن" to "Clear",
+    "انصراف" to "Cancel",
+    "زبان" to "Language",
+    "زبان برنامه" to "App language"
+)
+
+private fun translatedUiText(value: String, language: String): String {
+    if (language != AtomLanguageStore.EN) return value
+    return when {
+        value.startsWith("در حال اتصال · ") -> value.replace("در حال اتصال · ", "Connecting · ").replace("٪", "%").replace("برای لغو لمس کنید", "tap to cancel")
+        value.startsWith("کشور انتخاب‌شده: ") -> "Selected country: " + value.removePrefix("کشور انتخاب‌شده: ").replace("خودکار", "Automatic")
+        value.startsWith("ناموفق: ") -> "Failed: " + value.removePrefix("ناموفق: ")
+        value.startsWith("نسخه‌ی ") && value.endsWith(" منتشر شده است") -> "Version " + value.removePrefix("نسخه‌ی ").removeSuffix(" منتشر شده است") + " is available"
+        value.contains(" خط · حدود ") && value.endsWith(" KB") -> value.replace(" خط · حدود ", " lines · about ")
+        value.endsWith(" خط ثبت‌شده") -> value.removeSuffix(" خط ثبت‌شده") + " log entries"
+        value.startsWith("درباره‌ی ") -> "About " + value.removePrefix("درباره‌ی ")
+        value.startsWith("نسخه ") -> value.replaceFirst("نسخه ", "Version ")
+        else -> EnglishUiText[value] ?: value
+    }
+}
+
+@Composable
+private fun tr(value: String): String = translatedUiText(value, LocalAtomLanguage.current)
 @Immutable
 private class AtomPalette(
     val dark: Boolean,
@@ -219,8 +322,8 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
         !connected -> "—"
         status.exitRegion.isNotBlank() -> AtomRegions.name(status.exitRegion, Locale(language)).ifBlank { status.exitRegion }
         !exitIpState.info?.countryCode.isNullOrBlank() -> AtomRegions.name(exitIpState.info!!.countryCode, Locale(language)).ifBlank { exitIpState.info!!.countryCode }
-        exitIpState.isLoading -> "در حال شناسایی…"
-        else -> "نامشخص"
+        exitIpState.isLoading -> tr("در حال شناسایی…")
+        else -> tr("نامشخص")
     }
     val connecting = connection == ConnectionState.CONNECTING ||
         status.phase in setOf(AtomPhase.STARTING, AtomPhase.OUTER, AtomPhase.INNER, AtomPhase.BRIDGING)
@@ -321,19 +424,19 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                 countries.filter { AtomRegions.matches(it, countryQuery) }
                             }
                             Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
-                                ScreenHeader("کشور خروجی", "انتخاب مسیر خروجی") { page = "settings" }
+                                ScreenHeader(tr("کشور خروجی"), tr("انتخاب مسیر خروجی")) { page = "settings" }
                                 OutlinedTextField(
                                     value = countryQuery,
                                     onValueChange = { countryQuery = it },
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                                     singleLine = true,
                                     shape = RoundedCornerShape(16.dp),
-                                    placeholder = { Text("جستجوی کشور", color = Muted) },
+                                    placeholder = { Text(tr("جستجوی کشور"), color = Muted) },
                                     leadingIcon = { Icon(Icons.Outlined.Search, null, tint = Muted) },
                                     trailingIcon = {
                                         AnimatedVisibility(countryQuery.isNotEmpty(), enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
                                             IconButton(onClick = { countryQuery = "" }) {
-                                                Icon(Icons.Outlined.Close, "پاک کردن", tint = Muted)
+                                                Icon(Icons.Outlined.Close, tr("پاک کردن"), tint = Muted)
                                             }
                                         }
                                     },
@@ -351,7 +454,7 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                     contentPadding = PaddingValues(bottom = 16.dp)
                                 ) {
                                     item(key = "auto-row") {
-                                        CountryRow("خودکار", "AUTO", settings.exitCountryCode.isBlank()) {
+                                        CountryRow(tr("خودکار"), "AUTO", settings.exitCountryCode.isBlank()) {
                                             engine.save(settings.copy(exitCountryCode = "").validated())
                                             page = "settings"
                                         }
@@ -365,7 +468,7 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                                     if (filtered.isEmpty()) {
                                         item(key = "empty-row") {
                                             Text(
-                                                "کشوری پیدا نشد",
+                                                tr("کشوری پیدا نشد"),
                                                 color = Muted,
                                                 fontSize = 13.sp,
                                                 modifier = Modifier.fillMaxWidth().padding(24.dp)
@@ -378,7 +481,7 @@ private fun AtomApp(onConnect: () -> Unit, onDisconnect: () -> Unit) {
                         else -> HomePage(
                             ui = ui,
                             progress = status.progressPercent / 100f,
-                            detail = atomDisplayText(if (cancelled && !connecting && !connected) "اتصال لغو شد" else status.detail),
+                            detail = atomDisplayText(if (cancelled && !connecting && !connected) tr("اتصال لغو شد") else status.detail),
                             settings = settings,
                             exitCountryLabel = exitCountryLabel,
                             exitCountryCode = exitCountryCode,
@@ -461,9 +564,9 @@ private fun HomePage(
     )
     val percent = (progress.coerceIn(0f, 1f) * 100).roundToInt()
     val routeLabel = when (settings.exitMode) {
-        AtomEngineSettings.EXIT_WARP -> "WARP مستقیم"
-        AtomEngineSettings.EXIT_PSIPHON -> "Psiphon مستقیم"
-        else -> "Psiphon روی WARP"
+        AtomEngineSettings.EXIT_WARP -> tr("WARP مستقیم")
+        AtomEngineSettings.EXIT_PSIPHON -> tr("Psiphon مستقیم")
+        else -> tr("Psiphon روی WARP")
     }
     val section = when (ui) {
         UiState.CONNECTED -> 1
@@ -489,7 +592,7 @@ private fun HomePage(
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Outlined.Tune, "تنظیمات", tint = Ink)
+                    Icon(Icons.Outlined.Tune, tr("تنظیمات"), tint = Ink)
                 }
             }
         }
@@ -504,10 +607,10 @@ private fun HomePage(
                 ) { s ->
                     Text(
                         when (s) {
-                            UiState.CONNECTED -> "متصل"
-                            UiState.CONNECTING -> "در حال برقراری اتصال"
-                            UiState.FAILED -> "اتصال ناموفق بود"
-                            UiState.IDLE -> "آماده برای اتصال"
+                            UiState.CONNECTED -> tr("متصل")
+                            UiState.CONNECTING -> tr("در حال برقراری اتصال")
+                            UiState.FAILED -> tr("اتصال ناموفق بود")
+                            UiState.IDLE -> tr("آماده برای اتصال")
                         },
                         color = statusColor,
                         fontSize = 14.sp,
@@ -523,10 +626,10 @@ private fun HomePage(
                 Spacer(Modifier.height(6.dp))
                 Text(
                     when (ui) {
-                        UiState.CONNECTED -> "برای قطع اتصال لمس کنید"
-                        UiState.CONNECTING -> "در حال اتصال · ${percent}٪ · برای لغو لمس کنید"
-                        UiState.FAILED -> "برای تلاش دوباره لمس کنید"
-                        UiState.IDLE -> "برای اتصال لمس کنید"
+                        UiState.CONNECTED -> tr("برای قطع اتصال لمس کنید")
+                        UiState.CONNECTING -> tr("در حال اتصال · ${percent}٪ · برای لغو لمس کنید")
+                        UiState.FAILED -> tr("برای تلاش دوباره لمس کنید")
+                        UiState.IDLE -> tr("برای اتصال لمس کنید")
                     },
                     color = Muted,
                     fontSize = 12.sp
@@ -541,7 +644,7 @@ private fun HomePage(
                 }
                 if (ui != UiState.FAILED) {
                     AnimatedContent(
-                        targetState = detail.ifBlank { "موتور اتصال آماده است" },
+                        targetState = detail.ifBlank { tr("موتور اتصال آماده است") },
                         transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(120)) },
                         label = "detail-text"
                     ) { text ->
@@ -584,11 +687,11 @@ private fun HomePage(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Outlined.Warning, null, tint = ErrorC, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(8.dp))
-                                    Text("اتصال برقرار نشد", color = ErrorC, fontWeight = FontWeight.Medium)
+                                    Text(tr("اتصال برقرار نشد"), color = ErrorC, fontWeight = FontWeight.Medium)
                                 }
                                 Spacer(Modifier.height(6.dp))
                                 Text(
-                                    detail.ifBlank { "پاسخی از مسیر انتخابی دریافت نشد. دوباره تلاش کن یا روش اتصال را عوض کن." },
+                                    detail.ifBlank { tr("پاسخی از مسیر انتخابی دریافت نشد. دوباره تلاش کن یا روش اتصال را عوض کن.") },
                                     color = Muted,
                                     fontSize = 12.sp
                                 )
@@ -608,8 +711,8 @@ private fun HomePage(
 @Composable
 private fun InfoTilesRow(settings: AtomEngineSettings, onOpenCountries: () -> Unit, onOpenSettings: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-        InfoTile("کشور خروجی", settings.exitCountryCode.ifBlank { "خودکار" }, Modifier.weight(1f), Icons.Outlined.Public) { onOpenCountries() }
-        InfoTile("پروتکل اتصال", settings.linkRecipe.uppercase(), Modifier.weight(1f), Icons.Outlined.Hub) { onOpenSettings() }
+        InfoTile(tr("کشور خروجی"), settings.exitCountryCode.ifBlank { tr("خودکار") }, Modifier.weight(1f), Icons.Outlined.Public) { onOpenCountries() }
+        InfoTile(tr("پروتکل اتصال"), settings.linkRecipe.uppercase(), Modifier.weight(1f), Icons.Outlined.Hub) { onOpenSettings() }
     }
 }
 
@@ -653,9 +756,9 @@ private fun CountryIpCard(countryLabel: String, countryCode: String, routeLabel:
     val ip = ipState.info?.ipAddress
     val ipText = when {
         ip != null -> if (revealed) ip else maskIp(ip)
-        ipState.isLoading -> "در حال دریافت…"
-        ipState.errorMessage != null -> "ناموفق: ${ipState.errorMessage}"
-        else -> "IP در دسترس نیست"
+        ipState.isLoading -> tr("در حال دریافت…")
+        ipState.errorMessage != null -> tr("ناموفق: ${ipState.errorMessage}")
+        else -> tr("IP در دسترس نیست")
     }
 
     Card(
@@ -704,7 +807,7 @@ private fun CountryIpCard(countryLabel: String, countryCode: String, routeLabel:
                 IconButton(onClick = { revealed = !revealed }, enabled = ip != null, modifier = Modifier.size(36.dp)) {
                     Icon(
                         if (revealed) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                        "نمایش یا مخفی کردن IP", tint = Muted, modifier = Modifier.size(18.dp)
+                        tr("نمایش یا مخفی کردن IP"), tint = Muted, modifier = Modifier.size(18.dp)
                     )
                 }
                 IconButton(
@@ -714,7 +817,7 @@ private fun CountryIpCard(countryLabel: String, countryCode: String, routeLabel:
                 ) {
                     Icon(
                         if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
-                        "کپی IP", tint = if (copied) Accent else Muted, modifier = Modifier.size(18.dp)
+                        tr("کپی IP"), tint = if (copied) Accent else Muted, modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -742,8 +845,8 @@ private fun SpeedSection(state: TrafficSpeedState) {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-        SpeedTile("دانلود", Icons.Outlined.ArrowDownward, Accent, state.downloadBytesPerSecond, down, Accent, Modifier.weight(1f))
-        SpeedTile("آپلود", Icons.Outlined.ArrowUpward, Ink, state.uploadBytesPerSecond, up, Muted, Modifier.weight(1f))
+        SpeedTile(tr("دانلود"), Icons.Outlined.ArrowDownward, Accent, state.downloadBytesPerSecond, down, Accent, Modifier.weight(1f))
+        SpeedTile(tr("آپلود"), Icons.Outlined.ArrowUpward, Ink, state.uploadBytesPerSecond, up, Muted, Modifier.weight(1f))
     }
 }
 
@@ -954,34 +1057,34 @@ private fun AtomSettingsPage(
     val logCount = remember { AppLogRepository.entryCount() }
 
     val exitModeLabel = when (settings.exitMode) {
-        AtomEngineSettings.EXIT_WARP -> "WARP مستقیم"
-        AtomEngineSettings.EXIT_PSIPHON -> "Psiphon مستقیم"
-        else -> "Psiphon روی WARP"
+        AtomEngineSettings.EXIT_WARP -> tr("WARP مستقیم")
+        AtomEngineSettings.EXIT_PSIPHON -> tr("Psiphon مستقیم")
+        else -> tr("Psiphon روی WARP")
     }
     val carrierModeLabel = when {
-        settings.carrierMode == AtomCoreConfig.CARRIER_OFF -> "خاموش"
+        settings.carrierMode == AtomCoreConfig.CARRIER_OFF -> tr("خاموش")
         settings.carrierMode == AtomCoreConfig.CARRIER_MANUAL &&
-            settings.firewallProfile == AtomCoreConfig.FIREWALL_MCI -> "همراه اول"
-        settings.carrierMode == AtomCoreConfig.CARRIER_MANUAL -> "ایرانسل"
-        else -> "خودکار"
+            settings.firewallProfile == AtomCoreConfig.FIREWALL_MCI -> tr("همراه اول")
+        settings.carrierMode == AtomCoreConfig.CARRIER_MANUAL -> tr("ایرانسل")
+        else -> tr("خودکار")
     }
     val fragmentModeLabel = when (settings.h2FragmentMode) {
-        AtomEngineSettings.H2_FRAG_ON -> "فعال"
-        AtomEngineSettings.H2_FRAG_OFF -> "غیرفعال"
-        else -> "خودکار"
+        AtomEngineSettings.H2_FRAG_ON -> tr("فعال")
+        AtomEngineSettings.H2_FRAG_OFF -> tr("غیرفعال")
+        else -> tr("خودکار")
     }
 
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 18.dp).padding(top = 18.dp)) {
-        ScreenHeader("تنظیمات", "مدیریت اتصال", onBack)
+        ScreenHeader(tr("تنظیمات"), tr("مدیریت اتصال"), onBack)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             Reveal(0) {
-                SettingsGroup("مسیر و اتصال") {
+                SettingsGroup(tr("مسیر و اتصال")) {
                     SettingsRow(
-                        Icons.Outlined.Public, "مسیر خروجی",
-                        "کشور انتخاب‌شده: ${settings.exitCountryCode.ifBlank { "خودکار" }}",
+                        Icons.Outlined.Public, tr("مسیر خروجی"),
+                        "کشور انتخاب‌شده: ${settings.exitCountryCode.ifBlank { tr("خودکار") }}",
                         onClick = onOpenCountries
-                    ) { ValueChevron("انتخاب") }
-                    SettingsRow(Icons.Outlined.AccountTree, "حالت خروجی", onClick = {
+                    ) { ValueChevron(tr("انتخاب")) }
+                    SettingsRow(Icons.Outlined.AccountTree, tr("حالت خروجی"), onClick = {
                         val next = when (settings.exitMode) {
                             AtomEngineSettings.EXIT_CHAIN -> AtomEngineSettings.EXIT_WARP
                             AtomEngineSettings.EXIT_WARP -> AtomEngineSettings.EXIT_PSIPHON
@@ -989,11 +1092,11 @@ private fun AtomSettingsPage(
                         }
                         onSave(settings.copy(exitMode = next).validated())
                     }) { ValueChevron(exitModeLabel) }
-                    SettingsRow(Icons.Outlined.Hub, "روش اتصال", onClick = {
+                    SettingsRow(Icons.Outlined.Hub, tr("روش اتصال"), onClick = {
                         val next = if (settings.linkRecipe == AtomCoreConfig.RECIPE_MASQUE_H2) AtomCoreConfig.RECIPE_MASQUE_H3 else AtomCoreConfig.RECIPE_MASQUE_H2
                         onSave(settings.copy(linkRecipe = next).validated())
                     }) { ValueChevron(settings.linkRecipe) }
-                    SettingsRow(Icons.Outlined.SwapHoriz, "حمل‌ونقل بیرونی", last = true, onClick = {
+                    SettingsRow(Icons.Outlined.SwapHoriz, tr("حمل‌ونقل بیرونی"), last = true, onClick = {
                         val options = listOf(AtomCoreConfig.OUTER_AUTO) + AtomCoreConfig.OUTER_LADDER
                         val next = options[(options.indexOf(settings.outerTransport).coerceAtLeast(0) + 1) % options.size]
                         onSave(settings.copy(outerTransport = next).validated())
@@ -1001,8 +1104,8 @@ private fun AtomSettingsPage(
                 }
             }
             Reveal(1) {
-                SettingsGroup("شبکه و امنیت") {
-                    SettingsRow(Icons.Outlined.SignalCellularAlt, "اپراتور شبکه", onClick = {
+                SettingsGroup(tr("شبکه و امنیت")) {
+                    SettingsRow(Icons.Outlined.SignalCellularAlt, tr("اپراتور شبکه"), onClick = {
                         val next = when {
                             settings.carrierMode == AtomCoreConfig.CARRIER_AUTO ->
                                 settings.copy(carrierMode = AtomCoreConfig.CARRIER_MANUAL, firewallProfile = AtomCoreConfig.FIREWALL_MCI)
@@ -1016,11 +1119,11 @@ private fun AtomSettingsPage(
                         onSave(next.validated())
                     }) { ValueChevron(carrierModeLabel) }
                     SettingsRow(
-                        Icons.Outlined.Shield, "مسدودسازی QUIC",
-                        if (guardSettings.quicBlock) "مسدودسازی UDP پورت ۴۴۳ · بدون قطع VPN" else "عبور عادی ترافیک QUIC",
+                        Icons.Outlined.Shield, tr("مسدودسازی QUIC"),
+                        if (guardSettings.quicBlock) tr("مسدودسازی UDP پورت ۴۴۳ · بدون قطع VPN") else tr("عبور عادی ترافیک QUIC"),
                         onClick = { networkGuard.setQuicBlock(!guardSettings.quicBlock) }
                     ) { SettingsSwitch(guardSettings.quicBlock) }
-                    SettingsRow(Icons.Outlined.ContentCut, "تکه‌تکه‌سازی H2", onClick = {
+                    SettingsRow(Icons.Outlined.ContentCut, tr("تکه‌تکه‌سازی H2"), onClick = {
                         val nextMode = when (settings.h2FragmentMode) {
                             AtomEngineSettings.H2_FRAG_AUTO -> AtomEngineSettings.H2_FRAG_ON
                             AtomEngineSettings.H2_FRAG_ON -> AtomEngineSettings.H2_FRAG_OFF
@@ -1032,34 +1135,34 @@ private fun AtomSettingsPage(
                         ).validated())
                     }) { ValueChevron(fragmentModeLabel) }
                     SettingsRow(
-                        Icons.Outlined.Speed, "بهینه‌سازی اتصال", last = true,
+                        Icons.Outlined.Speed, tr("بهینه‌سازی اتصال"), last = true,
                         onClick = { onSave(settings.copy(optimizedMode = !settings.optimizedMode).validated()) }
                     ) { SettingsSwitch(settings.optimizedMode) }
                 }
             }
             Reveal(2) {
-                SettingsGroup("ظاهر") {
-                    SettingsRow(Icons.Outlined.Palette, "تم برنامه", last = true) {
+                SettingsGroup(tr("ظاهر")) {
+                    SettingsRow(Icons.Outlined.Palette, tr("تم برنامه"), last = true) {
                         ThemeSegment(themeMode, onThemeChange)
                     }
                 }
             }
             Reveal(3) {
-                SettingsGroup("عیب‌یابی") {
+                SettingsGroup(tr("عیب‌یابی")) {
                     SettingsRow(
-                        Icons.Outlined.Description, "گزارش‌های برنامه", "$logCount خط ثبت‌شده",
+                        Icons.Outlined.Description, tr("گزارش‌های برنامه"), tr("$logCount خط ثبت‌شده"),
                         onClick = onOpenLogs
                     ) { ValueChevron("") }
                     SettingsRow(
-                        Icons.Outlined.BugReport, "ثبت لاگ در logcat", "برای خواندن لاگ از طریق adb", last = true,
+                        Icons.Outlined.BugReport, tr("ثبت لاگ در logcat"), tr("برای خواندن لاگ از طریق adb"), last = true,
                         onClick = { onSave(settings.copy(logcatMirror = !settings.logcatMirror).validated()) }
                     ) { SettingsSwitch(settings.logcatMirror) }
                 }
             }
             Reveal(4) {
-                SettingsGroup("درباره") {
-                    SettingsRow(Icons.Outlined.Person, "درباره‌ی سازنده", onClick = onOpenAbout) { ValueChevron("") }
-                    SettingsRow(Icons.Outlined.Info, "نسخه", last = true) {
+                SettingsGroup(tr("درباره")) {
+                    SettingsRow(Icons.Outlined.Person, tr("درباره‌ی سازنده"), onClick = onOpenAbout) { ValueChevron("") }
+                    SettingsRow(Icons.Outlined.Info, tr("نسخه"), last = true) {
                         Text(BuildConfig.VERSION_NAME, color = Muted, fontSize = 12.sp)
                     }
                 }
@@ -1147,9 +1250,9 @@ private fun SettingsSwitch(checked: Boolean) {
 @Composable
 private fun ThemeSegment(mode: String, onChange: (String) -> Unit) {
     val options = listOf(
-        AtomAppearanceStore.AUTO to "خودکار",
-        AtomAppearanceStore.DARK to "تیره",
-        AtomAppearanceStore.LIGHT to "روشن"
+        AtomAppearanceStore.AUTO to tr("خودکار"),
+        AtomAppearanceStore.DARK to tr("تیره"),
+        AtomAppearanceStore.LIGHT to tr("روشن")
     )
     Row(
         Modifier.background(PanelRaised, RoundedCornerShape(10.dp)).padding(2.dp),
@@ -1189,9 +1292,9 @@ private fun AtomAboutPage(onBack: () -> Unit) {
     val hasUpdate = remember(cfg.latestVersion) { AtomRemoteConfig.isNewer(cfg.latestVersion, BuildConfig.VERSION_NAME) }
 
     val links = buildList {
-        if (telegram != null) add(AboutLink(Icons.Outlined.Send, "تلگرام", urlHandle(telegram, "@")) { runCatching { uriHandler.openUri(telegram) } })
+        if (telegram != null) add(AboutLink(Icons.Outlined.Send, tr("تلگرام"), urlHandle(telegram, "@")) { runCatching { uriHandler.openUri(telegram) } })
         if (github != null) add(AboutLink(Icons.Outlined.Code, "GitHub", urlHandle(github, "")) { runCatching { uriHandler.openUri(github) } })
-        if (email != null) add(AboutLink(Icons.Outlined.Email, "ایمیل پشتیبانی", email) {
+        if (email != null) add(AboutLink(Icons.Outlined.Email, tr("ایمیل پشتیبانی"), email) {
             runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email"))) }
         })
     }
@@ -1200,13 +1303,13 @@ private fun AtomAboutPage(onBack: () -> Unit) {
         Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
             .verticalScroll(rememberScrollState()).padding(18.dp)
     ) {
-        ScreenHeader("درباره‌ی ${cfg.appName}", "سازنده و اطلاعات برنامه", onBack)
+        ScreenHeader(tr("درباره‌ی ${cfg.appName}"), tr("سازنده و اطلاعات برنامه"), onBack)
         Reveal(0) {
             Column(Modifier.fillMaxWidth().padding(top = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 AtomLogoTile(76.dp)
                 Spacer(Modifier.height(10.dp))
                 Text(cfg.appName, fontSize = 20.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
-                Text("نسخه ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", color = Muted, fontSize = 12.sp)
+                Text(tr("نسخه ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"), color = Muted, fontSize = 12.sp)
                 if (cfg.about.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(cfg.about, color = Muted, fontSize = 12.sp, textAlign = TextAlign.Center)
@@ -1218,8 +1321,8 @@ private fun AtomAboutPage(onBack: () -> Unit) {
             Reveal(1) {
                 AboutBanner(
                     icon = Icons.Outlined.SystemUpdate,
-                    text = "نسخه‌ی ${cfg.latestVersion} منتشر شده است",
-                    actionLabel = if (download != null) "دانلود" else null,
+                    text = tr("نسخه‌ی ${cfg.latestVersion} منتشر شده است"),
+                    actionLabel = if (download != null) tr("دانلود") else null,
                     onAction = { if (download != null) runCatching { uriHandler.openUri(download) } }
                 )
             }
@@ -1229,7 +1332,7 @@ private fun AtomAboutPage(onBack: () -> Unit) {
             Reveal(1) { AboutBanner(icon = Icons.Outlined.Campaign, text = cfg.announcement) }
         }
         Reveal(2) {
-            SettingsGroup("سازنده") {
+            SettingsGroup(tr("سازنده")) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier.size(46.dp).border(1.5.dp, Accent, CircleShape),
@@ -1308,7 +1411,7 @@ private fun AtomLogsPage(onBack: () -> Unit) {
     }
 
     val levelFilters = remember {
-        listOf("همه" to LogLevel.DEBUG, "اطلاعات" to LogLevel.INFO, "هشدار" to LogLevel.WARNING, "خطا" to LogLevel.ERROR)
+        listOf(tr("همه") to LogLevel.DEBUG, tr("اطلاعات") to LogLevel.INFO, tr("هشدار") to LogLevel.WARNING, tr("خطا") to LogLevel.ERROR)
     }
     val minOrdinal = levelFilters[levelIndex].second.ordinal
     // جدیدترین لاگ پایین لیست است؛ reverseLayout خودش به‌صورت خودکار آخرین خط را نگه می‌دارد
@@ -1320,17 +1423,17 @@ private fun AtomLogsPage(onBack: () -> Unit) {
 
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "بازگشت", tint = Ink) }
+            IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, tr("بازگشت"), tint = Ink) }
             Spacer(Modifier.width(4.dp))
             Column(Modifier.weight(1f)) {
-                Text("گزارش‌های برنامه", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("${all.size} خط · حدود $kb KB", color = Muted, fontSize = 12.sp)
+                Text(tr("گزارش‌های برنامه"), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(tr("${all.size} خط · حدود $kb KB"), color = Muted, fontSize = 12.sp)
             }
             IconButton(onClick = {
                 clipboard.setText(AnnotatedString(AppLogRepository.snapshotText()))
                 copied = true
             }) {
-                Icon(if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy, "کپی همه", tint = if (copied) Accent else Ink)
+                Icon(if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy, tr("کپی همه"), tint = if (copied) Accent else Ink)
             }
             IconButton(onClick = {
                 // فقط ۴۰۰ خط آخر؛ متن خیلی بزرگ در Intent باعث کرش می‌شود
@@ -1340,9 +1443,9 @@ private fun AtomLogsPage(onBack: () -> Unit) {
                     putExtra(Intent.EXTRA_SUBJECT, "Atom log")
                     putExtra(Intent.EXTRA_TEXT, text)
                 }
-                runCatching { context.startActivity(Intent.createChooser(send, "اشتراک‌گذاری گزارش")) }
-            }) { Icon(Icons.Outlined.Share, "اشتراک‌گذاری", tint = Ink) }
-            IconButton(onClick = { confirmClear = true }) { Icon(Icons.Outlined.Delete, "پاک کردن", tint = Ink) }
+                runCatching { context.startActivity(Intent.createChooser(send, tr("اشتراک‌گذاری گزارش"))) }
+            }) { Icon(Icons.Outlined.Share, tr("اشتراک‌گذاری"), tint = Ink) }
+            IconButton(onClick = { confirmClear = true }) { Icon(Icons.Outlined.Delete, tr("پاک کردن"), tint = Ink) }
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1350,7 +1453,7 @@ private fun AtomLogsPage(onBack: () -> Unit) {
         }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LogChip("همه منابع", sourceName == null) { sourceName = null }
+            LogChip(tr("همه منابع"), sourceName == null) { sourceName = null }
             LogSource.values().filterNot { it == LogSource.TOR || it == LogSource.XRAY }.forEach { s -> LogChip(s.label, sourceName == s.name) { sourceName = s.name } }
         }
         Spacer(Modifier.height(10.dp))
@@ -1359,7 +1462,7 @@ private fun AtomLogsPage(onBack: () -> Unit) {
                 .background(Panel, shape).border(1.dp, Line, shape).clip(shape)
         ) {
             if (shown.isEmpty()) {
-                Text("لاگی برای نمایش نیست", color = Muted, fontSize = 13.sp, modifier = Modifier.align(Alignment.Center))
+                Text(tr("لاگی برای نمایش نیست"), color = Muted, fontSize = 13.sp, modifier = Modifier.align(Alignment.Center))
             } else {
                 SelectionContainer {
                     LazyColumn(
@@ -1374,7 +1477,7 @@ private fun AtomLogsPage(onBack: () -> Unit) {
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "لاگ‌ها ممکن است شامل آدرس IP یا جزئیات شبکه باشند؛ قبل از اشتراک‌گذاری بررسی کن.",
+            tr("لاگ‌ها ممکن است شامل آدرس IP یا جزئیات شبکه باشند؛ قبل از اشتراک‌گذاری بررسی کن."),
             color = Muted, fontSize = 10.sp
         )
     }
@@ -1383,13 +1486,13 @@ private fun AtomLogsPage(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             containerColor = Panel,
-            title = { Text("پاک کردن گزارش‌ها؟") },
-            text = { Text("همه‌ی لاگ‌های فعلی حذف می‌شوند.", color = Muted) },
+            title = { Text(tr("پاک کردن گزارش‌ها؟")) },
+            text = { Text(tr("همه‌ی لاگ‌های فعلی حذف می‌شوند."), color = Muted) },
             confirmButton = {
-                TextButton(onClick = { AppLogRepository.clear(); confirmClear = false }) { Text("پاک کن", color = ErrorC) }
+                TextButton(onClick = { AppLogRepository.clear(); confirmClear = false }) { Text(tr("پاک کن"), color = ErrorC) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClear = false }) { Text("انصراف", color = Muted) }
+                TextButton(onClick = { confirmClear = false }) { Text(tr("انصراف"), color = Muted) }
             }
         )
     }
@@ -1439,7 +1542,7 @@ private fun LogChip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun ScreenHeader(title: String, subtitle: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "بازگشت", tint = Ink) }
+        IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, tr("بازگشت"), tint = Ink) }
         Spacer(Modifier.width(4.dp))
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
