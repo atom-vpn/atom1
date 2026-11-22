@@ -185,3 +185,12 @@ Paste this into a new conversation:
 - Source change: `app/src/main/java/com/atomvpn/mobile/MainActivity.kt`.
 - Commit: `5747cf36b6eee3580bee279498e5187838f3b004`.
 - No engine, transport, routing, native, package, or connection lifecycle changes. CI/build validation remains pending.
+
+
+## 16. Kotlin compile failure correction (2026-11-22)
+
+- CI run [#45032528395](https://github.com/atom-vpn/atom1/actions/runs/45032528395) failed in the Universal/ARM64 Kotlin compile task.
+- Exact compiler diagnostic: `AtomRemoteConfig.kt:60:55 Unsupported escape sequence`.
+- Root cause: newline character comparison used an invalid escaped character literal (`'\\\\n'`); corrected to Kotlin newline literal (`'\\n'`).
+- Fix commit: `00ea03b6db957e95201e7fecef15012c63baa5cd`.
+- No VPN engine, HEV JNI, transport, routing, package, or connection lifecycle changes. Follow-up CI validation pending; no APK is claimed yet.
