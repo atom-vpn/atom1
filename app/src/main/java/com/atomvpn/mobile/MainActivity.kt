@@ -1321,7 +1321,7 @@ private fun AtomLogsPage(onBack: () -> Unit) {
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LogChip("همه منابع", sourceName == null) { sourceName = null }
-            LogSource.values().forEach { s -> LogChip(s.label, sourceName == s.name) { sourceName = s.name } }
+            LogSource.values().filterNot { it == LogSource.TOR || it == LogSource.XRAY }.forEach { s -> LogChip(s.label, sourceName == s.name) { sourceName = s.name } }
         }
         Spacer(Modifier.height(10.dp))
         Box(
