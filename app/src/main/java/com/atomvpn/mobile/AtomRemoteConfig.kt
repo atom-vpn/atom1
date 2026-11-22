@@ -57,7 +57,7 @@ data class AtomRemoteConfig(
         private fun JSONObject.text(key: String, fallback: String, max: Int): String {
             if (!has(key) || isNull(key)) return fallback
             return optString(key, fallback)
-                .filter { !it.isISOControl() || it == '\\n' }
+                .filter { !it.isISOControl() || it == '\n' }
                 .trim()
                 .take(max)
         }
