@@ -147,3 +147,5 @@ Paste this into a new conversation:
 
 - Latest implementation commit: `be1cf50124dcbec8e9065279dfaaf27bbb6f2523` (MainActivity translations/root labels); latest PR head at this checkpoint: `be1cf50124dcbec8e9065279dfaaf27bbb6f2523`.
 - Latest CI run: [#45022621840](https://github.com/atom-vpn/atom1/actions/runs/45022621840), pending at last check; rebuild result and APK artifact links are not yet available.
+
+- Follow-up service commit: `f5504b686aaa480af57e21e3b25555aa12514075`; the active notification now also refreshes immediately when the user changes the app language while VPN remains connected.
