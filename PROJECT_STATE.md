@@ -1,7 +1,7 @@
 # Atom VPN — Project State
 
 > Living handoff document. Update this file whenever repository work changes the project state, decisions, validation status, or next action.
-> Last reviewed: 2026-11-21
+> Last reviewed: 2026-11-22
 > Repository: https://github.com/atom-vpn/atom1
 
 ## 1. Product goal
@@ -177,3 +177,21 @@ Paste this into a new conversation:
 3. Before integrating any PR, compare its base/head against the current integrated HEAD and inspect the exact diff for overlap/conflicts.
 4. Never cherry-pick, merge, close, delete, or rewrite any branch/PR without explicit user approval.
 5. Every APK handoff must state branch, full commit SHA, CI run, architecture, and whether physical-device testing has passed.
+
+
+## 21. PR #8 review and isolated Atom Access port (2026-11-22)
+
+- User approved technical review/preparation of PR #8 and requested that all work be recorded for future chat continuity.
+- Source PR: [#8](https://github.com/atom-vpn/atom1/pull/8), branch `fix-auto-unknown-masque-h2`, head `6ba02cb5b0a55a5af330e6d38ca0fbc9215aa601`, base `pow-standalone` at `1772d6246020aca84188d724420d949d600d136e`. It remains open and unmerged; it was not modified.
+- Live comparison of PR #8 against `atom-access-integrated` showed diverged history (PR branch 7 commits ahead / 19 behind). Do not merge or cherry-pick the whole PR branch.
+- Important compatibility finding: the PR #8 version of `AtomCoreConfig.kt` contains inline legacy file-migration implementation, while the integrated product branch delegates these paths to `LegacyInstallMigration`. Taking the old file wholesale would undo part of PR #11's migration isolation. The change must be ported narrowly.
+- PR #8's intended behavior is limited to automatic carrier mode with an unknown carrier class (including Wi-Fi): retain the existing automatic protocol ladder, but use dual-stack (`both`) MASQUE HTTP/2 (`h2`). Known Irancell remains IPv4/H3; known MCI remains dual-stack/H2 with its existing fixed MASQUE policy.
+- CI state on source PR #8 head at review time: associated workflow run [#45002356987](https://github.com/atom-vpn/atom1/actions/runs/45002356987) was `completed / cancelled`; this is not a passing validation. Physical-device verification on the target Wi-Fi is still required.
+- Created isolated branch `atom-access-pr8-masque-h2` directly from the current integrated HEAD `b890020da7307ef2ae001c4b65137687e5678ea8`. This branch is for the narrow Atom Access port and validation only; `atom-access-integrated` was not changed.
+- Ported only the unknown-carrier plan change into the integrated version of `AtomCoreConfig.kt`, preserving its `LegacyInstallMigration` delegation.
+- Added focused engine unit tests for unknown, Irancell, and MCI automatic carrier behavior in `engine/src/test/kotlin/com/atomvpn/mobile/engine/atom/AtomCoreConfigTest.kt`; added JUnit 4.13.2 as the engine test dependency.
+- Updated `.github/workflows/atom-engine-build.yml` on the isolated branch so pushes to this validation branch run CI, PRs targeting `atom-access-integrated` can run CI, and `:engine:testDebugUnitTest` runs before the Universal/ARM64 APK builds.
+- Current isolated branch HEAD before this state-file update: `0cc86adaa10fea263406e86e0b4e71f54e2c3abf`. Refresh the branch ref after this commit to obtain the new HEAD.
+- Validation status: source/test/workflow changes are committed to the isolated branch; CI has not yet run on this branch. No APK is claimed as built, and no device test has been performed.
+- No merge, cherry-pick, release, or change to the tested integrated branch was performed.
+- Next action: verify this branch's resulting diff against `atom-access-integrated`, ensure CI triggers and unit tests pass, inspect APK artifacts, then provide an ARM64 test build for the user's Wi-Fi device verification. Only after that review device results and ask before any integration/merge.
