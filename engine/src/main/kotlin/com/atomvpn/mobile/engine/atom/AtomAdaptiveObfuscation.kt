@@ -19,7 +19,7 @@ internal object AtomAdaptiveObfuscation {
     /** Read at the next outer (re)connect; changing it never forces a reconnect by itself. */
     fun adaptiveOn(context: Context): Boolean =
         run {
-            AtomEngineStore.migrateLegacyPreferences(context)
+            LegacyInstallMigration.migrateEnginePreferences(context)
             context.getSharedPreferences("atom_engine_v1", Context.MODE_PRIVATE).getBoolean(KEY_ADAPTIVE, false)
         }
 
@@ -33,7 +33,7 @@ internal object AtomAdaptiveObfuscation {
 
     fun shouldEnableFragmentation(context: Context, rttVarianceHigh: Boolean): Boolean {
         if (!autoMode(context)) return false
-        val prefs = run { AtomEngineStore.migrateLegacyPreferences(context); context.getSharedPreferences("atom_engine_v1", Context.MODE_PRIVATE) }
+        val prefs = run { LegacyInstallMigration.migrateEnginePreferences(context); context.getSharedPreferences("atom_engine_v1", Context.MODE_PRIVATE) }
         if (prefs.getBoolean(KEY_ADAPTIVE, false)) return true
         if (rttVarianceHigh && dpiFails >= FAILS_TO_ENABLE) {
             AppLogRepository.info(LogSource.ATOM, "Adaptive H2 fragmentation ON (DPI suspected jitter+fails=$dpiFails)")
@@ -46,7 +46,7 @@ internal object AtomAdaptiveObfuscation {
     fun shouldDisableFragmentation(context: Context, stableMs: Long): Boolean {
         if (stableMs <= 0L) return false
         if (!autoMode(context)) return false
-        val prefs = run { AtomEngineStore.migrateLegacyPreferences(context); context.getSharedPreferences("atom_engine_v1", Context.MODE_PRIVATE) }
+        val prefs = run { LegacyInstallMigration.migrateEnginePreferences(context); context.getSharedPreferences("atom_engine_v1", Context.MODE_PRIVATE) }
         if (!prefs.getBoolean(KEY_ADAPTIVE, false)) return false
         // If path has been stable for >3 minutes, turn off for speed.
         if (stableMs > 3 * 60_000L && dpiFails == 0) {

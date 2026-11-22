@@ -110,3 +110,70 @@ Branch naming and workflow updates must be coordinated with PR #7 and any other 
 Paste this into a new conversation:
 
 > Continue the Atom VPN project in repository https://github.com/atom-vpn/atom1. First read `PROJECT_STATE.md`, then independently refresh the live GitHub state (branches, recent commits, all PRs, checks, and workflow runs). Treat GitHub as the source of truth if this file is stale. Continue from the recorded next action, preserve existing engine behavior and migration compatibility, and do not merge/delete/rename branches or make destructive changes without asking me. Update `PROJECT_STATE.md` after every meaningful repository change.
+
+
+## 17. Legacy identifier isolation (2026-11-22)
+
+- Created branch `atom-access-clean-identifiers` from the verified `pow-standalone` baseline at `1772d6246020aca84188d724420d949d600d136e`. This work is intentionally separate from the open UI integration PR #10.
+- Moved historical preference names and file/directory names into one compatibility boundary: `engine/src/main/kotlin/com/atomvpn/mobile/engine/atom/LegacyInstallMigration.kt`.
+- `AtomCoreConfig`, `AtomEngineStore`, and `AtomDnsWarm` now call the compatibility boundary and contain no legacy product identifiers.
+- The migration remains one-way and type-preserving. Existing settings, identity material, DNS warm-up data, endpoint caches, and learned path files continue to be copied into Atom-owned storage locations. The old source values are retained; no destructive migration or deletion was introduced.
+- Updated technical documentation wording to describe the previous bridge generically.
+- No transport, routing, JNI, native binary, connection coordinator, or VPN lifecycle behavior was intentionally changed.
+- Validation status: source refactor committed; PR #11 is ready for review to trigger CI; Android build and device regression tests are pending. Do not claim runtime validation until CI and device testing complete.
+- PR #7 remains open against `pow-standalone`; PR #10 remains open and separate. Neither PR was merged or modified by this work.
+
+## 18. Atom Access combined integration (2026-11-22)
+
+- Created test integration branch `atom-access-integrated` from `atom-access-clean-identifiers` (PR #11 head), preserving the legacy install migration and its Kotlin compile fix.
+- Applied the UI/settings source files from `ui-integration` (PR #10): `MainActivity.kt`, `AtomVpnService.kt`, `AndroidManifest.xml`, `AtomAppearanceStore.kt`, `AtomLanguageStore.kt`, and `AtomRemoteConfig.kt`.
+- This branch is the combined candidate for CI validation; it does not merge either source PR into `pow-standalone`.
+- PR #10 and PR #11 remain open and unmerged. No public release is intended.
+- Combined test PR: [#14](https://github.com/atom-vpn/atom1/pull/14), targeting `pow-standalone` for CI only; PR #10 and #11 remain open/unmerged.
+- GitHub Actions run [#45043481083](https://github.com/atom-vpn/atom1/actions/runs/45043481083) was queued for the combined Universal/ARM64 build at 2026-11-22 16:22 UTC. Await its result and inspect APK artifacts, then perform device regression tests. No device validation is claimed.
+- Engine migration compatibility remains from PR #11. UI settings/theme/language/logs/About/notification changes are from PR #10. No intentional changes to transport, routing, JNI/native binaries, coordinator, or VPN lifecycle.
+
+
+## 19. Atom Access combined candidate — initial device smoke test (2026-11-22)
+
+- Development/reference branch for the combined UI + migration candidate: `atom-access-integrated`.
+- Tested commit: `c60b27dc925bf75b851a206ce616f5b8eb8c8950`.
+- Combined GitHub Actions build: [run #45043506104](https://github.com/atom-vpn/atom1/actions/runs/45043506104) — completed successfully; Universal and ARM64 debug APK artifacts were produced and validated by the workflow.
+- User-confirmed physical-device smoke test on the combined ARM64 APK:
+  - APK installation: successful.
+  - New Atom Access settings UI: displayed correctly.
+  - VPN connection: successful; user reported the connection test was OK on 2026-11-22.
+- Validation scope is limited to installation, UI display, and a successful connection. Repeated connect/disconnect, traffic-routing/exit behavior, reconnect, service destruction/revocation, and emergency teardown have not been confirmed on this combined build.
+- This is an internal/test candidate, not a public release. PR #14 remains open and unmerged; PR #10 and #11 remain open and unmerged. No PR was merged and no release was published.
+- Next step: retain this commit as the initial device-smoke-tested baseline; before further changes, refresh the live branch/PR state and continue from `atom-access-integrated`. For any new build, record its exact branch, SHA, architecture, CI run, and device-test scope.
+
+## 20. Branch and PR separation policy (live inventory reviewed 2026-11-22)
+
+### Tested combined baseline
+- Use `atom-access-integrated` as the sole starting point for new Atom Access product work.
+- Current branch HEAD after recording the device smoke test: `6dcc2c0aae782216110b4f221ea5602645f4d78f`.
+- Device-confirmed scope: ARM64 install, new settings UI display, and successful VPN connection. Do not infer broader regression coverage.
+
+### Open source/change PRs — keep isolated until individually evaluated
+- PR #7 / branch `fix-emergency-aether-detach`: Aether emergency teardown reference cleanup. Separate engine change; requires focused device validation before integration.
+- PR #8 / branch `fix-auto-unknown-masque-h2`: unknown-carrier MASQUE H2 fallback. Separate transport-selection change; requires focused network/device validation before integration.
+- PR #9 / branch `fix-exit-ip-startup-retry`: exit-IP lookup retry/backoff. Separate startup/retry change; requires focused device validation before integration.
+- PR #10 / branch `ui-integration`: source UI/settings implementation. Its changes are already represented in the tested combined branch; retain PR as source history/review only. Do not merge or separately apply it to the combined branch.
+- PR #11 / branch `atom-access-clean-identifiers`: source migration/identifier-isolation implementation. Its changes are already represented in the tested combined branch; retain PR as source history/review only. Do not merge or separately apply it to the combined branch.
+- PR #14 / branch `atom-access-integrated`: integration/build-validation PR. It is the PR associated with the combined candidate; keep open/unmerged unless the user explicitly authorizes a merge decision.
+
+### Closed experimental PRs
+- PR #12 and PR #13 are closed, unmerged integration experiments. Do not use their heads as build sources and do not reopen unless specifically needed.
+
+### Branches not to use as the default build source
+- `pow-standalone`: underlying engine baseline/PR target, not the current tested Atom Access product branch.
+- `main`: repository default branch; not the tested combined product baseline.
+- `ui-integration` and `atom-access-clean-identifiers`: source branches already represented in `atom-access-integrated`; do not build product APKs from them.
+- Other historical/fix branches remain isolated; do not delete them or merge them automatically.
+
+### Anti-mix rules
+1. All new product work starts from `atom-access-integrated` only.
+2. Never combine multiple open engine PRs in one step. Review and integrate at most one focused change at a time, then build and device-test before proceeding.
+3. Before integrating any PR, compare its base/head against the current integrated HEAD and inspect the exact diff for overlap/conflicts.
+4. Never cherry-pick, merge, close, delete, or rewrite any branch/PR without explicit user approval.
+5. Every APK handoff must state branch, full commit SHA, CI run, architecture, and whether physical-device testing has passed.

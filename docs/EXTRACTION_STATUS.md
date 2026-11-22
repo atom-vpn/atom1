@@ -16,11 +16,11 @@ Engine implementation packages are under `com.atomvpn.mobile.engine`; the connec
 - Aether JNI entry points in `native/aether_jni.cpp` match `com.atomvpn.mobile.engine.atom.AetherNative`.
 - The V2Ray AAR patcher targets the Atom `GoJniLoader` class.
 - Psiphon runs in isolated processes `:atomengine` and `:atomengine2`.
-- HEV is rebuilt from a pinned upstream revision with JNI symbols bound directly to `com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel`; the UAC-era Java bridge is not part of the runtime binding.
+- HEV is rebuilt from a pinned upstream revision with JNI symbols bound directly to `com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel`; the previous Java bridge is not part of the runtime binding.
 
 ## Data compatibility
 
-Legacy engine preferences, MTU/DNS cache preferences, identity material and learned route files are copied into Atom-named locations on first use. Legacy preference values and identity/cache sources are retained for compatibility. The one-time connect-order reset deliberately clears only obsolete last-connected peer hints, including their UAC-era source files, so lazy migration cannot restore stale hints.
+Legacy engine preferences, MTU/DNS cache preferences, identity material and learned route files are copied into Atom-named locations on first use. Legacy preference values and identity/cache sources are retained for compatibility. The one-time connect-order reset deliberately clears only obsolete last-connected peer hints, including their legacy source files, so lazy migration cannot restore stale hints.
 
 ## Validation boundary
 
