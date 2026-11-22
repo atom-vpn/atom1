@@ -1,4 +1,4 @@
-# Atom VPN — Project State
+# Atom Access — Project State
 
 > Living handoff document. Update this file whenever repository work changes the project state, decisions, validation status, or next action.
 > Last reviewed: 2026-11-21
@@ -160,3 +160,13 @@ Paste this into a new conversation:
 - Fix commit: `63cc22c18949759221c1d8f8969132074ed88e0c`.
 - Follow-up CI validation is pending; no APK or successful build is claimed yet.
 - VPN engine, native transport, routing, and coordinator code were not changed.
+
+
+## 14. Atom Access product naming (2026-11-22)
+
+- Approved user-facing product name: **Atom Access**.
+- On `ui-integration`, changed the Android launcher label in `app/src/main/AndroidManifest.xml` to `Atom Access`; updated the Android special-use VPN service description to use the new brand.
+- Updated offline/default About metadata in `AtomRemoteConfig.kt` to use `Atom Access`.
+- The live remote configuration is served by the separate `atom-vpn/atom-vpn-config` repository and currently still contains the old `app_name`, `about`, and `developer_role` values. It must be updated separately so online refresh does not restore the old About title.
+- No application ID, package/namespace, VPN engine, transport, routing, JNI, or connection lifecycle changes.
+- CI/build validation for this naming change: pending. No device validation claimed. PR #10 remains open and unmerged.
