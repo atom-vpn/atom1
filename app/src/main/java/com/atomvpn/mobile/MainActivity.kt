@@ -1437,9 +1437,12 @@ private fun AtomLogsPage(onBack: () -> Unit) {
         }
     }
 
-    val levelFilters = remember {
-        listOf(tr("همه") to LogLevel.DEBUG, tr("اطلاعات") to LogLevel.INFO, tr("هشدار") to LogLevel.WARNING, tr("خطا") to LogLevel.ERROR)
-    }
+    val levelFilters = listOf(
+        tr("همه") to LogLevel.DEBUG,
+        tr("اطلاعات") to LogLevel.INFO,
+        tr("هشدار") to LogLevel.WARNING,
+        tr("خطا") to LogLevel.ERROR
+    )
     val minOrdinal = levelFilters[levelIndex].second.ordinal
     // جدیدترین لاگ پایین لیست است؛ reverseLayout خودش به‌صورت خودکار آخرین خط را نگه می‌دارد
     val shown = remember(all, minOrdinal, sourceName) {
@@ -1447,6 +1450,7 @@ private fun AtomLogsPage(onBack: () -> Unit) {
     }
     val kb = remember(all) { (AppLogRepository.estimatedBytes() / 1024L).toInt() }
     val shape = RoundedCornerShape(16.dp)
+    val shareReportTitle = tr("اشتراک‌گذاری گزارش")
 
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1470,7 +1474,7 @@ private fun AtomLogsPage(onBack: () -> Unit) {
                     putExtra(Intent.EXTRA_SUBJECT, "Atom log")
                     putExtra(Intent.EXTRA_TEXT, text)
                 }
-                runCatching { context.startActivity(Intent.createChooser(send, tr("اشتراک‌گذاری گزارش"))) }
+                runCatching { context.startActivity(Intent.createChooser(send, shareReportTitle)) }
             }) { Icon(Icons.Outlined.Share, tr("اشتراک‌گذاری"), tint = Ink) }
             IconButton(onClick = { confirmClear = true }) { Icon(Icons.Outlined.Delete, tr("پاک کردن"), tint = Ink) }
         }
