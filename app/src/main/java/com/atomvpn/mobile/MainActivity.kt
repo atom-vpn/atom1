@@ -1081,7 +1081,7 @@ private fun AtomSettingsPage(
                 SettingsGroup(tr("مسیر و اتصال")) {
                     SettingsRow(
                         Icons.Outlined.Public, tr("مسیر خروجی"),
-                        "کشور انتخاب‌شده: ${settings.exitCountryCode.ifBlank { tr("خودکار") }}",
+                        tr("کشور انتخاب‌شده: ${settings.exitCountryCode.ifBlank { "خودکار" }}"),
                         onClick = onOpenCountries
                     ) { ValueChevron(tr("انتخاب")) }
                     SettingsRow(Icons.Outlined.AccountTree, tr("حالت خروجی"), onClick = {
@@ -1148,6 +1148,13 @@ private fun AtomSettingsPage(
                 }
             }
             Reveal(3) {
+                SettingsGroup(tr("زبان")) {
+                    SettingsRow(Icons.Outlined.Translate, tr("زبان برنامه"), last = true) {
+                        LanguageSegment(language, onLanguageChange)
+                    }
+                }
+            }
+            Reveal(4) {
                 SettingsGroup(tr("عیب‌یابی")) {
                     SettingsRow(
                         Icons.Outlined.Description, tr("گزارش‌های برنامه"), tr("$logCount خط ثبت‌شده"),
@@ -1159,7 +1166,7 @@ private fun AtomSettingsPage(
                     ) { SettingsSwitch(settings.logcatMirror) }
                 }
             }
-            Reveal(4) {
+            Reveal(5) {
                 SettingsGroup(tr("درباره")) {
                     SettingsRow(Icons.Outlined.Person, tr("درباره‌ی سازنده"), onClick = onOpenAbout) { ValueChevron("") }
                     SettingsRow(Icons.Outlined.Info, tr("نسخه"), last = true) {
@@ -1267,6 +1274,26 @@ private fun ThemeSegment(mode: String, onChange: (String) -> Unit) {
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(bg)
                     .clickable { onChange(key) }
                     .padding(horizontal = 9.dp, vertical = 5.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LanguageSegment(language: String, onChange: (String) -> Unit) {
+    Row(
+        Modifier.background(PanelRaised, RoundedCornerShape(10.dp)).padding(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        listOf(AtomLanguageStore.FA to "فارسی", AtomLanguageStore.EN to "English").forEach { (code, label) ->
+            val selected = language == code
+            val bg by animateColorAsState(if (selected) Accent else Color.Transparent, tween(200), label = "language-bg")
+            val fg by animateColorAsState(if (selected) OnAccent else Muted, tween(200), label = "language-fg")
+            Text(
+                label, color = fg, fontSize = 11.5.sp,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(bg)
+                    .clickable { onChange(code) }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             )
         }
     }
