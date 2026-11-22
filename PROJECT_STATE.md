@@ -46,7 +46,9 @@ Repository PR list: https://github.com/atom-vpn/atom1/pulls
 - Exit-IP lookup remains strictly routed through the engine SOCKS listener; no direct-network fallback was added.
 - Retry delays are bounded at 2, 3, 5, 8, 10, 10, 10, and 10 seconds.
 - Transient failures retain the loading state; only the final failed attempt publishes an error.
-- GitHub Actions and physical-device verification are pending. Do not merge until checks are refreshed and the user tests the resulting APK.
+- GitHub Actions run [#45005071780](https://github.com/atom-vpn/atom1/actions/runs/45005071780): **success**. Universal and ARM64 APK builds, HEV JNI rebuild for all four ABIs, APK structure/manifest/alignment/signature validation, and artifact uploads all passed.
+- ARM64 artifact: `atom-vpn-arm64-apk`, artifact ID `14747816002`; downloaded APK: `app-arm64-debug.apk` (58,494,425 bytes).
+- Physical-device verification is pending. Do not merge until the user tests the resulting APK.
 
 ### PR #7 validation snapshot
 
