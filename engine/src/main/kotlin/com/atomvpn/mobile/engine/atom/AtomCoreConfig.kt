@@ -31,55 +31,18 @@ object AtomCoreConfig {
         }
     }
 
-    private fun migrateLegacyFile(context: Context, legacyName: String, currentName: String): File {
-        val target = File(context.filesDir, currentName)
-        val legacy = File(context.filesDir, legacyName)
-        if (!target.exists() && legacy.isFile) runCatching { legacy.copyTo(target, overwrite = false) }
-        return target
-    }
+    fun identityPath(context: Context): File = LegacyInstallMigration.identityPath(context)
 
-    fun identityPath(context: Context): File =
-        migrateLegacyFile(context, "uac-pow.toml", "atom-engine.toml")
+    fun hevConfigPath(context: Context): File = LegacyInstallMigration.hevConfigPath(context)
 
-    fun hevConfigPath(context: Context): File {
-        val targetDir = File(context.filesDir, "atom-engine")
-        val target = File(targetDir, "hev.yml")
-        val legacy = File(File(context.filesDir, "uac-pow"), "hev.yml")
-        if (!target.exists() && legacy.isFile) {
-            runCatching {
-                targetDir.mkdirs()
-                legacy.copyTo(target, overwrite = false)
-            }
-        }
-        return target
-    }
+    fun masqueCachePath(context: Context): File = LegacyInstallMigration.masqueCachePath(context)
 
-    fun masqueCachePath(context: Context): File =
-        migrateLegacyFile(context, "uac-pow-masque-cache.json", "atom-engine-masque-cache.json")
+    fun lastconnPath(context: Context): File = LegacyInstallMigration.lastconnPath(context)
 
-    fun lastconnPath(context: Context): File =
-        migrateLegacyFile(context, "uac-pow-lastconn.toml", "atom-engine-lastconn.toml")
+    fun goolLastconnPath(context: Context): File = LegacyInstallMigration.goolLastconnPath(context)
 
-    fun goolLastconnPath(context: Context): File =
-        migrateLegacyFile(context, "uac-pow-gool-lastconn.toml", "atom-engine-gool-lastconn.toml")
-
-    /**
-     * Clears obsolete last-connected peer hints during the one-time connect-order reset.
-     * Remove both Atom copies and their UAC-era sources so migrateLegacyFile cannot
-     * silently restore the stale hints on the next read. Identity and endpoint caches
-     * are deliberately not included.
-     */
-    fun clearObsoleteLastConnMemory(context: Context): Int {
-        val files = listOf(
-            File(context.filesDir, "atom-engine-lastconn.toml"),
-            File(context.filesDir, "uac-pow-lastconn.toml"),
-            File(context.filesDir, "atom-engine-gool-lastconn.toml"),
-            File(context.filesDir, "uac-pow-gool-lastconn.toml"),
-        )
-        return files.count { file ->
-            runCatching { file.isFile && file.delete() }.getOrDefault(false)
-        }
-    }
+    fun clearObsoleteLastConnMemory(context: Context): Int =
+        LegacyInstallMigration.clearObsoleteLastConnMemory(context)
 
     fun pathMemoryFiles(context: Context): List<File> = listOf(
         masqueCachePath(context),
@@ -97,8 +60,7 @@ object AtomCoreConfig {
     fun forgetPathMemory(context: Context): Int =
         pathMemoryFiles(context).count { file -> file.isFile && file.delete() }
 
-    fun cleanH2File(context: Context): File =
-        migrateLegacyFile(context, "uac-pow-clean-h2.json", "atom-engine-clean-h2.json")
+    fun cleanH2File(context: Context): File = LegacyInstallMigration.cleanH2File(context)
 
     fun cleanH2Peers(context: Context): List<String> {
         val file = cleanH2File(context)
