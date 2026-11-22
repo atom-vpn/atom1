@@ -110,3 +110,15 @@ Branch naming and workflow updates must be coordinated with PR #7 and any other 
 Paste this into a new conversation:
 
 > Continue the Atom VPN project in repository https://github.com/atom-vpn/atom1. First read `PROJECT_STATE.md`, then independently refresh the live GitHub state (branches, recent commits, all PRs, checks, and workflow runs). Treat GitHub as the source of truth if this file is stale. Continue from the recorded next action, preserve existing engine behavior and migration compatibility, and do not merge/delete/rename branches or make destructive changes without asking me. Update `PROJECT_STATE.md` after every meaningful repository change.
+
+
+## 17. Legacy identifier isolation (2026-11-22)
+
+- Created branch `atom-access-clean-identifiers` from the verified `pow-standalone` baseline at `1772d6246020aca84188d724420d949d600d136e`. This work is intentionally separate from the open UI integration PR #10.
+- Moved historical preference names and file/directory names into one compatibility boundary: `engine/src/main/kotlin/com/atomvpn/mobile/engine/atom/LegacyInstallMigration.kt`.
+- `AtomCoreConfig`, `AtomEngineStore`, and `AtomDnsWarm` now call the compatibility boundary and contain no legacy product identifiers.
+- The migration remains one-way and type-preserving. Existing settings, identity material, DNS warm-up data, endpoint caches, and learned path files continue to be copied into Atom-owned storage locations. The old source values are retained; no destructive migration or deletion was introduced.
+- Updated technical documentation wording to describe the previous bridge generically.
+- No transport, routing, JNI, native binary, connection coordinator, or VPN lifecycle behavior was intentionally changed.
+- Validation status: source refactor committed; Android build and device regression tests are pending. Do not claim runtime validation until CI and device testing complete.
+- PR #7 remains open against `pow-standalone`; PR #10 remains open and separate. Neither PR was merged or modified by this work.
