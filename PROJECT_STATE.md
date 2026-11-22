@@ -149,3 +149,14 @@ Paste this into a new conversation:
 - Latest CI run: [#45022621840](https://github.com/atom-vpn/atom1/actions/runs/45022621840), pending at last check; rebuild result and APK artifact links are not yet available.
 
 - Follow-up service commit: `f5504b686aaa480af57e21e3b25555aa12514075`; the active notification now also refreshes immediately when the user changes the app language while VPN remains connected.
+
+## 13. Compose build failure and correction (2026-11-22)
+
+- CI run [#45022809892](https://github.com/atom-vpn/atom1/actions/runs/45022809892) failed while compiling both Universal and ARM64 debug variants.
+- Root cause: composable translation calls in `AtomLogsPage` were placed inside a non-composable `remember` calculation and inside the `runCatching` click callback.
+- Corrected `MainActivity.kt` on `ui-integration`:
+  - Build the translated log-level filter list directly in the composable scope.
+  - Resolve the translated share-sheet title in composable scope and capture the string in the click callback.
+- Fix commit: `63cc22c18949759221c1d8f8969132074ed88e0c`.
+- Follow-up CI validation is pending; no APK or successful build is claimed yet.
+- VPN engine, native transport, routing, and coordinator code were not changed.
