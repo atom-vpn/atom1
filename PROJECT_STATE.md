@@ -45,7 +45,9 @@ Repository PR list: https://github.com/atom-vpn/atom1/pulls
 - Known Irancell and MCI policy branches are unchanged.
 - Added `AtomCoreConfigTest` cases for unknown, Irancell, and MCI carrier selection.
 - Android workflow now runs `:engine:testDebugUnitTest` before building Universal and ARM64 APKs.
-- CI status at PR creation: running; refresh GitHub Actions before claiming success.
+- Latest code/workflow commit under CI: `b5cb2b43446b61ad041500338a68dd496d92dc50`.
+- GitHub Actions run: [#45002287502](https://github.com/atom-vpn/atom1/actions/runs/45002287502); status at this update: in progress. An earlier superseded run was cancelled after subsequent pushes.
+- Refresh GitHub Actions before claiming success.
 - Physical-device verification on the same Wi-Fi is still required. Do not merge based only on CI.
 
 ### PR #7 validation snapshot
