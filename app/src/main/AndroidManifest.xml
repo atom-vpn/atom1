@@ -10,7 +10,7 @@
     <application
         android:name=".AtomApplication"
         android:allowBackup="false"
-        android:label="Atom VPN"
+        android:label="Atom Access"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
@@ -32,7 +32,7 @@
             android:permission="android.permission.BIND_VPN_SERVICE">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Atom VPN secure tunnel" />
+                android:value="Atom Access secure tunnel" />
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>

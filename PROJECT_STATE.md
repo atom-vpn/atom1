@@ -1,4 +1,4 @@
-# Atom VPN — Project State
+# Atom Access — Project State
 
 > Living handoff document. Update this file whenever repository work changes the project state, decisions, validation status, or next action.
 > Last reviewed: 2026-11-21
@@ -110,3 +110,87 @@ Branch naming and workflow updates must be coordinated with PR #7 and any other 
 Paste this into a new conversation:
 
 > Continue the Atom VPN project in repository https://github.com/atom-vpn/atom1. First read `PROJECT_STATE.md`, then independently refresh the live GitHub state (branches, recent commits, all PRs, checks, and workflow runs). Treat GitHub as the source of truth if this file is stale. Continue from the recorded next action, preserve existing engine behavior and migration compatibility, and do not merge/delete/rename branches or make destructive changes without asking me. Update `PROJECT_STATE.md` after every meaningful repository change.
+
+
+## 10. Cloud UI integration review (2026-11-22)
+
+- Review source branch: `cloud-ui-review` (uploaded Cloud delivery; preserved unchanged).
+- Integration branch: `ui-integration` (created from `cloud-ui-review`; no merge to `pow-standalone` or `main`).
+- Integrated Cloud UI source into the actual Android source tree:
+  - `app/src/main/java/com/atomvpn/mobile/MainActivity.kt`
+  - `app/src/main/java/com/atomvpn/mobile/AtomAppearanceStore.kt`
+  - `app/src/main/java/com/atomvpn/mobile/AtomRemoteConfig.kt`
+- Corrected remote config bootstrap URL to `https://raw.githubusercontent.com/atom-vpn/atom-vpn-config/main/remote-config.json`.
+- The misplaced root-level upload copies were removed from `ui-integration`; the original review branch remains intact.
+- Initial source review confirms the Logs screen uses the existing `AppLogRepository` API (entries, snapshot, clear, count, estimated size); no parallel logger was introduced.
+- Theme persistence uses a separate SharedPreferences store, not `AtomEngineStore`.
+- Remote config refresh starts asynchronously at app launch and is also checked when About is opened; it does not block the VPN connection path, and cached/default content is retained on fetch failure.
+- Validation pending: run GitHub Actions Universal and ARM64 builds and inspect compile/test results. No device validation claimed. No merge performed.
+
+## 11. Log filter cleanup (2026-11-22)
+
+- On `ui-integration`, removed `TOR` and `XRAY` from the Logs screen's visible source-filter chips.
+- This is a UI-only filter change. The underlying logging enum, log collection, and VPN engine behavior were left unchanged.
+- Commit: `8f43e2ad08dc0c879161429faa955315541da5a3`.
+- Device/build validation for this specific change: pending.
+
+## 12. Notification and language updates (2026-11-22)
+
+- On `ui-integration`, added an in-app language preference persisted in `AtomLanguageStore`; Persian remains the default and English can be selected in Settings.
+- Added English translations for the app's primary screens, settings, About, logs, and country names; switched layout direction to LTR for English and RTL for Persian.
+- Renamed the Settings entry `درباره‌ی سازنده` to `About us` in English and the Persian Settings entry now displays `درباره ما`.
+- Added the Android 13+ runtime notification permission request before starting VPN consent; rejecting notification permission does not block VPN connection.
+- Updated the foreground VPN notification to track connection state and engine phases, with Persian/English status text and non-repeating alert behavior.
+- Files changed: `MainActivity.kt`, `AtomVpnService.kt`, new `AtomLanguageStore.kt`.
+- Build and device validation: pending. No claim of successful compilation or runtime notification display until CI/device checks complete.
+- Engine transport, routing, native components, and coordinator logic were not changed.
+
+- Latest implementation commit: `be1cf50124dcbec8e9065279dfaaf27bbb6f2523` (MainActivity translations/root labels); latest PR head at this checkpoint: `be1cf50124dcbec8e9065279dfaaf27bbb6f2523`.
+- Latest CI run: [#45022621840](https://github.com/atom-vpn/atom1/actions/runs/45022621840), pending at last check; rebuild result and APK artifact links are not yet available.
+
+- Follow-up service commit: `f5504b686aaa480af57e21e3b25555aa12514075`; the active notification now also refreshes immediately when the user changes the app language while VPN remains connected.
+
+## 13. Compose build failure and correction (2026-11-22)
+
+- CI run [#45022809892](https://github.com/atom-vpn/atom1/actions/runs/45022809892) failed while compiling both Universal and ARM64 debug variants.
+- Root cause: composable translation calls in `AtomLogsPage` were placed inside a non-composable `remember` calculation and inside the `runCatching` click callback.
+- Corrected `MainActivity.kt` on `ui-integration`:
+  - Build the translated log-level filter list directly in the composable scope.
+  - Resolve the translated share-sheet title in composable scope and capture the string in the click callback.
+- Fix commit: `63cc22c18949759221c1d8f8969132074ed88e0c`.
+- Follow-up CI validation is pending; no APK or successful build is claimed yet.
+- VPN engine, native transport, routing, and coordinator code were not changed.
+
+
+## 14. Atom Access product naming (2026-11-22)
+
+- Approved user-facing product name: **Atom Access**.
+- On `ui-integration`, changed the Android launcher label in `app/src/main/AndroidManifest.xml` to `Atom Access`; updated the Android special-use VPN service description to use the new brand.
+- Updated offline/default About metadata in `AtomRemoteConfig.kt` to use `Atom Access`.
+- The live remote configuration is served by the separate `atom-vpn/atom-vpn-config` repository and currently still contains the old `app_name`, `about`, and `developer_role` values. It must be updated separately so online refresh does not restore the old About title.
+- No application ID, package/namespace, VPN engine, transport, routing, JNI, or connection lifecycle changes.
+- CI/build validation for this naming change: pending. No device validation claimed. PR #10 remains open and unmerged.
+
+
+## 15. About page title wording
+- Updated the Persian About page heading to `درباره‌ Atom Access` (dynamic app name retained).
+- Updated the English translation matcher for the revised Persian prefix.
+- No VPN engine, transport, routing, JNI, package ID, or lifecycle behavior changed.
+
+
+## 15. About page title wording (2026-11-22)
+
+- Applied the user's preferred Persian About page title format: `درباره‌ Atom Access` (ZWNJ after «درباره» followed by a space).
+- Updated the English translation prefix matcher to recognize the same Persian title format and render it as `About Atom Access`.
+- Source change: `app/src/main/java/com/atomvpn/mobile/MainActivity.kt`.
+- Commit: `5747cf36b6eee3580bee279498e5187838f3b004`.
+- No engine, transport, routing, native, package, or connection lifecycle changes. CI/build validation remains pending.
+
+
+## 16. Kotlin compile failure correction (2026-11-22)
+
+- CI run [#45032528395](https://github.com/atom-vpn/atom1/actions/runs/45032528395) failed in the Universal/ARM64 Kotlin compile task.
+- Exact compiler diagnostic: `AtomRemoteConfig.kt:60:55 Unsupported escape sequence`.
+- Root cause: newline character comparison used an invalid escaped character literal (`'\\\\n'`); corrected to Kotlin newline literal (`'\\n'`).
+- Fix commit: `00ea03b6db957e95201e7fecef15012c63baa5cd`.
+- No VPN engine, HEV JNI, transport, routing, package, or connection lifecycle changes. Follow-up CI validation pending; no APK is claimed yet.
