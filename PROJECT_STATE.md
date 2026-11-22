@@ -144,3 +144,6 @@ Paste this into a new conversation:
 - Files changed: `MainActivity.kt`, `AtomVpnService.kt`, new `AtomLanguageStore.kt`.
 - Build and device validation: pending. No claim of successful compilation or runtime notification display until CI/device checks complete.
 - Engine transport, routing, native components, and coordinator logic were not changed.
+
+- Latest implementation commit: `be1cf50124dcbec8e9065279dfaaf27bbb6f2523` (MainActivity translations/root labels); latest PR head at this checkpoint: `be1cf50124dcbec8e9065279dfaaf27bbb6f2523`.
+- Latest CI run: [#45022621840](https://github.com/atom-vpn/atom1/actions/runs/45022621840), pending at last check; rebuild result and APK artifact links are not yet available.
