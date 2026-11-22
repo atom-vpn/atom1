@@ -146,3 +146,34 @@ Paste this into a new conversation:
 - Validation scope is limited to installation, UI display, and a successful connection. Repeated connect/disconnect, traffic-routing/exit behavior, reconnect, service destruction/revocation, and emergency teardown have not been confirmed on this combined build.
 - This is an internal/test candidate, not a public release. PR #14 remains open and unmerged; PR #10 and #11 remain open and unmerged. No PR was merged and no release was published.
 - Next step: retain this commit as the initial device-smoke-tested baseline; before further changes, refresh the live branch/PR state and continue from `atom-access-integrated`. For any new build, record its exact branch, SHA, architecture, CI run, and device-test scope.
+
+## 20. Branch and PR separation policy (live inventory reviewed 2026-11-22)
+
+### Tested combined baseline
+- Use `atom-access-integrated` as the sole starting point for new Atom Access product work.
+- Current branch HEAD after recording the device smoke test: `6dcc2c0aae782216110b4f221ea5602645f4d78f`.
+- Device-confirmed scope: ARM64 install, new settings UI display, and successful VPN connection. Do not infer broader regression coverage.
+
+### Open source/change PRs — keep isolated until individually evaluated
+- PR #7 / branch `fix-emergency-aether-detach`: Aether emergency teardown reference cleanup. Separate engine change; requires focused device validation before integration.
+- PR #8 / branch `fix-auto-unknown-masque-h2`: unknown-carrier MASQUE H2 fallback. Separate transport-selection change; requires focused network/device validation before integration.
+- PR #9 / branch `fix-exit-ip-startup-retry`: exit-IP lookup retry/backoff. Separate startup/retry change; requires focused device validation before integration.
+- PR #10 / branch `ui-integration`: source UI/settings implementation. Its changes are already represented in the tested combined branch; retain PR as source history/review only. Do not merge or separately apply it to the combined branch.
+- PR #11 / branch `atom-access-clean-identifiers`: source migration/identifier-isolation implementation. Its changes are already represented in the tested combined branch; retain PR as source history/review only. Do not merge or separately apply it to the combined branch.
+- PR #14 / branch `atom-access-integrated`: integration/build-validation PR. It is the PR associated with the combined candidate; keep open/unmerged unless the user explicitly authorizes a merge decision.
+
+### Closed experimental PRs
+- PR #12 and PR #13 are closed, unmerged integration experiments. Do not use their heads as build sources and do not reopen unless specifically needed.
+
+### Branches not to use as the default build source
+- `pow-standalone`: underlying engine baseline/PR target, not the current tested Atom Access product branch.
+- `main`: repository default branch; not the tested combined product baseline.
+- `ui-integration` and `atom-access-clean-identifiers`: source branches already represented in `atom-access-integrated`; do not build product APKs from them.
+- Other historical/fix branches remain isolated; do not delete them or merge them automatically.
+
+### Anti-mix rules
+1. All new product work starts from `atom-access-integrated` only.
+2. Never combine multiple open engine PRs in one step. Review and integrate at most one focused change at a time, then build and device-test before proceeding.
+3. Before integrating any PR, compare its base/head against the current integrated HEAD and inspect the exact diff for overlap/conflicts.
+4. Never cherry-pick, merge, close, delete, or rewrite any branch/PR without explicit user approval.
+5. Every APK handoff must state branch, full commit SHA, CI run, architecture, and whether physical-device testing has passed.
