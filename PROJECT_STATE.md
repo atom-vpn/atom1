@@ -133,3 +133,14 @@ Paste this into a new conversation:
 - This is a UI-only filter change. The underlying logging enum, log collection, and VPN engine behavior were left unchanged.
 - Commit: `8f43e2ad08dc0c879161429faa955315541da5a3`.
 - Device/build validation for this specific change: pending.
+
+## 12. Notification and language updates (2026-11-22)
+
+- On `ui-integration`, added an in-app language preference persisted in `AtomLanguageStore`; Persian remains the default and English can be selected in Settings.
+- Added English translations for the app's primary screens, settings, About, logs, and country names; switched layout direction to LTR for English and RTL for Persian.
+- Renamed the Settings entry `درباره‌ی سازنده` to `About us` in English and the corresponding Persian label remains `درباره‌ی سازنده` pending the wording correction requested (should display `درباره ما`).
+- Added the Android 13+ runtime notification permission request before starting VPN consent; rejecting notification permission does not block VPN connection.
+- Updated the foreground VPN notification to track connection state and engine phases, with Persian/English status text and non-repeating alert behavior.
+- Files changed: `MainActivity.kt`, `AtomVpnService.kt`, new `AtomLanguageStore.kt`.
+- Build and device validation: pending. No claim of successful compilation or runtime notification display until CI/device checks complete.
+- Engine transport, routing, native components, and coordinator logic were not changed.
