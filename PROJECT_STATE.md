@@ -126,3 +126,10 @@ Paste this into a new conversation:
 - Theme persistence uses a separate SharedPreferences store, not `AtomEngineStore`.
 - Remote config refresh starts asynchronously at app launch and is also checked when About is opened; it does not block the VPN connection path, and cached/default content is retained on fetch failure.
 - Validation pending: run GitHub Actions Universal and ARM64 builds and inspect compile/test results. No device validation claimed. No merge performed.
+
+## 11. Log filter cleanup (2026-11-22)
+
+- On `ui-integration`, removed `TOR` and `XRAY` from the Logs screen's visible source-filter chips.
+- This is a UI-only filter change. The underlying logging enum, log collection, and VPN engine behavior were left unchanged.
+- Commit: `8f43e2ad08dc0c879161429faa955315541da5a3`.
+- Device/build validation for this specific change: pending.
