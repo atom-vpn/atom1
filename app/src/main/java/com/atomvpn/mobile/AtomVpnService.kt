@@ -88,15 +88,19 @@ class AtomVpnService : VpnService() {
                     // never through the phone's direct network.
                     exitIpJob?.cancel()
                     exitIpJob = scope.launch {
-                        // Psiphon may report CONNECTED briefly before its SOCKS tunnel is usable.
-                        // Give it time to settle, then retry transient SOCKS/API failures.
-                        repeat(EXIT_IP_MAX_ATTEMPTS) { attempt ->
+                        // The VPN can be usable before the upstream SOCKS tunnel is ready.
+                        // Back off between attempts and keep transient failures out of the UI.
+                        EXIT_IP_RETRY_DELAYS_MS.forEachIndexed { attempt, retryDelay ->
                             if (ConnectionStateStore.state.value != com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
                                 return@launch
                             }
-                            delay(EXIT_IP_RETRY_DELAY_MS)
-                            ExitIpInfoRepository.refresh(coordinator.socksPort())
-                            if (ExitIpInfoRepository.state.value.info != null) return@launch
+                            delay(retryDelay)
+                            val isFinalAttempt = attempt == EXIT_IP_RETRY_DELAYS_MS.lastIndex
+                            val resolved = ExitIpInfoRepository.refresh(
+                                coordinator.socksPort(),
+                                keepLoadingOnFailure = !isFinalAttempt
+                            )
+                            if (resolved) return@launch
                         }
                     }
                 }
@@ -231,7 +235,9 @@ class AtomVpnService : VpnService() {
         const val ACTION_DISCONNECT = "com.atomvpn.mobile.DISCONNECT"
         private const val CHANNEL_ID = "atom_vpn_connection"
         private const val NOTIFICATION_ID = 4101
-        private const val EXIT_IP_MAX_ATTEMPTS = 8
-        private const val EXIT_IP_RETRY_DELAY_MS = 2_000L
+        // 58 seconds of bounded backoff, in addition to each request's own timeout.
+        private val EXIT_IP_RETRY_DELAYS_MS = longArrayOf(
+            2_000L, 3_000L, 5_000L, 8_000L, 10_000L, 10_000L, 10_000L, 10_000L
+        )
     }
 }
