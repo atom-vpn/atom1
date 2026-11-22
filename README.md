@@ -26,7 +26,7 @@ The engine class names, source paths, manifest components, JNI entry points and 
 
 Existing engine preferences and files are migrated to Atom-named storage locations on first use. Legacy values are copied rather than deleted, so user settings, identity material and learned route data remain available.
 
-The HEV native library is rebuilt from a pinned upstream revision with the JNI package and class bound directly to `com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel`. The Atom Java class declares the native methods directly; no UAC Java bridge is required at runtime. The build script writes HEV outputs to a temporary directory and copies only the HEV library into `vendor/jniLibs`, preserving the separately packaged Aether libraries.
+The HEV native library is rebuilt from a pinned upstream revision with the JNI package and class bound directly to `com.atomvpn.mobile.engine.tor.AtomHevSocks5Tunnel`. The Atom Java class declares the native methods directly; the previous Java forwarding bridge is not required at runtime. The build script writes HEV outputs to a temporary directory and copies only the HEV library into `vendor/jniLibs`, preserving the separately packaged Aether libraries.
 
 The V2Ray AAR patcher redirects its Go sequence loader to the current Atom `GoJniLoader` class. Psiphon and V2Ray runtime libraries continue to be packaged from the verified vendor inputs.
 
