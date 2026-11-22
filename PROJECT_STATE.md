@@ -120,5 +120,5 @@ Paste this into a new conversation:
 - The migration remains one-way and type-preserving. Existing settings, identity material, DNS warm-up data, endpoint caches, and learned path files continue to be copied into Atom-owned storage locations. The old source values are retained; no destructive migration or deletion was introduced.
 - Updated technical documentation wording to describe the previous bridge generically.
 - No transport, routing, JNI, native binary, connection coordinator, or VPN lifecycle behavior was intentionally changed.
-- Validation status: source refactor committed; Android build and device regression tests are pending. Do not claim runtime validation until CI and device testing complete.
+- Validation status: source refactor committed; PR #11 is ready for review to trigger CI; Android build and device regression tests are pending. Do not claim runtime validation until CI and device testing complete.
 - PR #7 remains open against `pow-standalone`; PR #10 remains open and separate. Neither PR was merged or modified by this work.
