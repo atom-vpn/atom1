@@ -222,3 +222,17 @@ Paste this into a new conversation:
   - `connect()` and `disconnect()` both clear the displayed speed state; that alone explains a temporary zero during transition, but not a persistent zero while traffic continues.
 - Physical test confirms install + tunnel + working internet after reconnect; it does not confirm the accuracy of speed telemetry, nor does it yet identify whether reconnect was manual disconnect/connect or an automatic/network-triggered reconnect.
 - Next: clarify reconnect trigger; inspect native HEV stats semantics and monitor lifecycle, then make a focused fix on this isolated branch with tests and CI. Keep `atom-access-integrated` unchanged until the fix is validated and user authorizes integration.
+
+
+## 24. Automatic reconnect traffic monitor finding (2026-11-23)
+
+- User clarified the device behavior: when the app reconnects automatically, upload/download speeds remain unreported (zero); after the user manually disconnects and reconnects, speed reporting works.
+- This narrows the issue to the automatic reconnect lifecycle rather than a general inability to read traffic counters.
+- Source trace confirms:
+  - `AtomConnectionCoordinator.beginNetworkRestore()` calls `publishReconnecting()`, which changes `ConnectionStateStore` from CONNECTED to CONNECTING.
+  - `finishNetworkRestore()` later calls `publishConnected()`, which returns the state to CONNECTED without re-entering `AtomVpnService.connect()`.
+  - `AtomVpnService.startTrafficSpeedMonitor()` currently samples only while the state remains CONNECTED. When automatic recovery changes the state to CONNECTING, that monitor exits and clears the displayed rates.
+  - The automatic restore path does not call `startTrafficSpeedMonitor()` again when it publishes CONNECTED. Manual connect does call it after the coordinator connect completes.
+- This is a strong, directly code-supported explanation for the user's exact manual-vs-automatic reconnect observation. Native counter reset/rebase is no longer the leading hypothesis, though it may still need consideration if telemetry remains incorrect after the lifecycle fix.
+- Proposed focused fix: make the service's traffic monitor lifecycle observe connection-state transitions and restart sampling whenever the state returns to CONNECTED, including automatic network restore. Keep the transport policy, MASQUE, native libraries, routing, and coordinator reconnect behavior unchanged.
+- No code fix has been applied yet. The finding and next action are recorded; implement the focused service-side fix only after user approval, then run CI and issue a new ARM64 test APK. Keep `atom-access-integrated` unchanged.
