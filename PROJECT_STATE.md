@@ -236,3 +236,21 @@ Paste this into a new conversation:
 - This is a strong, directly code-supported explanation for the user's exact manual-vs-automatic reconnect observation. Native counter reset/rebase is no longer the leading hypothesis, though it may still need consideration if telemetry remains incorrect after the lifecycle fix.
 - Proposed focused fix: make the service's traffic monitor lifecycle observe connection-state transitions and restart sampling whenever the state returns to CONNECTED, including automatic network restore. Keep the transport policy, MASQUE, native libraries, routing, and coordinator reconnect behavior unchanged.
 - No code fix has been applied yet. The finding and next action are recorded; implement the focused service-side fix only after user approval, then run CI and issue a new ARM64 test APK. Keep `atom-access-integrated` unchanged.
+
+
+## 25. Automatic reconnect traffic monitor fix (2026-11-23)
+
+- User explicitly approved a focused fix on `atom-access-pr8-masque-h2`.
+- Updated `app/src/main/java/com/atomvpn/mobile/AtomVpnService.kt`:
+  - The service now observes `ConnectionStateStore.state` for traffic-monitor lifecycle as well as notification updates.
+  - On every transition to CONNECTED, it starts a fresh traffic sampler if one is not already active. This includes coordinator-managed automatic network restoration, which does not call the service's manual `connect()` method.
+  - On every non-CONNECTED state, it cancels and joins the previous sampler before clearing displayed rates, preventing the old sampler's cleanup from racing with a newly started sampler.
+  - Sampling checks connection state again after each one-second delay before publishing a rate.
+  - Removed the one-off monitor start from the manual connect completion path; monitor lifecycle is now driven by the shared connection-state flow for both manual and automatic connections.
+- Intended scope is app-side telemetry lifecycle only. No changes to MASQUE, transport selection, native libraries, routing, TUN setup, or coordinator reconnect policy.
+- Source commits:
+  - `6c3f758b5cd453e55bb0bf29743903c1e73bb78f` — state-driven monitor lifecycle fix.
+  - `db41972a67560a8d468d44f05a3ff148d38fb2f3` — remove unused import.
+- Validation: source committed; CI/build and APK artifact validation pending. Physical-device test after automatic reconnect is pending.
+- The tested product branch `atom-access-integrated` remains unchanged. No merge, cherry-pick, PR merge, or public release was performed.
+- Next: inspect the workflow triggered by the branch push, verify unit tests and Universal/ARM64 builds, then provide the new ARM64 APK with exact SHA and test scope.
