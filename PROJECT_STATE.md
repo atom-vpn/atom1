@@ -266,3 +266,28 @@ Paste this into a new conversation:
 - Validation scope is specifically APK installation and recovery of upload/download speed telemetry after an automatic reconnect. This does not imply full regression coverage for repeated connect/disconnect, exit-IP/routing, service destruction, emergency teardown, or all carrier/network combinations.
 - `atom-access-integrated` remains unchanged. No merge, cherry-pick, PR merge, or public release was performed.
 - Next decision: keep the validated fix isolated until the user explicitly authorizes a review/integration step. Before integration, refresh branch/PR state and inspect the exact diff against the current `atom-access-integrated` HEAD.
+
+
+## 27. Integration review against atom-access-integrated (2026-11-23)
+
+- Refreshed live refs before review:
+  - `atom-access-integrated` HEAD: `b890020da7307ef2ae001c4b65137687e5678ea8`.
+  - `atom-access-pr8-masque-h2` HEAD at review start: `a937a941c53bc21712bf9aca1f4e579d64228697`.
+- GitHub compare result: experimental branch is 13 commits ahead and 0 behind the integrated branch; merge base is exactly `b890020da7307ef2ae001c4b65137687e5678ea8`. No integrated-branch commits need to be pulled into the experimental branch.
+- Compare reports six changed paths:
+  - `.github/workflows/atom-engine-build.yml`
+  - `PROJECT_STATE.md`
+  - `app/src/main/java/com/atomvpn/mobile/AtomVpnService.kt`
+  - `engine/build.gradle.kts`
+  - `engine/src/main/kotlin/com/atomvpn/mobile/engine/atom/AtomCoreConfig.kt`
+  - `engine/src/test/kotlin/com/atomvpn/mobile/engine/atom/AtomCoreConfigTest.kt`
+- Review findings:
+  - AtomCoreConfig change is narrowly limited to the automatic unknown-carrier plan: preserve `OUTER_LADDER`, switch the generic MASQUE parameters from IPv4/H3 to dual-stack/H2. Existing Irancell and MCI policies remain unchanged in the diff.
+  - Three unit tests cover unknown, Irancell, and MCI automatic carrier policy. The CI workflow runs these tests before building APKs.
+  - AtomVpnService change makes traffic sampling follow CONNECTED state transitions and joins/cancels the previous sampler on non-CONNECTED states. User's physical-device automatic-reconnect test confirms speed telemetry resumes.
+  - Workflow changes add the isolated branch push trigger, allow PR CI targeting `atom-access-integrated`, and run engine unit tests. No native/transport implementation files are changed.
+  - The only additional dependency is JUnit 4.13.2 for engine unit tests.
+- Validation: CI run [#45131105891](https://github.com/atom-vpn/atom1/actions/runs/45131105891) passed; user confirmed install and automatic-reconnect speed telemetry on device.
+- Integration assessment: branch ancestry is clean and the code diff is focused, with no overlapping edits required on the integrated branch. Before merging, open a PR targeting `atom-access-integrated` and let GitHub calculate mergeability/checks against the live target. No PR was created in this review.
+- Existing PR #14 remains an unrelated build-validation PR from `atom-access-integrated` to `pow-standalone`; it is open/unmerged. No PR was merged, no branch was rewritten, and `atom-access-integrated` remains unchanged.
+- Next action: await explicit user approval before creating a draft/review PR or applying this change to `atom-access-integrated`. Merging remains a separate explicit approval.
