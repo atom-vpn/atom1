@@ -345,3 +345,28 @@ Paste this into a new conversation:
   3. Check PR #6's intended cleanup behavior in the current integrated source to avoid duplicate application.
   4. After all findings are recorded, present a proposed ordered integration plan. Ask for explicit approval before any code port/branch mutation; merging remains a separate approval.
 - Continuity rule: after every meaningful source review, code change, CI run, artifact handoff, device test, or GitHub mutation, append a dated entry to this file on the active experimental branch and report the resulting commit SHA. Never rely on chat history alone for project state.
+
+
+## 30. PR #9 exit-IP startup retry review (2026-11-23)
+
+- User approved continuing the audit. This step was read-only source review followed by this documentation entry; no application code, PR metadata, or product branch was changed.
+- Reviewed all three PR #9 changed paths using GitHub's changed-file list and exact file patches:
+  - `app/src/main/java/com/atomvpn/mobile/AtomVpnService.kt`
+  - `app/src/main/java/com/atomvpn/mobile/ExitIpInfoRepository.kt`
+  - `PROJECT_STATE.md`
+- PR #9 source branch: `fix-exit-ip-startup-retry`; PR target: `pow-standalone`; recorded PR head SHA: `570e22aaaf84c4e09756e0b9774a3d880cfc6f17`. PR remains open/unmerged per the latest recorded PR inventory.
+- Exact behavior added by PR #9:
+  - Replaces eight identical 2-second retries with bounded backoff delays of 2, 3, 5, 8, 10, 10, 10, and 10 seconds (58 seconds total waiting time, plus each lookup's own network timeouts).
+  - Calls `ExitIpInfoRepository.refresh(socksPort, keepLoadingOnFailure = !isFinalAttempt)`; a successful lookup ends the retry loop, transient failures retain the loading UI state, and the last failed attempt exposes an error.
+  - Changes `refresh` to return Boolean success and preserve cancellation by rethrowing `CancellationException`.
+  - The lookup continues to use the local engine SOCKS proxy only. No direct phone-network fallback was introduced.
+- Compared the service hunks against both `atom-access-integrated` and the PR #15 experimental branch:
+  - PR #15's service change is the state-driven traffic-speed monitor lifecycle (the already device-verified automatic-reconnect telemetry fix).
+  - PR #9's service hunk changes only the exit-IP retry loop and its retry-delay constants. It does not modify the traffic monitor implementation.
+  - The two behavioral changes are separate by code region and appear selectively composable; do not merge PR #9's old branch wholesale because its base is `pow-standalone` and it is divergent from the product branch.
+- Current `atom-access-integrated` `ExitIpInfoRepository.kt` does not contain the retry-aware Boolean-returning API; it still exposes `suspend fun refresh(socksPort: Int)` and publishes every failure immediately. The PR #9 repository implementation is therefore not already present in the product baseline.
+- Review assessment: the bounded retry and transient-error suppression are a plausible isolated improvement for startup races where VPN CONNECTED precedes SOCKS readiness. The 58-second backoff is finite but can take longer in wall-clock time because each attempt may contact both lookup providers with their own timeouts. No direct-network leak was found in the reviewed diff.
+- Validation evidence recorded for PR #9: Actions run [#45005071780](https://github.com/atom-vpn/atom1/actions/runs/45005071780) succeeded, including Universal/ARM64 APK builds, four-ABI HEV JNI rebuild, APK structure/manifest/alignment/signature checks, and artifact upload. Physical-device verification remains pending; CI success is not device validation.
+- Recommendation: retain PR #9 as a candidate for a narrowly scoped selective port of the repository API plus the retry loop/constants onto a fresh branch based on current `atom-access-integrated`. Before porting, add focused tests for retry-state transitions/cancellation or otherwise document why the repository behavior is sufficiently covered; then run CI and request a device test specifically for exit-IP recovery after connect/startup. Do not change the existing PR #15 sampler behavior.
+- No code was ported, no PR was merged/closed/retargeted, no branch was rewritten/deleted, and no public APK/release was made. `atom-access-integrated` remains unchanged.
+- Next audit item: inspect PR #7's exact Aether reference-release/emergency-teardown patch and compare it with the current integrated coordinator/native lifecycle.
