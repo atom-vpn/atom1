@@ -469,3 +469,18 @@ Paste this into a new conversation:
 - Device evidence remains: user confirmed automatic-reconnect speed telemetry works on the earlier ARM64 artifact from run #45131105891. The unknown-carrier MASQUE policy on Wi-Fi has not been device-verified in this checkpoint.
 - No application code changed; no PR was marked ready, merged, closed, or retargeted; no branch history was rewritten; no public APK/release was created. `atom-access-integrated` remains unchanged.
 - Next: poll run #176 to completion, inspect its job steps and artifacts, then append the exact result. Only after successful current-head CI and any needed device verification should the user be asked whether to mark PR #15 ready. Merging requires a separate explicit approval.
+
+
+## 36. PR #15 CI run #176 cancelled — validation outstanding (2026-11-23)
+
+- Refreshed Actions run [#45136653047](https://github.com/atom-vpn/atom1/actions/runs/45136653047) for PR #15. The run is now `completed / cancelled`, not passed.
+- Run metadata identifies workflow commit `e268599a4a17998a247cf2784f2d7e2cbc8038d1`; the PR head has since advanced to documentation-only commit `95e98ce27f0652ee5ae3b071104150689a4f6fd6`. The application-code and workflow changes under review are the same; the later commit only updates this state file.
+- Job inspection:
+  - Android setup, package installation, and four-ABI HEV JNI rebuild completed successfully.
+  - The combined engine unit-test + Universal/ARM64 APK build step was cancelled.
+  - APK validation and both artifact uploads were skipped.
+  - Artifacts endpoint reports zero artifacts for this run.
+- Therefore there is no successful current-PR-head CI result and no new APK from run #176. The cancellation is not evidence of a code/test failure, but it also cannot be treated as a pass.
+- Earlier run #174 was also cancelled. Earlier successful CI on older commits does not validate the current PR head.
+- PR #15 remains open, Draft, and unmerged. `atom-access-integrated` remains unchanged. No PR metadata, application code, or branch history was changed in this checkpoint.
+- Next action: obtain authorization before rerunning CI (or trigger a new validation run) for the current PR head. After a successful run and artifact inspection, ask separately whether the user wants PR #15 marked ready. Merge requires its own explicit approval.
