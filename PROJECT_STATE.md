@@ -208,3 +208,17 @@ Paste this into a new conversation:
 - CI success is not physical-device validation. ARM64 APK is ready for user testing, especially automatic carrier mode on Wi-Fi/unknown carrier. Verify install, connect, traffic, disconnect, and reconnect; report any connection/log errors.
 - The CI run was triggered at commit `0cc86adaa10fea263406e86e0b4e71f54e2c3abf`. A later documentation-only update may advance branch HEAD; refresh live HEAD before further code changes.
 - No merge/cherry-pick/release was performed. `atom-access-integrated` remains unchanged; PR #8 source branch remains untouched.
+
+
+## 23. User device test — PR #8 ARM64 build (2026-11-23)
+
+- User installed the ARM64 APK from isolated branch `atom-access-pr8-masque-h2`; installation succeeded and the VPN tunnel connected.
+- User then observed that after reconnect, the UI showed both upload and download speeds as zero while internet traffic continued to work.
+- Treat this as a traffic-statistics/UI telemetry regression candidate, separate from tunnel establishment and data-plane connectivity. Do not alter MASQUE/transport policy to address it without evidence.
+- Initial source trace:
+  - `AtomVpnService.startTrafficSpeedMonitor()` samples `coordinator.tunStats()` once per second and publishes byte-rate deltas to `TrafficSpeedRepository`.
+  - `AtomConnectionCoordinator.tunStats()` reads HEV/TUN native counters when `AtomTun2Socks` is running, otherwise it falls back to coordinator callback counters.
+  - Negative counter deltas are clamped to zero in the service monitor, so a native counter reset/rebase or stale stats source around reconnect is one possible cause, not yet proven.
+  - `connect()` and `disconnect()` both clear the displayed speed state; that alone explains a temporary zero during transition, but not a persistent zero while traffic continues.
+- Physical test confirms install + tunnel + working internet after reconnect; it does not confirm the accuracy of speed telemetry, nor does it yet identify whether reconnect was manual disconnect/connect or an automatic/network-triggered reconnect.
+- Next: clarify reconnect trigger; inspect native HEV stats semantics and monitor lifecycle, then make a focused fix on this isolated branch with tests and CI. Keep `atom-access-integrated` unchanged until the fix is validated and user authorizes integration.
