@@ -396,3 +396,20 @@ Paste this into a new conversation:
 - No CI/device validation for PR #7 was established in this review. Do not describe the change as tested. CI and physical-device emergency teardown validation are still required after any selective port.
 - No code was ported, no PR was merged/closed/retargeted, no branch was rewritten/deleted, and no public APK/release was made. `atom-access-integrated` remains unchanged.
 - Next audit item: inspect PR #6's intended VPN service-destruction cleanup against the actual current integrated service/coordinator implementation; determine whether the behavior is already present or needs a separate narrow proposal.
+
+
+## 32. PR #6 VPN service destruction cleanup audit (2026-11-23)
+
+- Reviewed PR #6's exact changed-file patch and the current `atom-access-integrated` service implementation. No application code was changed.
+- PR #6 changed only `app/src/main/java/com/atomvpn/mobile/AtomVpnService.kt`.
+- Intended behavior in PR #6:
+  - On explicit disconnect, await `coordinator.stop()`; set `shutdownCompleted=true` on success, otherwise invoke `coordinator.forceRelease()`.
+  - On Android service destruction/revocation without a completed normal shutdown, invoke the non-blocking emergency `forceRelease()` and mark the connection disconnected.
+- Current `atom-access-integrated` already contains these exact key mechanisms: `shutdownCompleted`, the success/failure fallback in `disconnect()`, and the `onDestroy()` guard that calls `forceRelease()` when the coordinator is initialized and normal shutdown did not complete. PR #6's intended behavior is therefore already represented in the product baseline; do not reapply PR #6 or merge its old branch.
+- Additional lifecycle observation in the already-integrated code:
+  - If `coordinator.stop()` fails, `disconnect()` calls `forceRelease()` but does not set `shutdownCompleted=true`; after `stopSelf()`, `onDestroy()` can call `forceRelease()` a second time.
+  - If Android destroys the service while the disconnect coroutine is still running, `onDestroy()` can also start emergency teardown concurrently with the normal stop.
+  - `forceRelease()` is designed as idempotent/best-effort, but the duplicate/concurrent invocation paths deserve a focused lifecycle test and may increment the session generation more than once. This is an existing baseline hardening opportunity, not a reason to reapply PR #6.
+- The source audit confirms PR #6 is already functionally represented at the service layer, but this review alone does not establish physical-device validation for Android revoke/process-destruction scenarios.
+- No code was ported, no PR was merged/closed/retargeted, no branch was rewritten/deleted, and no public APK/release was made. `atom-access-integrated` remains unchanged.
+- Audit sequence is now complete for PRs #9, #7, and #6. Next: refresh live refs and compare PR #15 plus the three audited changes against the current product baseline, then present a safe, ordered selective integration plan. Do not mutate application code until the user explicitly approves the proposed code changes; merging remains a separate approval.
