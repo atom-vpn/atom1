@@ -291,3 +291,17 @@ Paste this into a new conversation:
 - Integration assessment: branch ancestry is clean and the code diff is focused, with no overlapping edits required on the integrated branch. Before merging, open a PR targeting `atom-access-integrated` and let GitHub calculate mergeability/checks against the live target. No PR was created in this review.
 - Existing PR #14 remains an unrelated build-validation PR from `atom-access-integrated` to `pow-standalone`; it is open/unmerged. No PR was merged, no branch was rewritten, and `atom-access-integrated` remains unchanged.
 - Next action: await explicit user approval before creating a draft/review PR or applying this change to `atom-access-integrated`. Merging remains a separate explicit approval.
+
+## 28. Draft integration PR created (2026-11-23)
+
+- User approved creating a draft PR for review; this approval does not authorize merging.
+- Created draft PR [#15](https://github.com/atom-vpn/atom1/pull/15): `atom-access-pr8-masque-h2` → `atom-access-integrated`.
+- PR title: `[Draft] Restore traffic speed monitoring after automatic reconnect`.
+- PR creation snapshot:
+  - Head SHA: `4b82eb56acd0da9d989f936abff179e3cca0804b`.
+  - Base SHA: `b890020da7307ef2ae001c4b65137687e5678ea8`.
+  - 14 commits, 6 changed files.
+  - GitHub initially returned `mergeable: false`; treat mergeability as not yet established and inspect the PR's live mergeability/check status before any merge decision.
+- PR #15 is open and draft, not merged. No merge was attempted. The product branch `atom-access-integrated` was not modified by PR creation.
+- Existing PRs and source branches were not merged, closed, deleted, or rewritten.
+- Next: inspect PR #15's checks and diff, resolve any conflicts or failed checks in the isolated branch only, and request separate explicit approval before marking ready or merging.
