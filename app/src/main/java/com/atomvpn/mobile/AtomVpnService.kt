@@ -22,7 +22,6 @@ import com.atomvpn.mobile.engine.settings.AdvancedSettingsData
 import com.atomvpn.mobile.engine.settings.AdvancedSettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
