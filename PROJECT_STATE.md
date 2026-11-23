@@ -195,3 +195,16 @@ Paste this into a new conversation:
 - Validation status: source/test/workflow changes are committed to the isolated branch; CI has not yet run on this branch. No APK is claimed as built, and no device test has been performed.
 - No merge, cherry-pick, release, or change to the tested integrated branch was performed.
 - Next action: verify this branch's resulting diff against `atom-access-integrated`, ensure CI triggers and unit tests pass, inspect APK artifacts, then provide an ARM64 test build for the user's Wi-Fi device verification. Only after that review device results and ask before any integration/merge.
+
+
+## 22. PR #8 isolated port — CI and ARM64 artifact ready (2026-11-23)
+
+- Isolated branch: `atom-access-pr8-masque-h2`.
+- CI workflow run [#45064726842](https://github.com/atom-vpn/atom1/actions/runs/45064726842) completed successfully for code/workflow commit `0cc86adaa10fea263406e86e0b4e71f54e2c3abf`.
+- Successful CI steps include rebuilding HEV JNI for all four ABIs, running `:engine:testDebugUnitTest`, building Universal and ARM64 debug APKs, validating APK structure/manifest/alignment/signature, and uploading both artifacts.
+- ARM64 artifact ID: `14771006713`; downloaded and extracted locally as `/mnt/data/atom-access-pr8-arm64/app-arm64-debug.apk`.
+- ARM64 APK size: 58,568,833 bytes. SHA-256: `c294fe783322b3611833400332443ccf2c538fe8cb2b91dd8bced1dad681bc68`.
+- Universal artifact ID: `14771505232`; retained on GitHub Actions.
+- CI success is not physical-device validation. ARM64 APK is ready for user testing, especially automatic carrier mode on Wi-Fi/unknown carrier. Verify install, connect, traffic, disconnect, and reconnect; report any connection/log errors.
+- The CI run was triggered at commit `0cc86adaa10fea263406e86e0b4e71f54e2c3abf`. A later documentation-only update may advance branch HEAD; refresh live HEAD before further code changes.
+- No merge/cherry-pick/release was performed. `atom-access-integrated` remains unchanged; PR #8 source branch remains untouched.
