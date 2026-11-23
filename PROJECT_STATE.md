@@ -370,3 +370,29 @@ Paste this into a new conversation:
 - Recommendation: retain PR #9 as a candidate for a narrowly scoped selective port of the repository API plus the retry loop/constants onto a fresh branch based on current `atom-access-integrated`. Before porting, add focused tests for retry-state transitions/cancellation or otherwise document why the repository behavior is sufficiently covered; then run CI and request a device test specifically for exit-IP recovery after connect/startup. Do not change the existing PR #15 sampler behavior.
 - No code was ported, no PR was merged/closed/retargeted, no branch was rewritten/deleted, and no public APK/release was made. `atom-access-integrated` remains unchanged.
 - Next audit item: inspect PR #7's exact Aether reference-release/emergency-teardown patch and compare it with the current integrated coordinator/native lifecycle.
+
+
+## 31. PR #7 emergency Aether detach review (2026-11-23)
+
+- User approved continuing the sequential read-only audit. Reviewed the exact PR #7 patches and current product-baseline implementations; this step made no application-code changes.
+- PR: [#7](https://github.com/atom-vpn/atom1/pull/7), source branch `fix-emergency-aether-detach`, target `pow-standalone`; recorded source head `4664958c02fcc3b48534e4bd1a8c1808f32f1d7b`. PR remains open/unmerged per the repository audit.
+- Changed paths:
+  - `engine/src/main/kotlin/com/atomvpn/mobile/engine/atom/AetherNative.kt`
+  - `engine/src/main/kotlin/com/atomvpn/mobile/engine/atom/AtomConnectionCoordinator.kt`
+- Exact patch behavior:
+  - `AetherNative.detach()` now clears `OobKeyFetch.bindVpn(null)` before checking native-library availability and calling `nativeDetach()`. This releases the Java-side VpnService reference in addition to the native JNI global reference.
+  - `forceRelease()` calls Aether stop, checks the captured session generation, calls Aether detach, then (if a Psiphon client was captured and the generation still matches) attempts bounded client stop and calls `client.close()`.
+- Current product baseline findings:
+  - `AetherNative.attach(service)` already binds the service into `OobKeyFetch` and calls native attach.
+  - Current `AetherNative.detach()` only calls native detach; it does not clear the OOB Java-side service reference.
+  - Current normal `stopLocked()` already stops the Psiphon client, closes it, stops the outer leg, and calls Aether detach. PR #7 specifically augments the emergency timeout/reaper path; it is not a replacement for ordinary stop.
+  - Current `forceRelease()` does not call Aether detach and does not close the captured Psiphon client. Thus the PR addresses a real teardown-path gap not already covered by the baseline normal-stop path.
+  - `OobKeyFetch.bindVpn` is a volatile reference assignment. `AtomPsiphonClient.close()` calls `incomingThread.quitSafely()`; its suspend `stop()` separately sends stop, waits up to its timeout, and unbinds.
+- Lifecycle concern requiring correction or explicit acceptance before port:
+  - The generation checks are check-then-act, not atomic with a new session's generation increment/attach. A new connect can theoretically begin between the final `forcedSession == sessionGeneration.get()` check and `AetherNative.detach()`; the reaper could then detach the newer session's Aether/OOB binding. The comment says it will never detach a newer session, but the plain integer comparison does not guarantee that under concurrency.
+  - The reaper also calls `client.close()` after the bounded `client.stop()` attempt even if that stop timed out. This may be intentional emergency cleanup, but the callback-thread shutdown and any late service callbacks should be covered by a targeted race/lifecycle test.
+  - Calling `AetherNative.stop()` before detach is ordered correctly at the call level, but the patch does not explicitly wait for a native-exit acknowledgement before detaching. Confirm the native stop contract before claiming that the native core has fully exited.
+- Review assessment: PR #7 contains a meaningful missing cleanup in the emergency path and a valid Java OOB reference-release improvement. However, do not port it verbatim yet: first make the session ownership/serialization guarantee real (for example, coordinate reaper teardown with session start/attach under a shared lifecycle gate, without blocking the emergency path indefinitely), then add targeted tests for stale reaper versus new session, detach idempotence, and Psiphon client closure. Keep normal `stopLocked()` behavior unchanged.
+- No CI/device validation for PR #7 was established in this review. Do not describe the change as tested. CI and physical-device emergency teardown validation are still required after any selective port.
+- No code was ported, no PR was merged/closed/retargeted, no branch was rewritten/deleted, and no public APK/release was made. `atom-access-integrated` remains unchanged.
+- Next audit item: inspect PR #6's intended VPN service-destruction cleanup against the actual current integrated service/coordinator implementation; determine whether the behavior is already present or needs a separate narrow proposal.
