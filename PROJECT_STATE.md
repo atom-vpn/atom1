@@ -446,3 +446,26 @@ Paste this into a new conversation:
 - No application code or product branch was changed for this decision.
 - Latest refreshed CI result for documentation commit a1ee014cae980d85fee6abcacc26cb668291c028: Actions run [#45136215295](https://github.com/atom-vpn/atom1/actions/runs/45136215295), run #174, completed with conclusion cancelled. This is not a passing run; rerun/validation remains outstanding for the current branch state.
 - Next work remains PR #15 status/source review, followed—only with explicit approval—by any separately authorized selective code port. PR #7 is excluded.
+
+
+## 35. PR #15 final source review checkpoint (2026-11-23)
+
+- User confirmed to continue the PR #15 review. This checkpoint is read-only with respect to application code and PR metadata; only this project-state record is appended.
+- Refreshed live PR #15 snapshot:
+  - PR #15 remains open, Draft, and unmerged: https://github.com/atom-vpn/atom1/pull/15
+  - Head branch `atom-access-pr8-masque-h2`, exact head SHA `e268599a4a17998a247cf2784f2d7e2cbc8038d1`.
+  - Base branch `atom-access-integrated`, exact base SHA `b890020da7307ef2ae001c4b65137687e5678ea8`.
+  - GitHub reports `mergeable=true`, `mergeable_state=unstable`. This is not a merge approval and does not establish all required checks as successful.
+  - Compare: 21 commits ahead / 0 behind; merge base equals the current product base. Six changed paths remain: workflow, PROJECT_STATE.md, AtomVpnService.kt, engine Gradle config, AtomCoreConfig.kt, and AtomCoreConfigTest.kt.
+  - PR review API currently returns no submitted reviews. No review approval is recorded.
+- Exact source review findings:
+  - `AtomVpnService.kt`: the state collector now starts the traffic sampler when state becomes CONNECTED and cancels/joins it on non-CONNECTED states; the previous one-shot manual-connect sampler call is removed. This directly addresses the confirmed automatic-reconnect lifecycle gap. The service diff does not change coordinator reconnect, TUN, routing, or native transport code.
+  - `AtomCoreConfig.kt`: only the generic/unknown automatic-carrier branch changes from IPv4/H3 to dual-stack/H2 while retaining `OUTER_LADDER`. Known Irancell and MCI policy branches are unchanged in the patch.
+  - `AtomCoreConfigTest.kt`: three tests cover unknown, Irancell, and MCI policy selection. `engine/build.gradle.kts` adds JUnit 4.13.2 only for tests.
+  - Workflow adds the isolated branch push trigger and PR trigger for `atom-access-integrated`, and runs `:engine:testDebugUnitTest` before Universal/ARM64 APK builds and APK validation.
+  - No PR #7 files or emergency Aether/Psiphon teardown changes are present. PR #7 remains excluded by the user's explicit decision in section 34.
+- CI for exact head `e268599a4a17998a247cf2784f2d7e2cbc8038d1`: Actions run [#45136653047](https://github.com/atom-vpn/atom1/actions/runs/45136653047), run #176. At this checkpoint it is still `in_progress`; Android package installation and four-ABI HEV JNI rebuild have passed, while engine unit tests/APK builds, APK validation, and artifact uploads are still pending. Do not call CI passed or provide a new APK until the run completes and artifacts are confirmed.
+- Earlier run #174 (commit `a1ee014cae980d85fee6abcacc26cb668291c028`) completed `cancelled`; it is not a successful validation. Earlier run #168/#45134236877 succeeded on an earlier PR head, but does not replace validation of the current exact head.
+- Device evidence remains: user confirmed automatic-reconnect speed telemetry works on the earlier ARM64 artifact from run #45131105891. The unknown-carrier MASQUE policy on Wi-Fi has not been device-verified in this checkpoint.
+- No application code changed; no PR was marked ready, merged, closed, or retargeted; no branch history was rewritten; no public APK/release was created. `atom-access-integrated` remains unchanged.
+- Next: poll run #176 to completion, inspect its job steps and artifacts, then append the exact result. Only after successful current-head CI and any needed device verification should the user be asked whether to mark PR #15 ready. Merging requires a separate explicit approval.
