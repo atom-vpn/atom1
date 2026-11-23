@@ -413,3 +413,25 @@ Paste this into a new conversation:
 - The source audit confirms PR #6 is already functionally represented at the service layer, but this review alone does not establish physical-device validation for Android revoke/process-destruction scenarios.
 - No code was ported, no PR was merged/closed/retargeted, no branch was rewritten/deleted, and no public APK/release was made. `atom-access-integrated` remains unchanged.
 - Audit sequence is now complete for PRs #9, #7, and #6. Next: refresh live refs and compare PR #15 plus the three audited changes against the current product baseline, then present a safe, ordered selective integration plan. Do not mutate application code until the user explicitly approves the proposed code changes; merging remains a separate approval.
+
+
+## 33. Consolidated audit checkpoint and selective integration proposal (2026-11-23)
+
+- Refreshed GitHub compare after sections 30–32 were recorded:
+  - Product branch `atom-access-integrated` remains at `b890020da7307ef2ae001c4b65137687e5678ea8`.
+  - Experimental branch `atom-access-pr8-masque-h2` is 19 commits ahead / 0 behind; merge base is the current product HEAD. No product-branch commits are missing from the experimental branch.
+  - Compare still reports the six PR #15 paths: workflow, `PROJECT_STATE.md`, `AtomVpnService.kt`, engine Gradle config, `AtomCoreConfig.kt`, and `AtomCoreConfigTest.kt`.
+- PR #15 review threads currently return an empty list. This is not the same as an approval or merge authorization.
+- The latest documentation commit `a1ee014cae980d85fee6abcacc26cb668291c028` has an associated GitHub Actions PR run [#45136215295](https://github.com/atom-vpn/atom1/actions/runs/45136215295), run #174. At the time of this checkpoint it was still `in_progress`; do not report it as passed until refreshed.
+- Consolidated audit conclusions:
+  1. **PR #15 — candidate to keep first in the review queue.** It contains the already user-device-verified automatic-reconnect traffic-speed monitor fix, the isolated unknown-carrier automatic MASQUE dual-stack/H2 policy, three policy unit tests, and the corresponding CI workflow/test dependency. CI run #45134236877 passed for the prior PR head recorded in section 29; run #174 for the latest docs-bearing branch commit was still running at this checkpoint. PR #15 remains a review item, not permission to merge.
+  2. **PR #9 — candidate for a separate selective port after PR #15 is settled.** Its bounded exit-IP startup retry and transient-error suppression are not present in the product baseline and are separate from PR #15's speed sampler region. Port only the repository API and matching service retry hunk, add focused retry/cancellation tests, run CI, and obtain physical-device verification of exit-IP recovery. Do not merge its old divergent branch wholesale.
+  3. **PR #7 — do not port verbatim.** Emergency teardown is missing Aether/OOB detach and client close in the baseline force-release path, but the current PR's generation check is not atomic with new-session startup/attach. First design and test a shared ownership/serialization guard, then reconsider a narrow port. Require CI and physical-device revoke/emergency teardown validation.
+  4. **PR #6 — do not reapply.** Its service-destruction fallback is already represented in `atom-access-integrated`. Separately track the existing duplicate/concurrent `forceRelease()` invocation possibility in the service disconnect/onDestroy path; address only with a focused lifecycle fix and tests if approved.
+- Suggested order:
+  - A. Finish PR #15 CI/status review and source review; request explicit approval before marking ready or merging.
+  - B. Once PR #15 is settled, create a new isolated branch from the then-current `atom-access-integrated` and selectively port PR #9 with tests; CI + device verification before proposing integration.
+  - C. Treat PR #7 as a separate engineering task: resolve the generation race and test emergency teardown ownership before any port.
+  - D. Treat the PR #6 duplicate-force-release observation as a separate optional hardening issue, not a reapplication of PR #6.
+- No application code was changed in this audit checkpoint. No PR was merged, closed, retargeted, or marked ready; no branch was rewritten/deleted; no public APK/release was created. Product branch remains unchanged.
+- Next: refresh Actions run #45136215295 and PR #15 state; report the CI result, then wait for explicit approval before any source-code port or merge. Merging remains a separate explicit approval.
