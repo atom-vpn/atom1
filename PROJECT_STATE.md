@@ -305,3 +305,43 @@ Paste this into a new conversation:
 - PR #15 is open and draft, not merged. No merge was attempted. The product branch `atom-access-integrated` was not modified by PR creation.
 - Existing PRs and source branches were not merged, closed, deleted, or rewritten.
 - Next: inspect PR #15's checks and diff, resolve any conflicts or failed checks in the isolated branch only, and request separate explicit approval before marking ready or merging.
+
+
+## 29. Repository branch/PR audit and PR #15 diff review (2026-11-23)
+
+- User approved continuing the read-only audit and explicitly requested that every meaningful action/result be recorded so work can resume safely if the chat reaches its limit.
+- Audit method: refreshed GitHub branch refs, all PR states, compare results against both `atom-access-integrated` and `pow-standalone`, PR #15 changed-file patches/commit list, and latest Actions run. No branch/PR mutation was performed during the audit.
+- Current product reference at audit time: `atom-access-integrated` = `b890020da7307ef2ae001c4b65137687e5678ea8`. Experimental PR branch: `atom-access-pr8-masque-h2` = `be72a39125fc26c5ba902ebd0616f58644d11107`.
+- Current PR #15 snapshot: open, draft, not merged; source `atom-access-pr8-masque-h2`, target `atom-access-integrated`; 15 commits, 6 changed files, +206/-12. Latest GitHub REST snapshot reports `mergeable=true` and `mergeable_state=unstable`; do not interpret this as approval to merge. Earlier PR creation snapshot had `mergeable=false`, so the value has since been recalculated.
+- PR #15 changed-file review:
+  - `app/src/main/java/com/atomvpn/mobile/AtomVpnService.kt`: state-driven traffic sampler start/stop; this is the user-device-confirmed automatic reconnect speed display fix.
+  - `engine/src/main/kotlin/com/atomvpn/mobile/engine/atom/AtomCoreConfig.kt`: generic/unknown automatic carrier uses existing outer protocol ladder with dual-stack MASQUE H2; known Irancell and MCI branches remain unchanged in this patch.
+  - `engine/src/test/kotlin/com/atomvpn/mobile/engine/atom/AtomCoreConfigTest.kt`: three tests for unknown, Irancell, and MCI policies.
+  - `engine/build.gradle.kts`: JUnit 4.13.2 test dependency.
+  - `.github/workflows/atom-engine-build.yml`: adds target/source branch triggers and runs engine unit tests before APK builds.
+  - `PROJECT_STATE.md`: history/validation notes only.
+- Latest CI for exact PR head `be72a39125fc26c5ba902ebd0616f58644d11107`: workflow run [#45134236877](https://github.com/atom-vpn/atom1/actions/runs/45134236877), completed successfully. Prior run #168 also succeeded for earlier code commit `db41972a67560a8d468d44f05a3ff148d38fb2f3`. Device validation remains the user's explicit pass for automatic-reconnect speed reporting on the earlier ARM64 artifact/code build; this does not extend device coverage to all PR #15 changes/carrier policies.
+- PR #15 overlap assessment against the open focused PRs:
+  - PR #8 (`fix-auto-unknown-masque-h2`) overlaps the `AtomCoreConfig.kt` behavior and unit tests. PR #15 already contains a narrow port on top of the current integrated code; do not merge PR #8 wholesale or apply its old branch on top.
+  - PR #9 (`fix-exit-ip-startup-retry`) overlaps `AtomVpnService.kt`, and additionally changes `ExitIpInfoRepository.kt`. Its service diff must be reviewed against PR #15 before any selective port; do not merge its entire old branch.
+  - PR #7 (`fix-emergency-aether-detach`) changes `AetherNative.kt` and `AtomConnectionCoordinator.kt`, which are not among PR #15's changed files. It is functionally separate by file scope, but still requires source review, lifecycle analysis, CI, and device validation before considering integration.
+- Branch inventory findings (comparison to `atom-access-integrated`):
+  - `atom-access-pr8-masque-h2`: 15 ahead / 0 behind; current PR #15 review branch.
+  - `fix-auto-unknown-masque-h2`: diverged, 7 ahead / 19 behind; old PR #8 source, do not merge wholesale.
+  - `fix-emergency-aether-detach`: diverged, 2 ahead / 20 behind; old PR #7 source, isolated engine lifecycle change.
+  - `fix-exit-ip-startup-retry`: diverged, 4 ahead / 19 behind; old PR #9 source, overlaps service file.
+  - `fix-vpn-service-destroy-cleanup`: diverged, 1 ahead / 21 behind; PR #6 was merged into `pow-standalone` (2026-11-21), not proof by itself that its intended behavior is fully represented/tested in the current product branch. Audit the actual code before deciding; do not reapply the branch.
+  - `atom-access-clean-identifiers`: 0 ahead / 10 behind relative to integrated; no unique commits to bring forward.
+  - `ui-integration` and `atom-access-independent-naming`: same head `bee3249ed16e864f7b1321b9a2b68115b9181fd6`, 36 ahead / 19 behind; large UI/source history, not a safe direct merge candidate.
+  - `cloud-ui-review`: diverged, 1 ahead / 19 behind; includes separate UI files and a differently named `MainActivity (1).kt`; requires manual source/content review, not direct merge.
+  - `atom-legacy-audit`: diverged, 4 ahead / 22 behind; overlaps legacy engine/config/docs; historical PR #5 was merged into `pow-standalone`, not to be reapplied blindly.
+  - `atom-engine-rename`, `atom-final-cleanup`, `atom-hev-jni-standalone`, `atom-legacy-identifier-migration`, and `pow-standalone` are behind integrated with no unique commits in the comparison to integrated.
+  - `main` is 319 commits behind integrated.
+- PR state inventory refreshed: #15 open draft; #14, #11, #10, #9, #8, #7 open/unmerged; #12 and #13 closed/unmerged; #1 through #5 closed/merged into `pow-standalone` as reported by GitHub; #6 closed/merged into `pow-standalone`. PR #14 is from `atom-access-integrated` to `pow-standalone`, not an integration PR into the product branch.
+- Safety decision: do not merge all branches or PRs. Keep `atom-access-integrated` as the sole product baseline. PR #15 remains draft pending separate review/approval; no merge, cherry-pick, close, deletion, force-push, or release was performed.
+- Next actions, one at a time:
+  1. Inspect PR #9's exact patch and compare its service changes with PR #15; determine whether its `ExitIpInfoRepository.kt` retry improvement is independently useful and safe to port.
+  2. Separately inspect PR #7's exact Aether/coordinator lifecycle patch.
+  3. Check PR #6's intended cleanup behavior in the current integrated source to avoid duplicate application.
+  4. After all findings are recorded, present a proposed ordered integration plan. Ask for explicit approval before any code port/branch mutation; merging remains a separate approval.
+- Continuity rule: after every meaningful source review, code change, CI run, artifact handoff, device test, or GitHub mutation, append a dated entry to this file on the active experimental branch and report the resulting commit SHA. Never rely on chat history alone for project state.
