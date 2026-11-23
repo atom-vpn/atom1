@@ -435,3 +435,14 @@ Paste this into a new conversation:
   - D. Treat the PR #6 duplicate-force-release observation as a separate optional hardening issue, not a reapplication of PR #6.
 - No application code was changed in this audit checkpoint. No PR was merged, closed, retargeted, or marked ready; no branch was rewritten/deleted; no public APK/release was created. Product branch remains unchanged.
 - Next: refresh Actions run #45136215295 and PR #15 state; report the CI result, then wait for explicit approval before any source-code port or merge. Merging remains a separate explicit approval.
+
+
+## 34. User decision — exclude PR #7 from integration (2026-11-23)
+
+- User explicitly decided to skip PR #7 (fix-emergency-aether-detach) and does not want its changes included in Atom Access.
+- PR #7 is removed from the proposed selective-integration queue. Do not port, cherry-pick, merge, or otherwise include its Aether/OOB detach or emergency Psiphon cleanup changes in the product branch.
+- This decision supersedes the earlier section 33 suggestion to revisit PR #7 after resolving its session-generation race. The historical review in section 31 remains for audit traceability only.
+- This decision does not authorize changing PR #7 or its source branch on GitHub; leave its open/closed state, branch, and history untouched unless the user separately requests otherwise.
+- No application code or product branch was changed for this decision.
+- Latest refreshed CI result for documentation commit a1ee014cae980d85fee6abcacc26cb668291c028: Actions run [#45136215295](https://github.com/atom-vpn/atom1/actions/runs/45136215295), run #174, completed with conclusion cancelled. This is not a passing run; rerun/validation remains outstanding for the current branch state.
+- Next work remains PR #15 status/source review, followed—only with explicit approval—by any separately authorized selective code port. PR #7 is excluded.
