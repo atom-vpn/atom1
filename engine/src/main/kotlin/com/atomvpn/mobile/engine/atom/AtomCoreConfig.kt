@@ -273,7 +273,9 @@ object AtomCoreConfig {
             settings.carrierMode == CARRIER_AUTO -> when (carrierClass) {
                 "mci" -> AtomOuterPlan(listOf("masque"), "both", "h2", false, true, "Hamrah Aval · MASQUE HTTP/2")
                 "irancell" -> AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Irancell · automatic ladder")
-                else -> AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic · automatic ladder")
+                // Unknown carrier identity (including Wi-Fi): prefer the proven TCP/443
+                // route with dual-stack MASQUE H2, while preserving the automatic ladder.
+                else -> AtomOuterPlan(OUTER_LADDER, "both", "h2", false, false, "Generic · automatic ladder · MASQUE HTTP/2")
             }
             settings.carrierMode == CARRIER_OFF ->
                 AtomOuterPlan(OUTER_LADDER, "v4", "h3", false, false, "Generic automatic ladder")

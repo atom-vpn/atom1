@@ -22,6 +22,7 @@ import com.atomvpn.mobile.engine.settings.AdvancedSettingsData
 import com.atomvpn.mobile.engine.settings.AdvancedSettingsStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -62,8 +63,17 @@ class AtomVpnService : VpnService() {
         TunPacketFilter.applyFlags(networkGuard.snapshot())
         scope.launch { networkGuard.settings.collect { TunPacketFilter.applyFlags(it) } }
         scope.launch {
-            ConnectionStateStore.state.collect {
+            ConnectionStateStore.state.collect { state ->
                 if (foregroundStarted) updateNotification(currentNotificationText())
+                if (state == com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
+                    if (trafficSpeedJob?.isActive != true) {
+                        trafficSpeedJob = launch { monitorTrafficSpeed() }
+                    }
+                } else {
+                    trafficSpeedJob?.cancelAndJoin()
+                    trafficSpeedJob = null
+                    TrafficSpeedRepository.clear()
+                }
             }
         }
         scope.launch {
@@ -101,7 +111,6 @@ class AtomVpnService : VpnService() {
                 coordinator.connect(settings) { address, mtu -> establishTun(address, mtu) }
                 if (ConnectionStateStore.state.value == com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
                     updateNotification(currentNotificationText())
-                    startTrafficSpeedMonitor()
                     // Resolve the public IP through the engine's own SOCKS listener,
                     // never through the phone's direct network.
                     exitIpJob?.cancel()
@@ -140,14 +149,19 @@ class AtomVpnService : VpnService() {
         }
     }
 
-    private fun startTrafficSpeedMonitor() {
-        trafficSpeedJob?.cancel()
-        trafficSpeedJob = scope.launch {
-            var previous = coordinator.tunStats()
-            var previousAt = SystemClock.elapsedRealtime()
-            TrafficSpeedRepository.clear()
+    /**
+     * Runs as a child of the connection-state collector. The collector starts a fresh
+     * sampler on every CONNECTED transition, including coordinator-managed recovery.
+     * It joins the previous sampler before starting/clearing state to avoid races.
+     */
+    private suspend fun monitorTrafficSpeed() {
+        var previous = coordinator.tunStats()
+        var previousAt = SystemClock.elapsedRealtime()
+        TrafficSpeedRepository.clear()
+        try {
             while (ConnectionStateStore.state.value == com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) {
                 delay(1_000L)
+                if (ConnectionStateStore.state.value != com.atomvpn.mobile.engine.core.ConnectionState.CONNECTED) break
                 val current = coordinator.tunStats()
                 val now = SystemClock.elapsedRealtime()
                 val elapsed = (now - previousAt).coerceAtLeast(1L)
@@ -157,6 +171,7 @@ class AtomVpnService : VpnService() {
                 previous = current
                 previousAt = now
             }
+        } finally {
             TrafficSpeedRepository.clear()
         }
     }
