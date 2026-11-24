@@ -1,7 +1,7 @@
 # Atom VPN — Project State
 
 > Living handoff document. Update this file whenever repository work changes the project state, decisions, validation status, or next action.
-> Last reviewed: 2026-11-22
+> Last reviewed: 2026-11-24
 > Repository: https://github.com/atom-vpn/atom1
 
 ## 1. Product goal
@@ -484,3 +484,48 @@ Paste this into a new conversation:
 - Earlier run #174 was also cancelled. Earlier successful CI on older commits does not validate the current PR head.
 - PR #15 remains open, Draft, and unmerged. `atom-access-integrated` remains unchanged. No PR metadata, application code, or branch history was changed in this checkpoint.
 - Next action: obtain authorization before rerunning CI (or trigger a new validation run) for the current PR head. After a successful run and artifact inspection, ask separately whether the user wants PR #15 marked ready. Merge requires its own explicit approval.
+
+
+## 37. Aether 2.4.0 migration architecture audit (2026-11-24)
+
+- User explicitly approved recording the Aether 2.4.0 technical audit and decisions in this file. This documentation update is limited to the existing isolated branch `atom-access-pr8-masque-h2`; it does not authorize or perform application-code changes, branch creation, PR state changes, merging, or release work.
+- Audit baselines:
+  - Atom product source: `atom-access-integrated`, HEAD `b890020da7307ef2ae001c4b65137687e5678ea8`.
+  - Aether source: private repository `atom-vpn/atom-aether-migration`, branch `aether-v2.4.0` (full source tree previously verified at 2,309 entries).
+  - Documentation branch before this append: `atom-access-pr8-masque-h2`, HEAD `82ef8a02080978b9b98b39575c6b88e2f5f8b40d`.
+- Read-only source inspection covered Atom's `AetherNative.kt`, `native/aether_jni.cpp`, `native/CMakeLists.txt`, `AtomVpnService.kt`, `AtomConnectionCoordinator.kt`, TUN/HEV adapters, socket-protection gate, and integration host contracts; Aether v2.4.0 FFI/API, egress, SOCKS, upstream, probing, transport, Cargo, and Android release-workflow sources were also inspected.
+- Confirmed current Atom traffic architecture:
+  - Android `VpnService` owns and establishes the device TUN descriptor.
+  - The TUN packet filter and HEV bridge use the existing socketpair/relay arrangement; HEV forwards traffic to a local SOCKS endpoint.
+  - WARP-only path: device TUN -> HEV -> Aether local SOCKS at `127.0.0.1:1820` -> WARP transport.
+  - WARP + Psiphon path: device TUN -> HEV -> `AtomSocksConnectOnly` -> Psiphon SOCKS at `127.0.0.1:1819` -> Aether/WARP SOCKS at `127.0.0.1:1820`.
+  - The existing Aether JNI integration registers the legacy socket-protector and event callbacks. Atom's Psiphon socket-protection path is separate and must remain intact.
+- Confirmed ABI/API incompatibility:
+  - Current Atom JNI expects the legacy JSON prepare/start/stop/error interface and legacy socket-protector/event callback registration.
+  - Aether v2.4.0 exposes a new job/identity/scan/verify/tunnel/core FFI surface (19 exported `aether_*` C ABI functions in the inspected FFI source). The old callback registration ABI is not present as a direct drop-in replacement.
+  - `aether_tunnel_start` is a higher-level tunnel path with MASQUE/WireGuard transport selection; it is not by itself a proven replacement for every existing Atom protocol/configuration path.
+  - `aether_core_start` is a candidate to investigate for preserving more of the full engine behavior, but its exact lifecycle/configuration compatibility with Atom has not yet been established. Do not assume Gool or all existing protocol modes are covered until verified.
+- Critical socket-routing finding:
+  - Android `VpnService.protect(fd)` is essential: Aether's own outbound sockets must bypass Atom's TUN or they can be routed back into the same VPN and create a routing loop.
+  - Aether 2.4.0 has a centralized egress abstraction that is a potential place to add a host-provided socket-protection hook. However, the source audit also found direct socket creation/connect paths in probing and other components. A follow-up audit must enumerate every outbound socket path and establish that none bypasses the protection hook.
+  - The `AETHER_MARK`/socket-mark approach is not accepted as a drop-in Android solution; ordinary app-level VPN operation must not assume privileged routing/mark permissions.
+  - A false or failed protect result must be surfaced as a real failure; never silently report success.
+- Adapter responsibilities before any runtime migration:
+  1. Preserve the local SOCKS contract and port 1820 expected by the current coordinator/HEV/Psiphon chain.
+  2. Add a native host callback for socket protection and bind it to the current `AtomVpnService.protectSocket()` behavior.
+  3. Preserve observable readiness, running/stopped state, error reporting, event/diagnostic callbacks, cancellation, bounded stop, detach, and reconnect semantics.
+  4. Preserve current TUN/HEV and Psiphon layering where possible; separately validate WARP-only and WARP + Psiphon.
+  5. Audit every native egress path, including MASQUE/QUIC, WireGuard, DNS/API requests, gateway scans, probes, and upstream-proxy traffic.
+- Android/build constraint:
+  - The inspected Aether v2.4.0 release workflow targets Android API 29 and builds Android Rust targets; its release output is not a ready-made drop-in JNI library for Atom.
+  - Atom currently has a lower Android API compatibility target. Do not raise the whole app's minimum API without a separate product decision. A parallel engine/library with an explicit compatibility fallback may be needed, subject to build and device verification.
+- Agreed direction:
+  - Keep the current Aether engine and product branch unchanged as the known baseline.
+  - Design a separate Aether 2.4 adapter and build the new native library under a distinct name so old and new engines can coexist during testing.
+  - Preserve TUN and HEV unless a specific verified incompatibility requires a change.
+  - Do not replace the current engine until the new adapter passes CI and physical-device tests for WARP-only, WARP + Psiphon, reconnect, stop/start, socket protection, and traffic routing.
+- Current status:
+  - Completed: initial read-only architecture/API compatibility audit and this documentation checkpoint.
+  - Not done: exhaustive outbound-socket coverage audit, final choice between the high-level tunnel and core-start integration paths, adapter design specification, code implementation, native build, CI, APK generation, or device testing.
+  - No Atom application source/native code was changed. No branch was created/deleted/renamed or merged. No PR was opened, merged, closed, retargeted, or marked ready. PR #7 remains excluded by the user's earlier explicit decision.
+- Next recommended task: perform a focused read-only audit of every Aether 2.4.0 outbound socket creation/connect path and map it to the proposed Android protection callback; in parallel, trace the full `aether_core_start` configuration and lifecycle path against Atom's current protocol/configuration needs. Produce an adapter API/lifecycle specification before requesting authorization for implementation.
